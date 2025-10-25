@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'session_provider.dart';
+import '../auth/auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
 
 class CloseSessionDialog extends StatefulWidget {
@@ -15,6 +16,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
   final _closingCashController = TextEditingController();
   final _notesController = TextEditingController();
   final Map<int, int> _denominationCounts = {};
+  bool _isClosing = false;
 
   @override
   void dispose() {
@@ -32,8 +34,15 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
       return;
     }
 
-    final session = context.read<SessionProvider>();
-    final success = await session.closeSession(
+    setState(() => _isClosing = true);
+
+    final sessionProvider = context.read<SessionProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    debugPrint('🔴 CloseSession: Closing session...');
+
+    // Step 1: Close the session via API
+    final success = await sessionProvider.closeSession(
       closingCash: amount,
       denominations: _denominationCounts.isEmpty
           ? null
@@ -41,12 +50,34 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
       notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 
-    if (success && mounted) {
-      Navigator.pop(context, true);
-    } else if (session.error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(session.error!)),
-      );
+    if (!mounted) return;
+
+    if (success) {
+      debugPrint('✅ CloseSession: Session closed successfully');
+
+      // Step 2: Close dialog
+      Navigator.of(context).pop(true);
+
+      // Step 3: Clear session from provider
+      sessionProvider.clearSession();
+
+      debugPrint('🔴 CloseSession: Logging out...');
+
+      // Step 4: Logout (this will trigger navigation to login)
+      await authProvider.logout();
+
+      debugPrint('✅ CloseSession: Complete');
+    } else {
+      setState(() => _isClosing = false);
+
+      if (sessionProvider.error != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(sessionProvider.error!),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -58,7 +89,14 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
         padding: const EdgeInsets.all(24),
         child: Consumer<SessionProvider>(
           builder: (context, session, _) {
-            final activeSession = session.activeSession!;
+            final activeSession = session.activeSession;
+
+            if (activeSession == null) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
             final closingAmount =
                 double.tryParse(_closingCashController.text) ?? 0;
             final openingCash =
@@ -87,17 +125,13 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     color: AppColors.background,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Column(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Opening Cash:'),
-                          Text(
-                            '\$${openingCash.toStringAsFixed(2)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
+                      const Text('Opening Cash:'),
+                      Text(
+                        '\$${openingCash.toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -118,6 +152,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                   ],
                   onChanged: (_) => setState(() {}),
                   autofocus: true,
+                  enabled: !_isClosing,
                 ),
                 if (closingAmount > 0) ...[
                   const SizedBox(height: 16),
@@ -177,17 +212,22 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                               const Spacer(),
                               IconButton(
                                 icon: const Icon(Icons.remove),
-                                onPressed: () {
-                                  setState(() {
-                                    _denominationCounts[denom.id] =
-                                        (_denominationCounts[denom.id] ?? 0) -
-                                            1;
-                                    if (_denominationCounts[denom.id]! <= 0) {
-                                      _denominationCounts.remove(denom.id);
-                                    }
-                                    _updateCashFromDenominations(session);
-                                  });
-                                },
+                                onPressed: _isClosing
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _denominationCounts[denom.id] =
+                                              (_denominationCounts[denom.id] ??
+                                                      0) -
+                                                  1;
+                                          if (_denominationCounts[denom.id]! <=
+                                              0) {
+                                            _denominationCounts
+                                                .remove(denom.id);
+                                          }
+                                          _updateCashFromDenominations(session);
+                                        });
+                                      },
                               ),
                               Text(
                                 '${_denominationCounts[denom.id] ?? 0}',
@@ -196,14 +236,17 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.add),
-                                onPressed: () {
-                                  setState(() {
-                                    _denominationCounts[denom.id] =
-                                        (_denominationCounts[denom.id] ?? 0) +
-                                            1;
-                                    _updateCashFromDenominations(session);
-                                  });
-                                },
+                                onPressed: _isClosing
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _denominationCounts[denom.id] =
+                                              (_denominationCounts[denom.id] ??
+                                                      0) +
+                                                  1;
+                                          _updateCashFromDenominations(session);
+                                        });
+                                      },
                               ),
                             ],
                           ),
@@ -220,13 +263,15 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     hintText: 'Add any notes...',
                   ),
                   maxLines: 3,
+                  enabled: !_isClosing,
                 ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
                       child: TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed:
+                            _isClosing ? null : () => Navigator.pop(context),
                         child: const Text('Cancel'),
                       ),
                     ),
@@ -234,18 +279,19 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton(
-                        onPressed:
-                            session.isLoading ? null : _handleCloseSession,
+                        onPressed: _isClosing ? null : _handleCloseSession,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.error,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: session.isLoading
+                        child: _isClosing
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
                               )
                             : const Text('Close Session'),
                       ),

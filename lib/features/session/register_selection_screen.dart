@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'session_provider.dart';
 import 'open_session_dialog.dart';
+import '../auth/auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
 
 class RegisterSelectionScreen extends StatefulWidget {
@@ -26,6 +27,36 @@ class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
 
   Future<void> _loadRegisters() async {
     await context.read<SessionProvider>().loadCashRegisters();
+  }
+
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && mounted) {
+      // Clear session data
+      context.read<SessionProvider>().clearSession();
+      // Logout
+      await context.read<AuthProvider>().logout();
+    }
   }
 
   Future<void> _selectRegister(dynamic register) async {
@@ -137,8 +168,14 @@ class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
       builder: (context) => OpenSessionDialog(registerId: register['id']),
     );
 
-    if (result == true && mounted) {
-      Navigator.pop(context); // Go back to dashboard
+    // ✅ DON'T NAVIGATE MANUALLY
+    // After opening session, sessionProvider.activeSession will be set
+    // AuthWrapper will automatically detect this and show the dashboard
+    // No need to call Navigator.pop() or Navigator.pushNamed()
+
+    if (result == true) {
+      debugPrint(
+          '✅ Session opened successfully, AuthWrapper will navigate automatically');
     }
   }
 
@@ -157,7 +194,16 @@ class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Cash Register'),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: false, // Remove back button
+        actions: [
+          // Logout button
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _handleLogout,
+            tooltip: 'Logout',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Consumer<SessionProvider>(
         builder: (context, session, _) {

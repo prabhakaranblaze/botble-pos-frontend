@@ -15,14 +15,7 @@ class SessionScreen extends StatelessWidget {
       builder: (context) => const CloseSessionDialog(),
     );
 
-    if (result == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Session closed successfully'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    }
+    // Dialog handles everything including logout, so we don't need to do anything here
   }
 
   @override

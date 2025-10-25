@@ -60,15 +60,21 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    debugPrint('🔴 LOGOUT: Starting logout process');
+
     try {
       await _apiService.logout();
     } catch (e) {
-      // Ignore logout errors
+      debugPrint('⚠️ LOGOUT: API logout failed (continuing anyway): $e');
     }
 
+    // Clear all local data
     await _storageService.clearAll();
+
     _user = null;
     _isAuthenticated = false;
+
+    debugPrint('✅ LOGOUT: Logout complete, notifying listeners');
     notifyListeners();
   }
 

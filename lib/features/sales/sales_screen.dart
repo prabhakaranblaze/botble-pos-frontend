@@ -70,6 +70,31 @@ class _SalesScreenState extends State<SalesScreen> {
     super.dispose();
   }
 
+  Future<void> _handleBarcodeScan(String barcode) async {
+    debugPrint('📱 BARCODE: Scanning $barcode');
+
+    final salesProvider = context.read<SalesProvider>();
+
+    // Use the scanBarcode API which returns the product directly
+    try {
+      final product = await salesProvider.scanBarcode(barcode);
+
+      if (product != null) {
+        debugPrint('📱 BARCODE: Found ${product.name}');
+        await _addProductToCart(product);
+        _searchController.clear();
+        _searchFocusNode.requestFocus();
+      } else {
+        debugPrint('📱 BARCODE: Product not found');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product not found')),
+        );
+      }
+    } catch (e) {
+      debugPrint('📱 BARCODE: Error - $e');
+    }
+  }
+
   // ⭐ UNIFIED SEARCH LOGIC
   Future<void> _handleSearch(String query) async {
     debugPrint('🔍 SEARCH: _handleSearch called with query: "$query"');
@@ -80,9 +105,7 @@ class _SalesScreenState extends State<SalesScreen> {
         _searchResults = [];
         _showSearchDropdown = false;
       });
-
-      // Reload all products
-      context.read<SalesProvider>().searchProducts('');
+      await context.read<SalesProvider>().searchProducts('');
       return;
     }
 
@@ -90,7 +113,7 @@ class _SalesScreenState extends State<SalesScreen> {
     final salesProvider = context.read<SalesProvider>();
     salesProvider.searchProducts(query);
 
-    // For the dropdown, filter current products
+    // Filter current products
     final results = salesProvider.products.where((p) {
       final searchLower = query.toLowerCase();
       final matchName = p.name.toLowerCase().contains(searchLower);
@@ -103,20 +126,22 @@ class _SalesScreenState extends State<SalesScreen> {
 
     debugPrint('🔍 SEARCH: Found ${results.length} results');
 
+    // ✅ Check count BEFORE setting dropdown state
+    if (results.length == 1) {
+      debugPrint('🔍 SEARCH: Exactly 1 result found, auto-adding...');
+      await _addProductToCart(results.first);
+      _clearSearch();
+      return; // ✅ Exit early, don't show dropdown
+    }
+
+    // ✅ Only show dropdown for multiple results
     setState(() {
       _searchResults = results;
       _showSearchDropdown = true;
     });
 
-    // If exact 1 match, add to cart
-    if (results.length == 1) {
-      debugPrint('🔍 SEARCH: Exactly 1 result found, auto-adding...');
-      await _addProductToCart(results.first);
-      _clearSearch();
-    } else {
-      debugPrint(
-          '🔍 SEARCH: Multiple results (${results.length}), showing dropdown');
-    }
+    debugPrint(
+        '🔍 SEARCH: Multiple results (${results.length}), showing dropdown');
   }
 
   Future<void> _handleRefresh() async {
@@ -344,7 +369,14 @@ class _SalesScreenState extends State<SalesScreen> {
                                       )
                                     : null,
                               ),
-                              onSubmitted: _handleSearch,
+                              onSubmitted: (value) async {
+                                // ✅ If it looks like a barcode (numeric, 8+ digits), use barcode scan
+                                if (RegExp(r'^\d{8,}$').hasMatch(value)) {
+                                  await _handleBarcodeScan(value);
+                                } else {
+                                  await _handleSearch(value);
+                                }
+                              },
                               onChanged: (value) {
                                 setState(() {});
                                 if (value.isEmpty) {

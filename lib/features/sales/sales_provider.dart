@@ -128,28 +128,30 @@ class SalesProvider with ChangeNotifier {
   }
 
   // Search products
-  void searchProducts(String query) {
+  Future<void> searchProducts(String query) async {
     _searchQuery = query;
-    loadProducts(refresh: true);
+    await loadProducts(refresh: true);
   }
 
-  // Scan barcode
-  Future<void> scanBarcode(String barcode) async {
+  // Scan barcode - just return the product, don't add to cart
+  Future<Product?> scanBarcode(String barcode) async {
     try {
       final product = await _apiService.scanBarcode(barcode);
 
       if (product != null) {
-        await addToCart(product.id);
         await _audioService.playBeep();
+        return product; // ✅ Just return it
       } else {
         await _audioService.playError();
         _error = 'Product not found';
         notifyListeners();
+        return null;
       }
     } catch (e) {
       await _audioService.playError();
       _error = e.toString();
       notifyListeners();
+      return null;
     }
   }
 

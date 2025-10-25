@@ -7,7 +7,7 @@ import '../models/session.dart';
 
 class DatabaseService {
   static Database? _database;
-  
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
@@ -18,18 +18,19 @@ class DatabaseService {
     // Initialize FFI for desktop
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
-    
+
     String path = join(await getDatabasesPath(), 'pos_local.db');
-    
+
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // ⭐ UPDATED VERSION for new schema
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Products table
+    // Products table with variants support
     await db.execute('''
       CREATE TABLE products (
         id INTEGER PRIMARY KEY,
@@ -42,6 +43,8 @@ class DatabaseService {
         quantity INTEGER,
         description TEXT,
         is_available INTEGER DEFAULT 1,
+        has_variants INTEGER DEFAULT 0,
+        variants_json TEXT,
         synced INTEGER DEFAULT 1,
         last_updated TEXT
       )
@@ -93,11 +96,21 @@ class DatabaseService {
     ''');
   }
 
+  // ⭐ MIGRATION for existing databases
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add new columns for variants support
+      await db.execute(
+          'ALTER TABLE products ADD COLUMN has_variants INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE products ADD COLUMN variants_json TEXT');
+    }
+  }
+
   // Product operations
   Future<void> saveProducts(List<Product> products) async {
     final db = await database;
     final batch = db.batch();
-    
+
     for (var product in products) {
       batch.insert(
         'products',
@@ -108,28 +121,28 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
-    
+
     await batch.commit(noResult: true);
   }
 
   Future<List<Product>> getProducts({String? search, int? limit}) async {
     final db = await database;
-    
+
     String query = 'SELECT * FROM products WHERE is_available = 1';
     List<dynamic> args = [];
-    
+
     if (search != null && search.isNotEmpty) {
       query += ' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)';
       args.addAll(['%$search%', '%$search%', '%$search%']);
     }
-    
+
     query += ' ORDER BY name ASC';
-    
+
     if (limit != null) {
       query += ' LIMIT ?';
       args.add(limit);
     }
-    
+
     final maps = await db.rawQuery(query, args);
     return maps.map((map) => Product.fromDbJson(map)).toList();
   }
@@ -142,7 +155,7 @@ class DatabaseService {
       whereArgs: [barcode],
       limit: 1,
     );
-    
+
     if (maps.isEmpty) return null;
     return Product.fromDbJson(maps.first);
   }
@@ -150,7 +163,7 @@ class DatabaseService {
   // Order operations
   Future<int> savePendingOrder(Order order, List<CartItem> items) async {
     final db = await database;
-    
+
     return await db.insert('pending_orders', {
       'code': order.code,
       'amount': order.amount,
@@ -201,7 +214,7 @@ class DatabaseService {
       whereArgs: ['open'],
       limit: 1,
     );
-    
+
     if (maps.isEmpty) return null;
     return PosSession.fromJson(maps.first);
   }

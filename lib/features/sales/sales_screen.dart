@@ -12,6 +12,7 @@ import '../../core/models/product.dart';
 import '../../core/models/cart.dart';
 import '../../core/models/customer.dart';
 import '../../shared/constants/app_constants.dart';
+import '../sales/save_cart_dialog.dart';
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -22,6 +23,7 @@ class SalesScreen extends StatefulWidget {
 
 class _SalesScreenState extends State<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _barcodeFocusNode = FocusNode();
   final FocusNode _searchFocusNode = FocusNode();
   final currencyFormat = NumberFormat.currency(symbol: '\$');
 
@@ -64,6 +66,7 @@ class _SalesScreenState extends State<SalesScreen> {
     debugPrint('🔴 SALES SCREEN: dispose called');
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _barcodeFocusNode.dispose();
     super.dispose();
   }
 
@@ -152,11 +155,8 @@ class _SalesScreenState extends State<SalesScreen> {
           debugPrint('➕ ADD TO CART: Quantity: ${result['quantity']}');
           debugPrint('➕ ADD TO CART: Variants: ${result['variants']}');
 
-          await salesProvider.addToCart(
-            product.id,
-            quantity: result['quantity'],
-            variants: result['variants'],
-          );
+          await salesProvider.addToCart(product.id,
+              quantity: result['quantity']);
 
           debugPrint('✅ ADD TO CART: Product added with variants');
 
@@ -200,6 +200,27 @@ class _SalesScreenState extends State<SalesScreen> {
     }
 
     _searchFocusNode.requestFocus();
+  }
+
+  void _handleSaveCart() async {
+    final salesProvider = context.read<SalesProvider>();
+
+    if (salesProvider.cart.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty')),
+      );
+      return;
+    }
+
+    // Show save cart dialog
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const SaveCartDialog(),
+    );
+
+    if (result == true && mounted) {
+      _barcodeFocusNode.requestFocus();
+    }
   }
 
   Future<void> _handleCheckout() async {
@@ -619,11 +640,16 @@ class _SalesScreenState extends State<SalesScreen> {
                     ),
                     const Spacer(),
                     if (cart.items.isNotEmpty)
+                      // Save Cart Button
                       IconButton(
-                        icon:
-                            Icon(Icons.delete_outline, color: AppColors.error),
-                        onPressed: () => _showClearCartDialog(),
+                        icon: const Icon(Icons.save_outlined),
+                        onPressed: _handleSaveCart,
+                        tooltip: 'Save Cart',
                       ),
+                    IconButton(
+                      icon: Icon(Icons.delete_outline, color: AppColors.error),
+                      onPressed: () => _showClearCartDialog(),
+                    ),
                   ],
                 ),
               ),

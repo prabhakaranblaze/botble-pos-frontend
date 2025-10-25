@@ -1,18 +1,30 @@
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 import '../../core/models/product.dart';
 import '../../core/models/cart.dart';
 import '../../core/models/customer.dart';
+import '../../core/models/saved_cart.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/database/saved_cart_database.dart';
 
 class SalesProvider with ChangeNotifier {
   final ApiService _apiService;
   final AudioService _audioService;
+  final SavedCartDatabase _savedCartDb = SavedCartDatabase();
+  final Uuid _uuid = const Uuid();
 
   List<Product> _products = [];
   List<ProductCategory> _categories = [];
-  Cart _cart = Cart.empty();
+
+  // ✅ Client-side cart (local memory)
+  final List<SavedCartItem> _cartItems = [];
   Customer? _selectedCustomer;
+  String _paymentMethod = 'cash';
+
+  // ✅ Saved carts
+  List<SavedCart> _savedCarts = [];
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -20,19 +32,12 @@ class SalesProvider with ChangeNotifier {
   String _searchQuery = '';
   int _currentPage = 1;
 
-  SalesProvider(this._apiService, this._audioService) {
-    debugPrint('🟢 SALES PROVIDER: Constructor called');
-  }
+  SalesProvider(this._apiService, this._audioService);
 
   // Getters
   List<Product> get products => _products;
   List<ProductCategory> get categories => _categories;
-  Cart get cart {
-    debugPrint(
-        '📊 SALES PROVIDER: get cart called - Items: ${_cart.items.length}, Total: ${_cart.total}');
-    return _cart;
-  }
-
+  List<SavedCart> get savedCarts => _savedCarts;
   Customer? get selectedCustomer => _selectedCustomer;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
@@ -40,41 +45,59 @@ class SalesProvider with ChangeNotifier {
   String get searchQuery => _searchQuery;
   AudioService get audioService => _audioService;
 
+  // ✅ Build cart from local items
+  Cart get cart {
+    if (_cartItems.isEmpty) return Cart.empty();
+
+    final subtotal =
+        _cartItems.fold<double>(0, (sum, item) => sum + item.total);
+    final tax = _cartItems.fold<double>(
+        0, (sum, item) => sum + (item.total * (item.taxRate / 100)));
+    final total = subtotal + tax;
+
+    return Cart(
+      items: _cartItems
+          .map((item) => CartItem(
+                productId: item.productId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                image: item.image,
+              ))
+          .toList(),
+      subtotal: subtotal,
+      discount: 0,
+      shipping: 0,
+      tax: tax,
+      total: total,
+      customer: _selectedCustomer,
+      paymentMethod: _paymentMethod,
+    );
+  }
+
   // Load products
   Future<void> loadProducts({bool refresh = false}) async {
-    debugPrint(
-        '🔵 SALES PROVIDER: loadProducts called - refresh: $refresh, page: $_currentPage, search: "$_searchQuery"');
-
     if (refresh) {
       _currentPage = 1;
       _products.clear();
-      debugPrint('🔵 SALES PROVIDER: Clearing products for refresh');
     }
 
     _isLoading = refresh;
     _isLoadingMore = !refresh;
     _error = null;
 
-    if (refresh) {
-      notifyListeners();
-    }
+    if (refresh) notifyListeners();
+
+    debugPrint(
+        '🔵 LOADING PRODUCTS: page=$_currentPage, search="$_searchQuery"');
 
     try {
-      debugPrint(
-          '🔵 SALES PROVIDER: Calling API - getProducts(page: $_currentPage, search: "$_searchQuery")');
-
       final newProducts = await _apiService.getProducts(
         page: _currentPage,
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
       );
 
-      debugPrint(
-          '✅ SALES PROVIDER: Products loaded - Count: ${newProducts.length}');
-
-      if (newProducts.isNotEmpty) {
-        debugPrint(
-            '✅ SALES PROVIDER: First product: ${newProducts.first.name} (ID: ${newProducts.first.id})');
-      }
+      debugPrint('✅ PRODUCTS LOADED: ${newProducts.length} products');
 
       if (refresh) {
         _products = newProducts;
@@ -84,12 +107,8 @@ class SalesProvider with ChangeNotifier {
 
       _currentPage++;
       _error = null;
-
-      debugPrint(
-          '✅ SALES PROVIDER: Total products in memory: ${_products.length}');
     } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Error loading products: $e');
-      debugPrint('❌ SALES PROVIDER: Stack trace: ${StackTrace.current}');
+      debugPrint('❌ PRODUCTS ERROR: $e');
       _error = e.toString();
     }
 
@@ -100,160 +119,132 @@ class SalesProvider with ChangeNotifier {
 
   // Load categories
   Future<void> loadCategories() async {
-    debugPrint('🔵 SALES PROVIDER: loadCategories called');
-
     try {
       _categories = await _apiService.getCategories();
-      debugPrint(
-          '✅ SALES PROVIDER: Categories loaded - Count: ${_categories.length}');
       notifyListeners();
     } catch (e) {
-      debugPrint('⚠️ SALES PROVIDER: Error loading categories (ignoring): $e');
+      // Ignore category errors
     }
   }
 
   // Search products
   void searchProducts(String query) {
-    debugPrint('🔍 SALES PROVIDER: searchProducts called - query: "$query"');
     _searchQuery = query;
     loadProducts(refresh: true);
   }
 
   // Scan barcode
   Future<void> scanBarcode(String barcode) async {
-    debugPrint('📷 SALES PROVIDER: scanBarcode called - barcode: "$barcode"');
-
     try {
       final product = await _apiService.scanBarcode(barcode);
 
       if (product != null) {
-        debugPrint(
-            '✅ SALES PROVIDER: Product found by barcode - ${product.name}');
         await addToCart(product.id);
         await _audioService.playBeep();
       } else {
-        debugPrint('⚠️ SALES PROVIDER: Product not found by barcode');
         await _audioService.playError();
         _error = 'Product not found';
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Error scanning barcode: $e');
       await _audioService.playError();
       _error = e.toString();
       notifyListeners();
     }
   }
 
-  // Cart operations
-  Future<void> addToCart(
-    int productId, {
-    int quantity = 1,
-    Map<int, int>? variants,
-  }) async {
-    debugPrint('➕ SALES PROVIDER: addToCart called');
-    debugPrint('➕ SALES PROVIDER: Product ID: $productId');
-    debugPrint('➕ SALES PROVIDER: Quantity: $quantity');
-    debugPrint('➕ SALES PROVIDER: Variants: $variants');
-    debugPrint('➕ SALES PROVIDER: Current cart items: ${_cart.items.length}');
-
+  // ✅ CLIENT-SIDE: Add to cart
+  Future<void> addToCart(int productId, {int quantity = 1}) async {
     try {
-      debugPrint('🔵 SALES PROVIDER: Calling API - addToCart');
+      debugPrint('🛒 CLIENT CART: Adding product $productId (qty: $quantity)');
 
-      final updatedCart = await _apiService.addToCart(
-        productId,
-        quantity: quantity,
-        variants: variants,
+      final product = _products.firstWhere(
+        (p) => p.id == productId,
+        orElse: () => throw Exception('Product not found'),
       );
 
-      debugPrint('✅ SALES PROVIDER: API response received');
-      debugPrint(
-          '✅ SALES PROVIDER: Updated cart items: ${updatedCart.items.length}');
-      debugPrint('✅ SALES PROVIDER: Updated cart total: ${updatedCart.total}');
+      final existingIndex =
+          _cartItems.indexWhere((item) => item.productId == productId);
 
-      if (updatedCart.items.isNotEmpty) {
-        debugPrint(
-            '✅ SALES PROVIDER: First item in cart: ${updatedCart.items.first.name} (qty: ${updatedCart.items.first.quantity})');
+      if (existingIndex >= 0) {
+        final existing = _cartItems[existingIndex];
+        _cartItems[existingIndex] = existing.copyWith(
+          quantity: existing.quantity + quantity,
+        );
+        debugPrint('✅ Updated qty: ${_cartItems[existingIndex].quantity}');
+      } else {
+        _cartItems.add(SavedCartItem(
+          productId: product.id,
+          name: product.name,
+          price: product.finalPrice,
+          quantity: quantity,
+          image: product.image,
+          taxRate: 0.0,
+        ));
+        debugPrint('✅ Added new item');
       }
 
-      _cart = updatedCart;
-
-      debugPrint(
-          '✅ SALES PROVIDER: Cart updated in provider - Items: ${_cart.items.length}');
-
       await _audioService.playBeep();
-      debugPrint('🔊 SALES PROVIDER: Beep sound played');
-
+      debugPrint('✅ CLIENT CART: Total items: ${_cartItems.length}');
       notifyListeners();
-      debugPrint('📢 SALES PROVIDER: notifyListeners called');
     } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Error adding to cart: $e');
-      debugPrint('❌ SALES PROVIDER: Error type: ${e.runtimeType}');
-      debugPrint('❌ SALES PROVIDER: Stack trace: ${StackTrace.current}');
+      debugPrint('❌ CLIENT CART: Add error: $e');
       _error = e.toString();
       notifyListeners();
     }
   }
 
+  // ✅ CLIENT-SIDE: Update cart item
   Future<void> updateCartItem(int productId, int quantity) async {
-    debugPrint('🔄 SALES PROVIDER: updateCartItem called');
-    debugPrint('🔄 SALES PROVIDER: Product ID: $productId');
-    debugPrint('🔄 SALES PROVIDER: New quantity: $quantity');
-
     try {
+      debugPrint(
+          '🔄 CLIENT CART: Updating product $productId to qty: $quantity');
+
       if (quantity <= 0) {
-        debugPrint('🗑️ SALES PROVIDER: Quantity is 0, removing item');
         await removeFromCart(productId);
-      } else {
-        debugPrint('🔵 SALES PROVIDER: Calling API - updateCart');
+        return;
+      }
 
-        _cart = await _apiService.updateCart(productId, quantity);
+      final index =
+          _cartItems.indexWhere((item) => item.productId == productId);
 
-        debugPrint(
-            '✅ SALES PROVIDER: Cart updated - Items: ${_cart.items.length}');
+      if (index >= 0) {
+        _cartItems[index] = _cartItems[index].copyWith(quantity: quantity);
+        debugPrint('✅ CLIENT CART: Updated successfully');
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Error updating cart item: $e');
+      debugPrint('❌ CLIENT CART: Update error: $e');
       _error = e.toString();
       notifyListeners();
     }
   }
 
+  // ✅ CLIENT-SIDE: Remove from cart
   Future<void> removeFromCart(int productId) async {
-    debugPrint(
-        '🗑️ SALES PROVIDER: removeFromCart called - Product ID: $productId');
-
     try {
-      debugPrint('🔵 SALES PROVIDER: Calling API - removeFromCart');
-
-      _cart = await _apiService.removeFromCart(productId);
-
-      debugPrint(
-          '✅ SALES PROVIDER: Item removed - Cart items: ${_cart.items.length}');
+      debugPrint('🗑️ CLIENT CART: Removing product $productId');
+      _cartItems.removeWhere((item) => item.productId == productId);
+      debugPrint('✅ CLIENT CART: Removed successfully');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Error removing from cart: $e');
+      debugPrint('❌ CLIENT CART: Remove error: $e');
       _error = e.toString();
       notifyListeners();
     }
   }
 
+  // ✅ CLIENT-SIDE: Clear cart
   Future<void> clearCart() async {
-    debugPrint('🗑️ SALES PROVIDER: clearCart called');
-
     try {
-      debugPrint('🔵 SALES PROVIDER: Calling API - clearCart');
-
-      await _apiService.clearCart();
-
-      _cart = Cart.empty();
+      debugPrint('🗑️ CLIENT CART: Clearing cart');
+      _cartItems.clear();
       _selectedCustomer = null;
-
-      debugPrint('✅ SALES PROVIDER: Cart cleared');
+      _paymentMethod = 'cash';
+      debugPrint('✅ CLIENT CART: Cleared successfully');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Error clearing cart: $e');
+      debugPrint('❌ CLIENT CART: Clear error: $e');
       _error = e.toString();
       notifyListeners();
     }
@@ -261,67 +252,67 @@ class SalesProvider with ChangeNotifier {
 
   // Customer operations
   void selectCustomer(Customer customer) {
-    debugPrint('👤 SALES PROVIDER: selectCustomer called - ${customer.name}');
     _selectedCustomer = customer;
     notifyListeners();
   }
 
   void clearCustomer() {
-    debugPrint('👤 SALES PROVIDER: clearCustomer called');
     _selectedCustomer = null;
     notifyListeners();
   }
 
-  // Payment
-  Future<void> updatePaymentMethod(String method) async {
-    debugPrint(
-        '💳 SALES PROVIDER: updatePaymentMethod called - Method: $method');
-
-    try {
-      _cart = await _apiService.updatePaymentMethod(method);
-      debugPrint('✅ SALES PROVIDER: Payment method updated');
-      notifyListeners();
-    } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Error updating payment method: $e');
-      _error = e.toString();
-      notifyListeners();
-    }
+  void updatePaymentMethod(String method) {
+    _paymentMethod = method;
+    notifyListeners();
   }
 
-  // Checkout
+  // ✅ CHECKOUT: Create order
   Future<Order?> checkout({String? paymentDetails}) async {
-    debugPrint('💳 SALES PROVIDER: checkout called');
-    debugPrint('💳 SALES PROVIDER: Cart items: ${_cart.items.length}');
-    debugPrint('💳 SALES PROVIDER: Cart total: ${_cart.total}');
-    debugPrint('💳 SALES PROVIDER: Payment details: $paymentDetails');
-
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      debugPrint('🔵 SALES PROVIDER: Calling API - checkout');
+      debugPrint('💳 CHECKOUT: Starting...');
+      debugPrint('💳 CHECKOUT: Items: ${_cartItems.length}');
 
+      // Build cart for API
+      final cartData = {
+        'items': _cartItems
+            .map((item) => {
+                  'product_id': item.productId,
+                  'name': item.name,
+                  'quantity': item.quantity,
+                  'price': item.price,
+                })
+            .toList(),
+        'payment_method': _paymentMethod,
+        if (paymentDetails != null) 'payment_details': paymentDetails,
+        if (_selectedCustomer != null) 'customer_id': _selectedCustomer!.id,
+      };
+
+      // First sync cart to backend
+      await _apiService.clearCart();
+      for (var item in _cartItems) {
+        await _apiService.addToCart(item.productId, quantity: item.quantity);
+      }
+
+      // Then checkout
       final order = await _apiService.checkout(paymentDetails: paymentDetails);
 
-      debugPrint('✅ SALES PROVIDER: Order created successfully');
-      debugPrint('✅ SALES PROVIDER: Order ID: ${order.id}');
-      debugPrint('✅ SALES PROVIDER: Order code: ${order.code}');
-
-      // Clear cart after successful checkout
-      _cart = Cart.empty();
+      _cartItems.clear();
       _selectedCustomer = null;
+      _paymentMethod = 'cash';
 
       await _audioService.playSuccess();
 
       _isLoading = false;
       notifyListeners();
 
+      debugPrint('✅ CHECKOUT: Complete - Order #${order.code}');
       return order;
     } catch (e) {
-      debugPrint('❌ SALES PROVIDER: Checkout error: $e');
-      debugPrint('❌ SALES PROVIDER: Stack trace: ${StackTrace.current}');
-
+      debugPrint('❌ CHECKOUT: Error: $e');
       await _audioService.playError();
       _error = e.toString();
       _isLoading = false;
@@ -330,8 +321,147 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
+  // ========== SAVED CART OPERATIONS ==========
+
+  /// Save current cart
+  Future<bool> saveCart({
+    required String name,
+    required int userId,
+    required String userName,
+    bool saveOnline = false,
+  }) async {
+    if (_cartItems.isEmpty) {
+      _error = 'Cart is empty';
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      debugPrint('💾 SAVE CART: Saving "$name"');
+
+      final savedCart = SavedCart(
+        id: _uuid.v4(),
+        userId: userId,
+        userName: userName,
+        name: name,
+        savedAt: DateTime.now(),
+        customerId: _selectedCustomer?.id.toString(),
+        customerName: _selectedCustomer?.name,
+        items: List.from(_cartItems),
+        subtotal: cart.subtotal,
+        tax: cart.tax,
+        total: cart.total,
+        isOnline: saveOnline,
+      );
+
+      await _savedCartDb.saveCart(savedCart);
+
+      // Clear active cart
+      _cartItems.clear();
+      _selectedCustomer = null;
+
+      debugPrint('✅ SAVE CART: Saved successfully');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('❌ SAVE CART: Error: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Load saved carts for user
+  Future<void> loadSavedCarts(int userId) async {
+    try {
+      debugPrint('📋 LOAD SAVED CARTS: User $userId');
+      _savedCarts = await _savedCartDb.getSavedCartsByUser(userId);
+      debugPrint('✅ LOAD SAVED CARTS: Found ${_savedCarts.length} carts');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ LOAD SAVED CARTS: Error: $e');
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  /// Load a saved cart into active cart
+  Future<bool> loadCart(String cartId, int userId) async {
+    try {
+      debugPrint('📂 LOAD CART: Loading $cartId');
+
+      final savedCart = await _savedCartDb.getCartById(cartId, userId);
+
+      if (savedCart == null) {
+        debugPrint('❌ LOAD CART: Cart not found in database');
+        _error = 'Cart not found';
+        notifyListeners();
+        return false;
+      }
+
+      debugPrint(
+          '📂 LOAD CART: Found cart with ${savedCart.items.length} items');
+
+      // Load items into active cart
+      _cartItems.clear();
+      _cartItems.addAll(savedCart.items);
+
+      debugPrint('📂 LOAD CART: Items copied to active cart');
+
+      // Load customer if exists
+      if (savedCart.customerName != null) {
+        _selectedCustomer = Customer(
+          id: int.tryParse(savedCart.customerId ?? '0') ?? 0,
+          name: savedCart.customerName!,
+        );
+        debugPrint('📂 LOAD CART: Customer loaded: ${savedCart.customerName}');
+      }
+
+      // Delete the saved cart (one-time use)
+      debugPrint('📂 LOAD CART: Deleting saved cart from database...');
+      await _savedCartDb.deleteCart(cartId, userId);
+      debugPrint('📂 LOAD CART: Saved cart deleted');
+
+      debugPrint('✅ LOAD CART: Loaded successfully, calling notifyListeners');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('❌ LOAD CART: Error: $e');
+      debugPrint('❌ LOAD CART: Stack trace: ${StackTrace.current}');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Delete a saved cart
+  Future<bool> deleteSavedCart(String cartId, int userId) async {
+    try {
+      debugPrint('🗑️ DELETE CART: Deleting $cartId');
+
+      await _savedCartDb.deleteCart(cartId, userId);
+
+      _savedCarts.removeWhere((cart) => cart.id == cartId);
+
+      debugPrint('✅ DELETE CART: Deleted successfully');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('❌ DELETE CART: Error: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Get auto-generated cart name
+  String getAutoCartName() {
+    final now = DateTime.now();
+    final formatter = DateFormat('MM/dd/yyyy, hh:mm:ss a');
+    return 'Cart - ${formatter.format(now)}';
+  }
+
   void clearError() {
-    debugPrint('🔵 SALES PROVIDER: clearError called');
     _error = null;
     notifyListeners();
   }

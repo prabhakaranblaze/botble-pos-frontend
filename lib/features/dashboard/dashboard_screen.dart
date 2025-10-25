@@ -7,6 +7,7 @@ import '../session/session_screen.dart';
 import '../reports/reports_screen.dart';
 import '../../core/services/connectivity_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../sales/saved_carts_screen.dart';
 
 /// Dashboard Screen - Main application screen
 ///
@@ -26,7 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -67,7 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       if (confirm == true && mounted) {
         // Navigate to session tab (index 1)
-        _tabController.animateTo(1);
+        _tabController.animateTo(2);
       }
       return;
     }
@@ -102,8 +103,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                   // Menu Items
                   _buildMenuItem(Icons.shopping_cart_rounded, 'Sale', 0),
-                  _buildMenuItem(Icons.schedule_rounded, 'Session', 1),
-                  _buildMenuItem(Icons.bar_chart_rounded, 'Reports', 2),
+                  _buildMenuItem(
+                      Icons.bookmark_rounded, 'Saved', 1), // ✅ ADD THIS LINE
+                  _buildMenuItem(Icons.schedule_rounded, 'Session',
+                      2), // ✅ Changed from 1 to 2
+                  _buildMenuItem(Icons.bar_chart_rounded, 'Reports',
+                      3), // ✅ Changed from 2 to 3
 
                   const Spacer(),
 
@@ -253,16 +258,22 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                   // Content
                   Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: const [
-                        SalesScreen(), // Index 0 - Sale
-                        SessionScreen(), // Index 1 - Session
-                        ReportsScreen(), // Index 2 - Reports
-                      ],
-                    ),
-                  ),
+  child: TabBarView(
+    controller: _tabController,
+    physics: const NeverScrollableScrollPhysics(),
+    children: [
+      const SalesScreen(), // Index 0 - Sale
+      SavedCartsScreen(
+        onCartLoaded: () {
+          debugPrint('🔄 DASHBOARD: Switching to Sale tab');
+          _tabController.animateTo(0);
+        },
+      ), // Index 1 - Saved Cart
+      const SessionScreen(), // Index 2 - Session
+      const ReportsScreen(), // Index 3 - Reports
+    ],
+  ),
+),
                 ],
               ),
             ),

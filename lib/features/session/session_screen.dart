@@ -34,11 +34,13 @@ class SessionScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.schedule_rounded, size: 64, color: AppColors.textSecondary),
+                Icon(Icons.schedule_rounded,
+                    size: 64, color: AppColors.textSecondary),
                 const SizedBox(height: 16),
                 Text(
                   'No active session',
-                  style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 18, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -47,7 +49,10 @@ class SessionScreen extends StatelessWidget {
 
         final activeSession = session.activeSession!;
         final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
-        final duration = DateTime.now().difference(activeSession.openedAt);
+
+        // Parse the opened_at timestamp
+        final openedAt = DateTime.parse(activeSession['opened_at'] as String);
+        final duration = DateTime.now().difference(openedAt);
         final hours = duration.inHours;
         final minutes = duration.inMinutes.remainder(60);
 
@@ -61,7 +66,6 @@ class SessionScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
-
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
@@ -70,31 +74,38 @@ class SessionScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.schedule_rounded, color: AppColors.primary, size: 32),
+                          Icon(Icons.schedule_rounded,
+                              color: AppColors.primary, size: 32),
                           const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                activeSession.cashRegisterName ?? 'Cash Register',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                activeSession['cash_register_name']
+                                        as String? ??
+                                    'Cash Register',
+                                style: const TextStyle(
+                                    fontSize: 20, fontWeight: FontWeight.bold),
                               ),
                               Text(
-                                'Session #${activeSession.id}',
-                                style: TextStyle(color: AppColors.textSecondary),
+                                'Session #${activeSession['id']}',
+                                style:
+                                    TextStyle(color: AppColors.textSecondary),
                               ),
                             ],
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
                               color: AppColors.success.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.circle, size: 8, color: AppColors.success),
+                                Icon(Icons.circle,
+                                    size: 8, color: AppColors.success),
                                 const SizedBox(width: 8),
                                 Text(
                                   'OPEN',
@@ -109,27 +120,28 @@ class SessionScreen extends StatelessWidget {
                         ],
                       ),
                       const Divider(height: 32),
-
-                      _buildInfoRow('Opened At', dateFormat.format(activeSession.openedAt)),
+                      _buildInfoRow('Opened At', dateFormat.format(openedAt)),
                       _buildInfoRow('Duration', '${hours}h ${minutes}m'),
-                      _buildInfoRow('Opened By', activeSession.userName ?? 'User'),
+                      _buildInfoRow('Opened By',
+                          activeSession['user_name'] as String? ?? 'User'),
                       _buildInfoRow(
                         'Opening Cash',
-                        '\$${activeSession.openingCash.toStringAsFixed(2)}',
+                        '\$${(activeSession['opening_cash'] as num).toStringAsFixed(2)}',
                       ),
-                      if (activeSession.openingNotes != null) ...[
+                      if (activeSession['opening_notes'] != null &&
+                          (activeSession['opening_notes'] as String)
+                              .isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const Text('Notes:', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Text('Notes:',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),
-                        Text(activeSession.openingNotes!),
+                        Text(activeSession['opening_notes'] as String),
                       ],
                     ],
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

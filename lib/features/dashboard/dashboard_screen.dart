@@ -4,6 +4,7 @@ import '../auth/auth_provider.dart';
 import '../session/session_provider.dart';
 import '../sales/sales_screen.dart';
 import '../session/register_selection_screen.dart';
+import '../session/existing_session_dialog.dart';
 import '../session/session_screen.dart';
 import '../reports/reports_screen.dart';
 import '../../core/services/connectivity_provider.dart';
@@ -25,12 +26,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _checkSession();
   }
 
+  /// ✅ SMART SESSION HANDLING
+  /// Checks if user has existing session and shows appropriate dialog
   Future<void> _checkSession() async {
     final sessionProvider = context.read<SessionProvider>();
-    
-    // Check if there's an active session
-    if (!sessionProvider.hasActiveSession) {
-      // If no active session, show register selection
+    final authProvider = context.read<AuthProvider>();
+
+    // Check for active session
+    await sessionProvider.checkActiveSession();
+
+    final activeSession = sessionProvider.activeSession;
+    final currentUserId = authProvider.user?.id;
+
+    if (!mounted) return;
+
+    // CASE 1: User has their own open session
+    if (activeSession != null && activeSession['user_id'] == currentUserId) {
+      // Show "Continue or Start Fresh" dialog
+      final result = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => ExistingSessionDialog(session: activeSession),
+      );
+
+      if (result == 'continue') {
+        // User chose to continue - stay on dashboard
+        debugPrint('✅ Continuing existing session');
+        return;
+      } else if (result == 'start_fresh') {
+        // User closed session and wants to start fresh
+        // Show register selection
+        debugPrint('🔄 Starting fresh session');
+        if (mounted) {
+          _showRegisterSelection();
+        }
+      } else {
+        // User cancelled - logout
+        debugPrint('❌ User cancelled - logging out');
+        if (mounted) {
+          final auth = context.read<AuthProvider>();
+          await auth.logout();
+        }
+      }
+      return;
+    }
+
+    // CASE 2: No active session - show register selection
+    if (activeSession == null) {
+      debugPrint('📝 No active session, showing register selection');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showRegisterSelection();
       });
@@ -48,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _handleLogout() async {
     final sessionProvider = context.read<SessionProvider>();
-    
+
     // Check if session is open
     if (sessionProvider.hasActiveSession) {
       final confirm = await showDialog<bool>(
@@ -102,7 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                
+
                 // Logo
                 Icon(
                   Icons.point_of_sale_rounded,
@@ -190,14 +233,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const Spacer(),
-                      
+
                       // User Info
                       Consumer<AuthProvider>(
                         builder: (context, auth, _) {
                           return Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                backgroundColor:
+                                    AppColors.primary.withOpacity(0.1),
                                 child: Icon(
                                   Icons.person,
                                   color: AppColors.primary,
@@ -235,7 +279,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Consumer<ConnectivityProvider>(
                   builder: (context, connectivity, _) {
                     if (connectivity.isOnline) return const SizedBox.shrink();
-                    
+
                     return Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
@@ -276,7 +320,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildMenuItem(IconData icon, String label, int index) {
     final isSelected = _selectedIndex == index;
-    
+
     return Tooltip(
       message: label,
       child: InkWell(
@@ -290,7 +334,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color:
+                isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(

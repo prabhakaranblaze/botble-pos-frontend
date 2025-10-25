@@ -35,7 +35,9 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
     final session = context.read<SessionProvider>();
     final success = await session.closeSession(
       closingCash: amount,
-      denominations: _denominationCounts.isEmpty ? null : _denominationCounts.map((k, v) => MapEntry(k.toString(), v)),
+      denominations: _denominationCounts.isEmpty
+          ? null
+          : _denominationCounts.map((k, v) => MapEntry(k.toString(), v)),
       notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 
@@ -57,8 +59,11 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
         child: Consumer<SessionProvider>(
           builder: (context, session, _) {
             final activeSession = session.activeSession!;
-            final closingAmount = double.tryParse(_closingCashController.text) ?? 0;
-            final difference = closingAmount - activeSession.openingCash;
+            final closingAmount =
+                double.tryParse(_closingCashController.text) ?? 0;
+            final openingCash =
+                (activeSession['opening_cash'] as num).toDouble();
+            final difference = closingAmount - openingCash;
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -70,12 +75,12 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     const SizedBox(width: 12),
                     const Text(
                       'Close Session',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
                 const Divider(height: 32),
-
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -89,7 +94,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                         children: [
                           const Text('Opening Cash:'),
                           Text(
-                            '\$${activeSession.openingCash.toStringAsFixed(2)}',
+                            '\$${openingCash.toStringAsFixed(2)}',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -98,7 +103,6 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
                 TextField(
                   controller: _closingCashController,
                   decoration: const InputDecoration(
@@ -106,14 +110,15 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     prefixIcon: Icon(Icons.attach_money),
                     hintText: '0.00',
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}')),
                   ],
                   onChanged: (_) => setState(() {}),
                   autofocus: true,
                 ),
-
                 if (closingAmount > 0) ...[
                   const SizedBox(height: 16),
                   Container(
@@ -131,7 +136,9 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                           difference >= 0 ? 'Excess:' : 'Short:',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: difference >= 0 ? AppColors.success : AppColors.error,
+                            color: difference >= 0
+                                ? AppColors.success
+                                : AppColors.error,
                           ),
                         ),
                         Text(
@@ -139,30 +146,32 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: difference >= 0 ? AppColors.success : AppColors.error,
+                            color: difference >= 0
+                                ? AppColors.success
+                                : AppColors.error,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 16),
-
                 if (session.denominations.isNotEmpty) ...[
                   ExpansionTile(
                     title: const Text('Count Denominations (Optional)'),
                     children: [
                       ...session.denominations.map((denom) {
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
                           child: Row(
                             children: [
                               SizedBox(
                                 width: 120,
                                 child: Text(
                                   denom.displayName,
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ),
                               const Spacer(),
@@ -170,7 +179,9 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                                 icon: const Icon(Icons.remove),
                                 onPressed: () {
                                   setState(() {
-                                    _denominationCounts[denom.id] = (_denominationCounts[denom.id] ?? 0) - 1;
+                                    _denominationCounts[denom.id] =
+                                        (_denominationCounts[denom.id] ?? 0) -
+                                            1;
                                     if (_denominationCounts[denom.id]! <= 0) {
                                       _denominationCounts.remove(denom.id);
                                     }
@@ -180,13 +191,16 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                               ),
                               Text(
                                 '${_denominationCounts[denom.id] ?? 0}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.add),
                                 onPressed: () {
                                   setState(() {
-                                    _denominationCounts[denom.id] = (_denominationCounts[denom.id] ?? 0) + 1;
+                                    _denominationCounts[denom.id] =
+                                        (_denominationCounts[denom.id] ?? 0) +
+                                            1;
                                     _updateCashFromDenominations(session);
                                   });
                                 },
@@ -199,7 +213,6 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                   ),
                   const SizedBox(height: 16),
                 ],
-
                 TextField(
                   controller: _notesController,
                   decoration: const InputDecoration(
@@ -209,7 +222,6 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
-
                 Row(
                   children: [
                     Expanded(
@@ -222,7 +234,8 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton(
-                        onPressed: session.isLoading ? null : _handleCloseSession,
+                        onPressed:
+                            session.isLoading ? null : _handleCloseSession,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.error,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -231,7 +244,8 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Text('Close Session'),
                       ),

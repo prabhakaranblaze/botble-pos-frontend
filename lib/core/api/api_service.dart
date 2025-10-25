@@ -303,95 +303,6 @@ class ApiService {
     }
   }
 
-  // Cash Register APIs
-  Future<List<CashRegister>> getCashRegisters() async {
-    try {
-      final response = await _dio.get('/cash-registers');
-
-      if (response.data['error'] == false) {
-        return (response.data['data']['cash_registers'] as List)
-            .map((json) => CashRegister.fromJson(json))
-            .toList();
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // Session APIs
-  Future<PosSession?> getActiveSession() async {
-    try {
-      if (!_isOnline) {
-        return await _db.getActiveSession();
-      }
-
-      final response = await _dio.get('/sessions/active');
-
-      if (response.data['error'] == false &&
-          response.data['data']['session'] != null) {
-        final session = PosSession.fromJson(response.data['data']['session']);
-        await _db.saveSession(session);
-        return session;
-      }
-      return null;
-    } catch (e) {
-      return await _db.getActiveSession();
-    }
-  }
-
-  Future<PosSession> openSession({
-    required int cashRegisterId,
-    required double openingCash,
-    Map<String, int>? denominations,
-    String? notes,
-  }) async {
-    try {
-      final response = await _dio.post('/sessions/open', data: {
-        'cash_register_id': cashRegisterId,
-        'opening_cash': openingCash,
-        if (denominations != null) 'opening_denominations': denominations,
-        if (notes != null) 'opening_notes': notes,
-      });
-
-      if (response.data['error'] == false) {
-        final session = PosSession.fromJson(response.data['data']['session']);
-        await _db.saveSession(session);
-        return session;
-      } else {
-        throw Exception(response.data['message']);
-      }
-    } catch (e) {
-      throw Exception('Failed to open session: ${e.toString()}');
-    }
-  }
-
-  Future<PosSession> closeSession({
-    required int sessionId,
-    required double closingCash,
-    Map<String, int>? denominations,
-    String? notes,
-  }) async {
-    try {
-      final response = await _dio.post('/sessions/close', data: {
-        'session_id': sessionId,
-        'closing_cash': closingCash,
-        if (denominations != null) 'closing_denominations': denominations,
-        if (notes != null) 'closing_notes': notes,
-      });
-
-      if (response.data['error'] == false) {
-        final session = PosSession.fromJson(response.data['data']['session']);
-        await _db.saveSession(session);
-        return session;
-      } else {
-        throw Exception(response.data['message']);
-      }
-    } catch (e) {
-      throw Exception('Failed to close session: ${e.toString()}');
-    }
-  }
-
   // Denomination APIs
   Future<List<Denomination>> getDenominations({String currency = 'USD'}) async {
     try {
@@ -427,6 +338,96 @@ class ApiService {
       }
     } catch (e) {
       // Ignore sync errors
+    }
+  }
+
+  // ✅ REPLACE getCashRegisters() method
+  Future<List<dynamic>> getCashRegisters() async {
+    try {
+      final response = await _dio.get('/cash-registers');
+
+      if (response.data['error'] == false) {
+        return response.data['data']['cash_registers'] as List<dynamic>;
+      } else {
+        throw Exception(response.data['message']);
+      }
+    } catch (e) {
+      throw Exception('Failed to get cash registers: ${e.toString()}');
+    }
+  }
+
+// ✅ REPLACE getActiveSession() method
+  Future<Map<String, dynamic>?> getActiveSession() async {
+    try {
+      final response = await _dio.get('/sessions/active');
+
+      if (response.data['error'] == false) {
+        return response.data['data']['session'] as Map<String, dynamic>;
+      }
+
+      return null;
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 404) {
+        // 404 means no active session - this is NOT an error
+        return null;
+      }
+      throw Exception('Failed to get active session: ${e.toString()}');
+    }
+  }
+
+// ✅ REPLACE openSession() method
+  Future<Map<String, dynamic>> openSession({
+    required int cashRegisterId,
+    required double openingCash,
+    Map<String, int>? denominations,
+    String? notes,
+  }) async {
+    try {
+      final response = await _dio.post('/sessions/open', data: {
+        'cash_register_id': cashRegisterId,
+        'opening_cash': openingCash,
+        if (denominations != null) 'opening_denominations': denominations,
+        if (notes != null) 'opening_notes': notes,
+      });
+
+      if (response.data['error'] == false) {
+        return response.data['data']['session'] as Map<String, dynamic>;
+      } else {
+        throw Exception(response.data['message']);
+      }
+    } catch (e) {
+      if (e is DioException && e.response != null) {
+        final errorData = e.response!.data;
+        if (errorData is Map && errorData['message'] != null) {
+          throw Exception(errorData['message']);
+        }
+      }
+      throw Exception('Failed to open session: ${e.toString()}');
+    }
+  }
+
+// ✅ REPLACE closeSession() method
+  Future<Map<String, dynamic>> closeSession({
+    required int sessionId,
+    required double closingCash,
+    Map<String, int>? denominations,
+    String? notes,
+  }) async {
+    try {
+      final response = await _dio.post('/sessions/close', data: {
+        'session_id': sessionId,
+        'closing_cash': closingCash,
+        if (denominations != null) 'closing_denominations': denominations,
+        if (notes != null) 'closing_notes': notes,
+      });
+
+      if (response.data['error'] == false) {
+        return response.data['data']['session'] as Map<String, dynamic>;
+      } else {
+        throw Exception(response.data['message']);
+      }
+    } catch (e) {
+      throw Exception('Failed to close session: ${e.toString()}');
     }
   }
 }

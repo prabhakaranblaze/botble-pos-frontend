@@ -7,40 +7,47 @@ class SessionProvider with ChangeNotifier {
   final ApiService _apiService;
   final StorageService _storageService;
 
-  List<CashRegister> _registers = [];
-  PosSession? _activeSession;
+  List<dynamic> _registers = []; // Changed to dynamic to handle JSON
+  Map<String, dynamic>? _activeSession; // Changed to Map for JSON data
   List<Denomination> _denominations = [];
 
   bool _isLoading = false;
   String? _error;
 
   SessionProvider(this._apiService, this._storageService) {
-    _loadActiveSession();
+    // Don't auto-load on init - let dashboard handle it
   }
 
   // Getters
-  List<CashRegister> get registers => _registers;
-  PosSession? get activeSession => _activeSession;
+  List<dynamic> get registers => _registers;
+  Map<String, dynamic>? get activeSession => _activeSession;
   List<Denomination> get denominations => _denominations;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get hasActiveSession => _activeSession != null && _activeSession!.isOpen;
+  bool get hasActiveSession =>
+      _activeSession != null && _activeSession!['status'] == 'open';
 
-  Future<void> _loadActiveSession() async {
+  /// ✅ NEW: Check for active session (used on login)
+  /// Returns session data if exists, null otherwise
+  Future<void> checkActiveSession() async {
     try {
       _activeSession = await _apiService.getActiveSession();
+
       if (_activeSession != null) {
-        await _storageService.saveActiveSession(_activeSession!);
+        // Also save to local storage
+        // Note: You'll need to update storage service to handle Map
+        // For now, we just keep it in memory
       }
       notifyListeners();
     } catch (e) {
-      // Try to load from storage
-      _activeSession = await _storageService.getActiveSession();
+      // No active session or error - that's fine
+      _activeSession = null;
+      _error = null; // Don't treat "no session" as error
       notifyListeners();
     }
   }
 
-  // Load cash registers
+  /// Load cash registers WITH session status
   Future<void> loadCashRegisters() async {
     _isLoading = true;
     _error = null;
@@ -48,6 +55,7 @@ class SessionProvider with ChangeNotifier {
 
     try {
       _registers = await _apiService.getCashRegisters();
+      _error = null;
     } catch (e) {
       _error = e.toString();
     }
@@ -86,7 +94,8 @@ class SessionProvider with ChangeNotifier {
         notes: notes,
       );
 
-      await _storageService.saveActiveSession(_activeSession!);
+      // Save to local storage if needed
+      // await _storageService.saveActiveSession(_activeSession!);
 
       _isLoading = false;
       notifyListeners();
@@ -117,14 +126,14 @@ class SessionProvider with ChangeNotifier {
 
     try {
       final closedSession = await _apiService.closeSession(
-        sessionId: _activeSession!.id,
+        sessionId: _activeSession!['id'],
         closingCash: closingCash,
         denominations: denominations,
         notes: notes,
       );
 
       _activeSession = closedSession;
-      await _storageService.removeActiveSession();
+      // await _storageService.removeActiveSession();
 
       _isLoading = false;
       notifyListeners();

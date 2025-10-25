@@ -119,6 +119,26 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    debugPrint('🔄 REFRESH: Manual refresh triggered');
+
+    // Clear search state
+    _searchController.clear();
+    setState(() {
+      _searchResults = [];
+      _showSearchDropdown = false;
+    });
+
+    // Refresh products from server
+    final salesProvider = context.read<SalesProvider>();
+    await salesProvider.refreshProducts();
+
+    // Refocus search
+    _searchFocusNode.requestFocus();
+
+    debugPrint('✅ REFRESH: Complete');
+  }
+
   void _clearSearch() {
     debugPrint('🔍 SEARCH: _clearSearch called');
     _searchController.clear();
@@ -126,6 +146,7 @@ class _SalesScreenState extends State<SalesScreen> {
       _searchResults = [];
       _showSearchDropdown = false;
     });
+    context.read<SalesProvider>().searchProducts('');
     _searchFocusNode.requestFocus();
   }
 
@@ -283,6 +304,7 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     debugPrint('🎨 BUILD: SalesScreen build called');
 
@@ -300,6 +322,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   padding: const EdgeInsets.all(16),
                   color: AppColors.surface,
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: Stack(
@@ -386,6 +409,25 @@ class _SalesScreenState extends State<SalesScreen> {
                               ),
                           ],
                         ),
+                      ),
+
+                      // ✅ REFRESH BUTTON - ADDED HERE
+                      const SizedBox(width: 12),
+
+                      Consumer<SalesProvider>(
+                        builder: (context, sales, _) {
+                          return IconButton(
+                            icon: Icon(
+                              Icons.refresh_rounded,
+                              color: sales.isLoading
+                                  ? AppColors.textSecondary
+                                  : AppColors.primary,
+                            ),
+                            onPressed: sales.isLoading ? null : _handleRefresh,
+                            tooltip: 'Refresh products',
+                            iconSize: 28,
+                          );
+                        },
                       ),
                     ],
                   ),

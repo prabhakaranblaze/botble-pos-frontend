@@ -434,6 +434,11 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
+  Future<void> refreshProducts() async {
+    _searchQuery = '';
+    await loadProducts(refresh: true);
+  }
+
   /// Delete a saved cart
   Future<bool> deleteSavedCart(String cartId, int userId) async {
     try {

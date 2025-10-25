@@ -6,7 +6,7 @@ class AudioService {
   Future<void> playBeep() async {
     try {
       // Play system beep or custom sound
-      await _player.play(AssetSource('sounds/beep.mp3'));
+      await _player.play(AssetSource('sounds/store-scanner-beep.mp3'));
     } catch (e) {
       // If sound file not found, ignore
     }

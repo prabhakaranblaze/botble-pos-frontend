@@ -1,0 +1,54 @@
+name: pos_desktop
+description: Professional POS Desktop Application with Offline Support
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.1
+  
+  # HTTP & API
+  dio: ^5.4.0
+  connectivity_plus: ^5.0.2
+  
+  # Local Database
+  sqflite_common_ffi: ^2.3.0
+  path: ^1.8.3
+  
+  # Storage
+  shared_preferences: ^2.2.2
+  
+  # UI Components
+  google_fonts: ^6.1.0
+  intl: ^0.18.1
+  cached_network_image: ^3.3.0
+  shimmer: ^3.0.0
+  
+  # Barcode
+  audioplayers: ^5.2.1
+  
+  # Printing
+  pdf: ^3.10.7
+  printing: ^5.11.1
+  
+  # Utils
+  uuid: ^4.2.1
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/sounds/
+    - assets/images/

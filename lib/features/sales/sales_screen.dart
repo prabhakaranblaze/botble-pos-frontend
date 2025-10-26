@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
-import '../sales/customer_search_widget.dart';
 import '../sales/cart_item_widget.dart';
 import '../sales/payment_dialog.dart';
 import '../sales/receipt_dialog.dart';
 import '../../core/models/product.dart';
-import '../../core/models/cart.dart';
-import '../../core/models/customer.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/save_cart_dialog.dart';
 

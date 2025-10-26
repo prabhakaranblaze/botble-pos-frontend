@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-import 'session_provider.dart';
 import 'close_session_dialog.dart';
 import '../../shared/constants/app_constants.dart';
 

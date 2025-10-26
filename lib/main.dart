@@ -25,7 +25,7 @@ void main() async {
   final databaseService = DatabaseService();
   final apiService = ApiService(databaseService, storageService);
   final audioService = AudioService();
-
+  await audioService.preload(); // preload beep sound for instant playback
   runApp(
     MultiProvider(
       providers: [

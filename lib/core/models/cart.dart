@@ -190,6 +190,7 @@ class Order {
   final double subTotal;
   final double taxAmount;
   final double discountAmount;
+  final double shippingAmount;
   final String paymentMethod;
   final String status;
   final DateTime createdAt;
@@ -204,6 +205,7 @@ class Order {
     this.subTotal = 0,
     this.taxAmount = 0,
     this.discountAmount = 0,
+    this.shippingAmount = 0,
     this.paymentMethod = 'pos_cash',
     required this.status,
     required this.createdAt,
@@ -227,6 +229,7 @@ class Order {
         subTotal: (json['sub_total'] as num?)?.toDouble() ?? 0,
         taxAmount: (json['tax_amount'] as num?)?.toDouble() ?? 0,
         discountAmount: (json['discount_amount'] as num?)?.toDouble() ?? 0,
+        shippingAmount: (json['shipping_amount'] as num?)?.toDouble() ?? 0,
         paymentMethod: json['payment_method'] as String? ?? 'pos_cash',
         status: json['status'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
@@ -252,6 +255,7 @@ class Order {
       'sub_total': subTotal,
       'tax_amount': taxAmount,
       'discount_amount': discountAmount,
+      'shipping_amount': shippingAmount,
       'payment_method': paymentMethod,
       'status': status,
       'created_at': createdAt.toIso8601String(),

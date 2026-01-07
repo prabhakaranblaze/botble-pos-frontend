@@ -14,7 +14,7 @@ enum PosMode {
 class PosModeProvider with ChangeNotifier {
   static const String _modeKey = 'pos_mode';
 
-  PosMode _mode = PosMode.quickSelect;
+  PosMode _mode = PosMode.kiosk; // Default to Kiosk mode
 
   PosMode get mode => _mode;
   bool get isQuickSelect => _mode == PosMode.quickSelect;

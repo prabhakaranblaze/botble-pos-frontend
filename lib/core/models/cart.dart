@@ -24,6 +24,7 @@ class CartItem {
   });
 
   double get total => price * quantity;
+  double get lineTotal => total; // Alias for total
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
     debugPrint('🛒 CART ITEM: Parsing from JSON');
@@ -89,6 +90,7 @@ class Cart {
 
   bool get isEmpty => items.isEmpty;
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
+  int get totalQuantity => itemCount; // Alias for itemCount
 
   factory Cart.empty() {
     debugPrint('🛒 CART: Creating empty cart');

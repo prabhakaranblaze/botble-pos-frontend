@@ -31,13 +31,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   Timer? _clockTimer;
   DateTime _currentTime = DateTime.now();
   bool _isFullScreen = false;
+  bool _windowManagerReady = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
     _startClock();
-    _checkFullScreen();
+    _initWindowManager();
   }
 
   void _startClock() {
@@ -48,15 +49,40 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
-  Future<void> _checkFullScreen() async {
-    _isFullScreen = await windowManager.isFullScreen();
-    if (mounted) setState(() {});
+  Future<void> _initWindowManager() async {
+    try {
+      await windowManager.ensureInitialized();
+      _windowManagerReady = true;
+      _isFullScreen = await windowManager.isFullScreen();
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Window manager init error: $e');
+      _windowManagerReady = false;
+    }
   }
 
   Future<void> _toggleFullScreen() async {
-    _isFullScreen = !_isFullScreen;
-    await windowManager.setFullScreen(_isFullScreen);
-    setState(() {});
+    if (!_windowManagerReady) {
+      debugPrint('Window manager not ready');
+      return;
+    }
+    try {
+      _isFullScreen = !_isFullScreen;
+      await windowManager.setFullScreen(_isFullScreen);
+      setState(() {});
+    } catch (e) {
+      debugPrint('Fullscreen toggle error: $e');
+      // Try alternative approach - maximize window instead
+      try {
+        if (_isFullScreen) {
+          await windowManager.maximize();
+        } else {
+          await windowManager.unmaximize();
+        }
+      } catch (e2) {
+        debugPrint('Maximize fallback error: $e2');
+      }
+    }
   }
 
   void _showCalculator() {

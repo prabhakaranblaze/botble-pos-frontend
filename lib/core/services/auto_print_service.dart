@@ -17,7 +17,12 @@ class AutoPrintService {
   /// Check if auto-print is enabled
   Future<bool> isAutoPrintEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_autoPrintKey) ?? true;
+    await prefs.reload(); // Ensure fresh data
+
+    final rawValue = prefs.getBool(_autoPrintKey);
+    final result = rawValue ?? true;
+    debugPrint('🖨️ AUTO_PRINT: isAutoPrintEnabled check - raw: $rawValue, result: $result');
+    return result;
   }
 
   /// Check if a default printer is configured

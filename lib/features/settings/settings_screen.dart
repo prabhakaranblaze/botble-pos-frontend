@@ -158,10 +158,16 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
 
   Future<void> _loadSavedPrinter() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload(); // Ensure we get fresh data
+
+    final savedAutoPrint = prefs.getBool(_autoPrintKey);
+    debugPrint('🔧 SETTINGS: Loading auto-print: $savedAutoPrint (raw), using: ${savedAutoPrint ?? true}');
+    debugPrint('🔧 SETTINGS: Loading printer: ${prefs.getString(_printerNameKey)}');
+
     setState(() {
       _savedPrinterName = prefs.getString(_printerNameKey);
       _savedPrinterAddress = prefs.getString(_printerAddressKey);
-      _autoPrintEnabled = prefs.getBool(_autoPrintKey) ?? true;
+      _autoPrintEnabled = savedAutoPrint ?? true;
     });
   }
 
@@ -170,6 +176,8 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
     await prefs.setString(_printerNameKey, printer.name ?? 'Unknown');
     await prefs.setString(_printerAddressKey, printer.address ?? '');
     await prefs.setString(_printerConnectionTypeKey, printer.connectionType?.name ?? 'USB');
+
+    debugPrint('🔧 SETTINGS: Saved printer: ${printer.name} (${printer.address})');
 
     setState(() {
       _savedPrinterName = printer.name;
@@ -187,8 +195,17 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
   }
 
   Future<void> _toggleAutoPrint(bool value) async {
+    debugPrint('🔧 SETTINGS: Toggling auto-print to: $value');
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_autoPrintKey, value);
+    final success = await prefs.setBool(_autoPrintKey, value);
+    debugPrint('🔧 SETTINGS: setBool result: $success');
+
+    // Verify it was saved
+    await prefs.reload();
+    final savedValue = prefs.getBool(_autoPrintKey);
+    debugPrint('🔧 SETTINGS: Verified saved auto-print: $savedValue');
+
     setState(() {
       _autoPrintEnabled = value;
     });

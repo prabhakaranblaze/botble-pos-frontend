@@ -49,6 +49,11 @@ class ProductsService {
               category: true,
             },
           },
+          taxProducts: {
+            include: {
+              tax: true,
+            },
+          },
           variations: {
             include: {
               product: true,
@@ -69,12 +74,8 @@ class ProductsService {
       settingsService.getSettings(),
     ]);
 
-    // Fetch product taxes via raw SQL (works without Prisma regeneration)
-    const productIds = products.map(p => Number(p.id));
-    const productTaxMap = await this.getProductTaxes(productIds);
-
     return {
-      products: products.map((p) => this.formatProduct(p, siteSettings.default_tax, productTaxMap)),
+      products: products.map((p) => this.formatProduct(p, siteSettings.default_tax)),
       pagination: {
         current_page: page,
         per_page: perPage,
@@ -100,6 +101,11 @@ class ProductsService {
           categories: {
             include: { category: true },
           },
+          taxProducts: {
+            include: {
+              tax: true,
+            },
+          },
           variations: {
             include: {
               product: true,
@@ -119,11 +125,7 @@ class ProductsService {
       settingsService.getSettings(),
     ]);
 
-    if (!product) return null;
-
-    // Fetch product tax via raw SQL
-    const productTaxMap = await this.getProductTaxes([Number(product.id)]);
-    return this.formatProduct(product, siteSettings.default_tax, productTaxMap);
+    return product ? this.formatProduct(product, siteSettings.default_tax) : null;
   }
 
   /**
@@ -179,6 +181,11 @@ class ProductsService {
           categories: {
             include: { category: true },
           },
+          taxProducts: {
+            include: {
+              tax: true,
+            },
+          },
           variations: {
             include: {
               product: true,
@@ -198,58 +205,15 @@ class ProductsService {
       settingsService.getSettings(),
     ]);
 
-    if (!product) return null;
-
-    // Fetch product tax via raw SQL
-    const productTaxMap = await this.getProductTaxes([Number(product.id)]);
-    return this.formatProduct(product, siteSettings.default_tax, productTaxMap);
-  }
-
-  /**
-   * Fetch product taxes via raw SQL (works without Prisma regeneration)
-   * @param {number[]} productIds - Array of product IDs
-   * @returns {Map<number, {id, title, percentage}>} - Map of product ID to tax info
-   */
-  async getProductTaxes(productIds) {
-    const taxMap = new Map();
-    if (!productIds || productIds.length === 0) return taxMap;
-
-    try {
-      // Use Prisma.join for IN clause with raw SQL
-      const taxes = await prisma.$queryRawUnsafe(`
-        SELECT
-          tp.product_id,
-          t.id as tax_id,
-          t.title,
-          t.percentage
-        FROM ec_tax_products tp
-        INNER JOIN ec_taxes t ON tp.tax_id = t.id
-        WHERE tp.product_id IN (${productIds.join(',')})
-          AND t.status = 'published'
-          AND t.deleted_at IS NULL
-      `);
-
-      for (const row of taxes) {
-        taxMap.set(Number(row.product_id), {
-          id: Number(row.tax_id),
-          title: row.title,
-          percentage: parseFloat(row.percentage) || 0,
-        });
-      }
-    } catch (e) {
-      console.warn('Error fetching product taxes:', e.message);
-    }
-
-    return taxMap;
+    return product ? this.formatProduct(product, siteSettings.default_tax) : null;
   }
 
   /**
    * Format product for API response
    * @param {Object} product - Product from database
    * @param {Object} defaultTax - Site-wide default tax object {id, title, percentage}
-   * @param {Map} productTaxMap - Map of product ID to tax info (from raw SQL)
    */
-  formatProduct(product, defaultTax = null, productTaxMap = null) {
+  formatProduct(product, defaultTax = null) {
     const hasVariations = product.variations_count > 0 || product.variations?.length > 0;
 
     // Build image URL
@@ -279,9 +243,17 @@ class ProductsService {
     // Get tax info - product tax takes priority, fallback to site default tax
     let taxInfo = null;
 
-    // Check if product has specific tax from productTaxMap (raw SQL result)
-    if (productTaxMap && productTaxMap.has(Number(product.id))) {
-      taxInfo = productTaxMap.get(Number(product.id));
+    // Check if product has specific tax assigned via pivot table
+    if (product.taxProducts && product.taxProducts.length > 0) {
+      // Get the first tax (sorted by priority would be better, but for now take first)
+      const productTax = product.taxProducts[0].tax;
+      if (productTax && productTax.status === 'published' && !productTax.deleted_at) {
+        taxInfo = {
+          id: Number(productTax.id),
+          title: productTax.title,
+          percentage: parseFloat(productTax.percentage) || 0,
+        };
+      }
     }
 
     // Fallback to site default tax if no product-specific tax

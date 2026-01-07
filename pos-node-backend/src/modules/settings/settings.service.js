@@ -31,26 +31,23 @@ class SettingsService {
       }
 
       // Get default tax from settings (stores tax_id, not percentage)
-      // Using raw SQL to avoid Prisma model dependency
       let defaultTax = null;
       try {
-        const taxSetting = await prisma.$queryRaw`
-          SELECT * FROM settings WHERE \`key\` = 'ecommerce_default_tax_rate' LIMIT 1
-        `;
-        if (taxSetting && taxSetting.length > 0) {
-          const defaultTaxId = parseInt(taxSetting[0].value);
+        const taxSetting = await prisma.setting.findFirst({
+          where: { key: 'ecommerce_default_tax_rate' },
+        });
+        if (taxSetting && taxSetting.value) {
+          const defaultTaxId = parseInt(taxSetting.value);
           if (defaultTaxId > 0) {
-            // Look up the actual tax record via raw SQL
-            const taxRecords = await prisma.$queryRaw`
-              SELECT id, title, percentage
-              FROM ec_taxes
-              WHERE id = ${defaultTaxId}
-                AND status = 'published'
-                AND deleted_at IS NULL
-              LIMIT 1
-            `;
-            if (taxRecords && taxRecords.length > 0) {
-              const taxRecord = taxRecords[0];
+            // Look up the actual tax record
+            const taxRecord = await prisma.tax.findFirst({
+              where: {
+                id: BigInt(defaultTaxId),
+                status: 'published',
+                deleted_at: null,
+              },
+            });
+            if (taxRecord) {
               defaultTax = {
                 id: Number(taxRecord.id),
                 title: taxRecord.title,

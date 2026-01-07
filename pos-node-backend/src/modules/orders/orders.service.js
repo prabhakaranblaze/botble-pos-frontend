@@ -129,16 +129,17 @@ class OrdersService {
     // Create payment record first (Laravel style)
     const payment = await prisma.payment.create({
       data: {
-        channel: 'SCR', // Screen/POS channel
-        customer_id: customerId ? BigInt(customerId) : null,
+        currency: 'USD',
+        user_id: BigInt(userId),
         charge_id: this.generateChargeId(),
         payment_channel: paymentChannel,
-        customer_type: customerId ? 'Botble\\Ecommerce\\Models\\Customer' : null,
+        description: `POS Payment - ${paymentChannel.toUpperCase()}`,
         amount: total,
-        currency: 'USD',
+        payment_fee: 0,
         status: 'completed',
         payment_type: 'confirm',
-        user_id: BigInt(userId),
+        customer_id: customerId ? BigInt(customerId) : null,
+        customer_type: customerId ? 'Botble\\Ecommerce\\Models\\Customer' : null,
         created_at: new Date(),
         updated_at: new Date(),
       },

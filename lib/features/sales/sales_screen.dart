@@ -104,7 +104,7 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
-  // ⭐ UNIFIED SEARCH LOGIC (local + API fallback)
+  // ⭐ UNIFIED SEARCH LOGIC (API-first when online, local when offline)
   Future<void> _handleSearch(String query) async {
     debugPrint('🔍 SEARCH: _handleSearch called with query: "$query"');
 
@@ -121,24 +121,26 @@ class _SalesScreenState extends State<SalesScreen> {
     debugPrint('🔍 SEARCH: Searching for: "$query"');
     final salesProvider = context.read<SalesProvider>();
 
-    // First try local search
-    var results = salesProvider.products.where((p) {
-      final searchLower = query.toLowerCase();
-      final matchName = p.name.toLowerCase().contains(searchLower);
-      final matchSku = p.sku?.toLowerCase().contains(searchLower) ?? false;
-      final matchBarcode =
-          p.barcode?.toLowerCase().contains(searchLower) ?? false;
+    List<Product> results = [];
 
-      return matchName || matchSku || matchBarcode;
-    }).toList();
-
-    debugPrint('🔍 SEARCH: Local found ${results.length} results');
-
-    // If local search is empty and query is long enough, search API
-    if (results.isEmpty && query.length >= 2) {
-      debugPrint('🔍 SEARCH: Local empty, trying API search...');
+    // API-first approach when online (for queries >= 2 chars)
+    if (salesProvider.isOnline && query.length >= 2) {
+      debugPrint('🔍 SEARCH: Online - using API search (auto-syncs to DB)');
       results = await salesProvider.searchProductsOnline(query);
       debugPrint('🔍 SEARCH: API found ${results.length} results');
+    } else {
+      // Offline: search local database only
+      debugPrint('🔍 SEARCH: Offline - using local search');
+      results = salesProvider.products.where((p) {
+        final searchLower = query.toLowerCase();
+        final matchName = p.name.toLowerCase().contains(searchLower);
+        final matchSku = p.sku?.toLowerCase().contains(searchLower) ?? false;
+        final matchBarcode =
+            p.barcode?.toLowerCase().contains(searchLower) ?? false;
+
+        return matchName || matchSku || matchBarcode;
+      }).toList();
+      debugPrint('🔍 SEARCH: Local found ${results.length} results');
     }
 
     // Update state with results

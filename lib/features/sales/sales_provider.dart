@@ -44,6 +44,7 @@ class SalesProvider with ChangeNotifier {
   String? get error => _error;
   String get searchQuery => _searchQuery;
   AudioService get audioService => _audioService;
+  bool get isOnline => _apiService.isOnline;
 
   // ✅ Build cart from local items
   Cart get cart {

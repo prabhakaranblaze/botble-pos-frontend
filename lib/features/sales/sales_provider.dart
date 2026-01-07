@@ -234,15 +234,18 @@ class SalesProvider with ChangeNotifier {
         );
         debugPrint('✅ Updated qty: ${_cartItems[existingIndex].quantity}');
       } else {
+        // Get tax rate from product (percentage value, e.g., 10 for 10%)
+        final taxRate = product.tax?.percentage ?? 0.0;
+
         _cartItems.add(SavedCartItem(
           productId: product.id,
           name: product.name,
           price: unitPrice,
           quantity: quantity,
           image: product.image,
-          taxRate: 0.0,
+          taxRate: taxRate,
         ));
-        debugPrint('✅ Added new item');
+        debugPrint('✅ Added new item with tax rate: $taxRate%');
       }
 
       await _audioService.playBeep();

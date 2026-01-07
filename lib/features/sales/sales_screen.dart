@@ -1454,8 +1454,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           -cart.discount,
                           color: AppColors.success,
                         ),
-                      if (cart.tax > 0)
-                        _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                      _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         l10n?.total ?? 'Total',
@@ -1790,7 +1789,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           -cart.discount,
                           color: AppColors.success,
                         ),
-                      if (cart.tax > 0) _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                      _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         l10n?.total ?? 'Total',

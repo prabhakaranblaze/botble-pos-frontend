@@ -457,8 +457,6 @@ class _SalesScreenState extends State<SalesScreen> {
 
   /// Kiosk Mode - Cart on left (scan-focused), checkout panel on right
   Widget _buildKioskLayout() {
-    final l10n = AppLocalizations.of(context);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Row(
@@ -468,13 +466,12 @@ class _SalesScreenState extends State<SalesScreen> {
             flex: 7,
             child: Container(
               color: AppColors.surface,
-              child: Column(
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  // Search Bar
-                  _buildSearchBar(),
-
-                  // Cart Items (large cards)
-                  Expanded(
+                  // Cart content with top padding for search bar
+                  Padding(
+                    padding: const EdgeInsets.only(top: 88),
                     child: Consumer<SalesProvider>(
                       builder: (context, sales, _) {
                         final cart = sales.cart;
@@ -522,6 +519,14 @@ class _SalesScreenState extends State<SalesScreen> {
                       },
                     ),
                   ),
+
+                  // Search bar on top (in Stack to allow dropdown overflow)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildSearchBar(),
+                  ),
                 ],
               ),
             ),
@@ -547,6 +552,7 @@ class _SalesScreenState extends State<SalesScreen> {
         children: [
           Expanded(
             child: Stack(
+              clipBehavior: Clip.none, // Allow dropdown to overflow
               children: [
                 TextField(
                   controller: _searchController,
@@ -565,10 +571,37 @@ class _SalesScreenState extends State<SalesScreen> {
                         : null,
                   ),
                   onSubmitted: (value) async {
-                    if (RegExp(r'^\d{8,}$').hasMatch(value)) {
-                      await _handleBarcodeScan(value);
-                    } else {
-                      await _handleSearch(value);
+                    debugPrint('⏎ ENTER: Submitted with value: "$value"');
+                    if (value.isEmpty) return;
+
+                    // Always try barcode/SKU API first (for any input)
+                    debugPrint('⏎ ENTER: Trying barcode/SKU API...');
+                    final product = await context.read<SalesProvider>().scanBarcode(value);
+
+                    if (product != null) {
+                      debugPrint('⏎ ENTER: Product found via API: ${product.name}');
+                      await _addProductToCart(product);
+                      _clearSearch();
+                    }
+                    // If API didn't find it but we have single local result
+                    else if (_searchResults.length == 1) {
+                      debugPrint('⏎ ENTER: Not found via API, using local result');
+                      await _addProductToCart(_searchResults.first);
+                      _clearSearch();
+                    }
+                    // Multiple local results - keep dropdown open
+                    else if (_searchResults.isNotEmpty) {
+                      debugPrint('⏎ ENTER: Multiple local results, select from dropdown');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Select product from dropdown')),
+                      );
+                    }
+                    // No results anywhere
+                    else {
+                      debugPrint('⏎ ENTER: Product not found');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Product not found')),
+                      );
                     }
                   },
                   onChanged: (value) {
@@ -580,7 +613,7 @@ class _SalesScreenState extends State<SalesScreen> {
                 // Search Results Dropdown
                 if (_showSearchDropdown && _searchResults.isNotEmpty)
                   Positioned(
-                    top: 60,
+                    top: 56,
                     left: 0,
                     right: 0,
                     child: Material(

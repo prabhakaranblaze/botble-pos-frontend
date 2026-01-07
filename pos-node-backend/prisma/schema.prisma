@@ -1,0 +1,441 @@
+// Prisma Schema for Botble CMS POS Integration
+// This schema maps to existing Botble database tables
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTHENTICATION & USERS
+// ============================================
+
+model User {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  store_id        BigInt?   @db.UnsignedBigInt
+  email           String    @unique @db.VarChar(191)
+  phone           String?   @db.VarChar(20)
+  email_verified_at DateTime?
+  password        String?   @db.VarChar(120)
+  remember_token  String?   @db.VarChar(100)
+  created_at      DateTime?
+  updated_at      DateTime?
+  first_name      String?   @db.VarChar(120)
+  last_name       String?   @db.VarChar(120)
+  username        String?   @db.VarChar(60)
+  avatar_id       BigInt?   @db.UnsignedBigInt
+  super_user      Boolean   @default(false)
+  manage_supers   Boolean   @default(false)
+  permissions     String?   @db.Text
+  last_login      DateTime?
+  deleted_at      DateTime?
+
+  // Relations
+  tokens          PersonalAccessToken[]
+  roleUsers       RoleUser[]
+  posRegisters    PosRegister[]
+  deviceConfigs   PosDeviceConfig[]
+
+  @@map("users")
+}
+
+model PersonalAccessToken {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  tokenable_type  String    @db.VarChar(191)
+  tokenable_id    BigInt    @db.UnsignedBigInt
+  name            String    @db.VarChar(191)
+  token           String    @unique @db.VarChar(64)
+  abilities       String?   @db.Text
+  last_used_at    DateTime?
+  expires_at      DateTime?
+  created_at      DateTime?
+  updated_at      DateTime?
+
+  // Relation to User (when tokenable_type is User)
+  user            User?     @relation(fields: [tokenable_id], references: [id], onDelete: Cascade)
+
+  @@index([tokenable_type, tokenable_id])
+  @@map("personal_access_tokens")
+}
+
+model Role {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  slug        String    @db.VarChar(120)
+  name        String    @db.VarChar(120)
+  permissions String?   @db.Text
+  description String?   @db.VarChar(400)
+  is_default  Int       @default(0) @db.UnsignedTinyInt
+  created_by  BigInt    @db.UnsignedBigInt
+  updated_by  BigInt    @db.UnsignedBigInt
+  created_at  DateTime?
+  updated_at  DateTime?
+  deleted_at  DateTime?
+
+  roleUsers   RoleUser[]
+
+  @@map("roles")
+}
+
+model RoleUser {
+  user_id    BigInt    @db.UnsignedBigInt
+  role_id    BigInt    @db.UnsignedBigInt
+  created_at DateTime?
+  updated_at DateTime?
+
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role       Role      @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, role_id])
+  @@map("role_users")
+}
+
+// ============================================
+// PRODUCTS
+// ============================================
+
+model Product {
+  id                              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name                            String    @db.VarChar(191)
+  slug                            String?   @db.VarChar(191)
+  description                     String?   @db.Text
+  content                         String?   @db.LongText
+  status                          String    @default("published") @db.VarChar(60)
+  images                          String?   @db.Text
+  video_media                     String?   @db.Text
+  sku                             String?   @db.VarChar(191)
+  order                           Int       @default(0) @db.UnsignedInt
+  quantity                        Int?      @db.UnsignedInt
+  allow_checkout_when_out_of_stock Int      @default(0) @db.UnsignedTinyInt
+  with_storehouse_management      Int       @default(0) @db.UnsignedTinyInt
+  stock_status                    String?   @default("in_stock") @db.VarChar(191)
+  is_available_in_pos             Boolean   @default(true)
+  is_featured                     Int       @default(0) @db.UnsignedTinyInt
+  is_stampsmart_fulfillment       Int       @default(0)
+  brand_id                        BigInt?   @db.UnsignedBigInt
+  is_variation                    Int       @default(0) @db.TinyInt
+  variations_count                Int       @default(0) @db.UnsignedInt
+  reviews_count                   Int       @default(0) @db.UnsignedInt
+  reviews_avg                     Decimal   @default(0.00) @db.Decimal(3, 2)
+  sale_type                       Int       @default(0) @db.TinyInt
+  price                           Float?    @db.Double
+  sale_price                      Float?    @db.Double
+  start_date                      DateTime?
+  end_date                        DateTime?
+  length                          Float?    @db.Double
+  wide                            Float?    @db.Double
+  height                          Float?    @db.Double
+  weight                          Float?    @db.Double
+  tax_id                          BigInt?   @db.UnsignedBigInt
+  views                           BigInt    @default(0)
+  created_at                      DateTime?
+  updated_at                      DateTime?
+  created_by_id                   BigInt?   @default(0) @db.UnsignedBigInt
+  created_by_type                 String    @default("Botble\\ACL\\Models\\User") @db.VarChar(191)
+  image                           String?   @db.VarChar(191)
+  product_type                    String?   @default("physical") @db.VarChar(60)
+  barcode                         String?   @db.VarChar(150)
+  cost_per_item                   Float?    @db.Double
+  generate_license_code           Boolean   @default(false)
+  minimum_order_quantity          Int?      @default(0) @db.UnsignedInt
+  maximum_order_quantity          Int?      @default(0) @db.UnsignedInt
+  store_id                        BigInt?   @db.UnsignedBigInt
+  deleted_at                      DateTime?
+
+  // Relations
+  categories      ProductCategoryProduct[]
+  variations      ProductVariation[]       @relation("ConfigurableProduct")
+  variationOf     ProductVariation?        @relation("VariationProduct")
+  orderProducts   OrderProduct[]
+
+  @@index([barcode])
+  @@index([sku])
+  @@index([status])
+  @@index([is_available_in_pos])
+  @@map("ec_products")
+}
+
+model ProductCategory {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name        String    @db.VarChar(191)
+  slug        String?   @db.VarChar(191)
+  parent_id   BigInt    @default(0) @db.UnsignedBigInt
+  description String?   @db.MediumText
+  status      String    @default("published") @db.VarChar(60)
+  order       Int       @default(0) @db.UnsignedInt
+  image       String?   @db.VarChar(191)
+  is_featured Int       @default(0) @db.UnsignedTinyInt
+  created_at  DateTime?
+  updated_at  DateTime?
+  icon        String?   @db.VarChar(191)
+  icon_image  String?   @db.VarChar(191)
+  deleted_at  DateTime?
+
+  products    ProductCategoryProduct[]
+
+  @@map("ec_product_categories")
+}
+
+model ProductCategoryProduct {
+  category_id BigInt @db.UnsignedBigInt
+  product_id  BigInt @db.UnsignedBigInt
+
+  category    ProductCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  product     Product         @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@id([category_id, product_id])
+  @@map("ec_product_category_product")
+}
+
+model ProductVariation {
+  id                      BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  product_id              BigInt? @db.UnsignedBigInt
+  configurable_product_id BigInt  @db.UnsignedBigInt
+  is_default              Int     @default(0) @db.TinyInt
+
+  // The variation product (child)
+  product                 Product? @relation("VariationProduct", fields: [product_id], references: [id], onDelete: Cascade)
+  // The configurable/parent product
+  configurableProduct     Product  @relation("ConfigurableProduct", fields: [configurable_product_id], references: [id], onDelete: Cascade)
+
+  variationItems          ProductVariationItem[]
+
+  @@map("ec_product_variations")
+}
+
+model ProductVariationItem {
+  id           BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  attribute_id BigInt @db.UnsignedBigInt
+  variation_id BigInt @db.UnsignedBigInt
+
+  variation    ProductVariation @relation(fields: [variation_id], references: [id], onDelete: Cascade)
+
+  @@map("ec_product_variation_items")
+}
+
+// ============================================
+// ORDERS
+// ============================================
+
+model Order {
+  id                              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  code                            String?   @db.VarChar(191)
+  user_id                         BigInt?   @db.UnsignedBigInt
+  shipping_option                 String?   @db.VarChar(60)
+  shipping_method                 String    @default("default") @db.VarChar(60)
+  status                          String    @default("pending") @db.VarChar(120)
+  amount                          Decimal   @db.Decimal(15, 2)
+  tax_amount                      Decimal?  @default(0.00) @db.Decimal(15, 2)
+  shipping_amount                 Decimal?  @db.Decimal(15, 2)
+  payment_fee                     Decimal?  @default(0.00) @db.Decimal(15, 2)
+  description                     String?   @db.Text
+  coupon_code                     String?   @db.VarChar(120)
+  discount_amount                 Decimal?  @db.Decimal(15, 2)
+  sub_total                       Decimal   @db.Decimal(15, 2)
+  is_confirmed                    Boolean   @default(false)
+  discount_description            String?   @db.VarChar(191)
+  is_finished                     Boolean?  @default(false)
+  cancellation_reason             String?   @db.VarChar(191)
+  cancellation_reason_description String?   @db.VarChar(191)
+  completed_at                    DateTime?
+  token                           String?   @db.VarChar(120)
+  payment_id                      BigInt?   @db.UnsignedBigInt
+  created_at                      DateTime?
+  updated_at                      DateTime?
+  proof_file                      String?   @db.VarChar(191)
+  private_notes                   String?   @db.Text
+  store_id                        BigInt?   @db.UnsignedBigInt
+  deleted_at                      DateTime?
+
+  // Relations
+  customer        Customer?      @relation(fields: [user_id], references: [id])
+  orderProducts   OrderProduct[]
+
+  @@index([code])
+  @@index([status])
+  @@index([user_id])
+  @@map("ec_orders")
+}
+
+model OrderProduct {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  order_id        BigInt    @db.UnsignedBigInt
+  qty             Int
+  price           Decimal   @db.Decimal(15, 2)
+  tax_amount      Decimal?  @default(0.00) @db.Decimal(15, 2)
+  options         String?   @db.Text
+  product_options String?   @db.Text
+  product_id      BigInt?   @db.UnsignedBigInt
+  product_name    String    @db.VarChar(191)
+  product_image   String?   @db.VarChar(191)
+  weight          Float?    @default(0) @db.Double
+  restock_quantity Int?     @default(0) @db.UnsignedInt
+  created_at      DateTime?
+  updated_at      DateTime?
+  product_type    String    @default("physical") @db.VarChar(60)
+  deleted_at      DateTime?
+
+  order           Order     @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product         Product?  @relation(fields: [product_id], references: [id])
+
+  @@map("ec_order_product")
+}
+
+// ============================================
+// CUSTOMERS
+// ============================================
+
+model Customer {
+  id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name                  String    @db.VarChar(191)
+  email                 String?   @db.VarChar(191)
+  password              String    @db.VarChar(191)
+  avatar                String?   @db.VarChar(191)
+  dob                   DateTime? @db.Date
+  phone                 String?   @db.VarChar(20)
+  remember_token        String?   @db.VarChar(100)
+  created_at            DateTime?
+  updated_at            DateTime?
+  confirmed_at          DateTime?
+  email_verify_token    String?   @db.VarChar(120)
+  status                String    @default("activated") @db.VarChar(60)
+  block_reason          String?   @db.VarChar(400)
+  private_notes         String?   @db.Text
+  is_vendor             Boolean   @default(false)
+  vendor_verified_at    DateTime?
+  deleted_at            DateTime?
+
+  orders                Order[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("ec_customers")
+}
+
+// ============================================
+// POS SPECIFIC
+// ============================================
+
+model PosCashRegister {
+  id            BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name          String    @db.VarChar(191)
+  code          String    @db.VarChar(191)
+  store_id      BigInt    @db.UnsignedBigInt
+  description   String?   @db.Text
+  is_active     Boolean   @default(true)
+  initial_float Decimal   @default(0.00) @db.Decimal(15, 2)
+  created_at    DateTime?
+  updated_at    DateTime?
+  deleted_at    DateTime?
+
+  sessions      PosSession[]
+
+  @@map("pos_cash_registers")
+}
+
+// Using pos_registers table (simpler, used by Laravel admin POS)
+model PosRegister {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id     BigInt    @db.UnsignedBigInt
+  cash_start  Decimal   @default(0.00) @db.Decimal(15, 2)
+  cash_end    Decimal?  @db.Decimal(15, 2)
+  actual_cash Decimal?  @db.Decimal(15, 2)
+  difference  Decimal   @default(0.00) @db.Decimal(15, 2)
+  opened_at   DateTime  @default(now())
+  closed_at   DateTime?
+  status      String    @default("open") @db.VarChar(20)
+  notes       String?   @db.Text
+  created_at  DateTime?
+  updated_at  DateTime?
+
+  user        User      @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([status])
+  @@map("pos_registers")
+}
+
+// Detailed sessions (if needed later)
+model PosSession {
+  id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  cash_register_id      BigInt    @db.UnsignedBigInt
+  user_id               BigInt    @db.UnsignedBigInt
+  store_id              BigInt    @db.UnsignedBigInt
+  session_code          String    @db.VarChar(191)
+  opened_at             DateTime
+  closed_at             DateTime?
+  opening_cash          Decimal   @db.Decimal(15, 2)
+  opening_denominations Json?
+  opening_notes         String?   @db.Text
+  closing_cash          Decimal?  @db.Decimal(15, 2)
+  closing_denominations Json?
+  closing_notes         String?   @db.Text
+  expected_cash         Decimal?  @db.Decimal(15, 2)
+  cash_difference       Decimal?  @db.Decimal(15, 2)
+  total_sales           Decimal?  @db.Decimal(15, 2)
+  total_transactions    Int?
+  cash_sales            Decimal?  @db.Decimal(15, 2)
+  card_sales            Decimal?  @db.Decimal(15, 2)
+  other_sales           Decimal?  @db.Decimal(15, 2)
+  status                String    @default("open") @db.VarChar(20)
+  created_at            DateTime?
+  updated_at            DateTime?
+
+  cashRegister          PosCashRegister @relation(fields: [cash_register_id], references: [id])
+  transactions          PosSessionTransaction[]
+
+  @@map("pos_sessions")
+}
+
+model PosSessionTransaction {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  session_id      BigInt    @db.UnsignedBigInt
+  order_id        BigInt?   @db.UnsignedBigInt
+  transaction_code String   @db.VarChar(191)
+  type            String    @default("sale") @db.VarChar(20)
+  amount          Decimal   @db.Decimal(15, 2)
+  payment_method  String    @db.VarChar(20)
+  payment_details Json?
+  cash_received   Decimal?  @db.Decimal(15, 2)
+  change_given    Decimal?  @db.Decimal(15, 2)
+  notes           String?   @db.Text
+  user_id         BigInt    @db.UnsignedBigInt
+  created_at      DateTime?
+  updated_at      DateTime?
+
+  session         PosSession @relation(fields: [session_id], references: [id])
+
+  @@map("pos_session_transactions")
+}
+
+model PosDenomination {
+  id            BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  currency_code String    @default("USD") @db.VarChar(3)
+  value         Decimal   @db.Decimal(15, 2)
+  type          String    @db.VarChar(10) // 'coin' or 'note'
+  label         String    @db.VarChar(191)
+  sort_order    Int       @default(0)
+  is_active     Boolean   @default(true)
+  created_at    DateTime?
+  updated_at    DateTime?
+  deleted_at    DateTime?
+
+  @@map("pos_denominations")
+}
+
+model PosDeviceConfig {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id     BigInt    @db.UnsignedBigInt
+  device_ip   String?   @db.VarChar(45)
+  device_name String?   @db.VarChar(255)
+  is_active   Boolean   @default(true)
+  created_at  DateTime?
+  updated_at  DateTime?
+
+  user        User      @relation(fields: [user_id], references: [id])
+
+  @@map("pos_device_configs")
+}

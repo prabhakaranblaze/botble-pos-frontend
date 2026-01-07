@@ -253,10 +253,7 @@ class OrdersService {
       take: limit,
       include: {
         orderProducts: true,
-        payments: {
-          take: 1,
-          orderBy: { created_at: 'desc' },
-        },
+        payment: true,
       },
     });
 
@@ -322,9 +319,8 @@ class OrdersService {
    * Format order from database
    */
   formatOrderFromDb(order) {
-    // Get payment method from payments if available
-    const payment = order.payments?.[0];
-    const paymentMethod = payment?.payment_channel || 'pos_cash';
+    // Get payment method from payment relation if available
+    const paymentMethod = order.payment?.payment_channel || 'pos_cash';
 
     return {
       id: Number(order.id),

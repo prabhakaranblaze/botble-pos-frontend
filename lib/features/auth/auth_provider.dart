@@ -78,6 +78,16 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Verify password for lock screen unlock
+  Future<bool> verifyPassword(String password) async {
+    try {
+      return await _apiService.verifyPassword(password);
+    } catch (e) {
+      debugPrint('❌ AUTH: Verify password failed: $e');
+      return false;
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

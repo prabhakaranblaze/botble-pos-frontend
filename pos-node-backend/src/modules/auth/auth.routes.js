@@ -9,5 +9,6 @@ router.post('/login', authController.login.bind(authController));
 // Protected routes
 router.get('/me', verifyToken, authController.me.bind(authController));
 router.post('/logout', verifyToken, authController.logout.bind(authController));
+router.post('/verify-password', verifyToken, authController.verifyPassword.bind(authController));
 
 module.exports = router;

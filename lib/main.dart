@@ -10,7 +10,9 @@ import 'core/services/storage_service.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/connectivity_provider.dart';
 import 'core/providers/locale_provider.dart';
+import 'core/providers/inactivity_provider.dart';
 import 'features/auth/auth_provider.dart';
+import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
 import 'features/session/session_provider.dart';
 import 'features/auth/login_screen.dart';
@@ -29,11 +31,17 @@ void main() async {
   final apiService = ApiService(databaseService, storageService);
   final audioService = AudioService();
   await audioService.preload(); // preload beep sound for instant playback
+
+  final inactivityProvider = InactivityProvider(
+    lockTimeout: const Duration(minutes: 30),
+  );
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
+        ChangeNotifierProvider.value(value: inactivityProvider),
         ChangeNotifierProvider(
             create: (_) => AuthProvider(apiService, storageService)),
         ChangeNotifierProvider(
@@ -41,77 +49,82 @@ void main() async {
         ChangeNotifierProvider(
             create: (_) => SessionProvider(apiService, storageService)),
       ],
-      child: const MyApp(),
+      child: MyApp(inactivityProvider: inactivityProvider),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final InactivityProvider inactivityProvider;
+
+  const MyApp({super.key, required this.inactivityProvider});
 
   @override
   Widget build(BuildContext context) {
     return Consumer<LocaleProvider>(
       builder: (context, localeProvider, child) {
-        return MaterialApp(
-          title: AppConstants.appName,
-          debugShowCheckedModeBanner: false,
+        return InactivityDetector(
+          inactivityProvider: inactivityProvider,
+          child: MaterialApp(
+            title: AppConstants.appName,
+            debugShowCheckedModeBanner: false,
 
-          // Localization
-          locale: localeProvider.locale,
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: LocaleProvider.supportedLocales,
+            // Localization
+            locale: localeProvider.locale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: LocaleProvider.supportedLocales,
 
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-                seedColor: AppColors.primary, brightness: Brightness.light),
-            textTheme: GoogleFonts.interTextTheme(),
-            scaffoldBackgroundColor: AppColors.background,
-            appBarTheme: AppBarTheme(
-              backgroundColor: AppColors.surface,
-              elevation: 0,
-              titleTextStyle: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary),
-            ),
-            cardTheme: CardThemeData(
-              color: AppColors.surface,
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            theme: ThemeData(
+              useMaterial3: true,
+              colorScheme: ColorScheme.fromSeed(
+                  seedColor: AppColors.primary, brightness: Brightness.light),
+              textTheme: GoogleFonts.interTextTheme(),
+              scaffoldBackgroundColor: AppColors.background,
+              appBarTheme: AppBarTheme(
+                backgroundColor: AppColors.surface,
+                elevation: 0,
+                titleTextStyle: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
+              ),
+              cardTheme: CardThemeData(
+                color: AppColors.surface,
+                elevation: 1,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              inputDecorationTheme: InputDecorationTheme(
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.border)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.border)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                filled: true,
+                fillColor: AppColors.surface,
               ),
             ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: AppColors.border)),
-              enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: AppColors.border)),
-              focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: AppColors.primary, width: 2)),
-              filled: true,
-              fillColor: AppColors.surface,
-            ),
+            home: const AuthWrapper(),
           ),
-          home: const AuthWrapper(),
         );
       },
     );
@@ -131,10 +144,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<AuthProvider, SessionProvider>(
-      builder: (context, auth, session, child) {
+    return Consumer3<AuthProvider, SessionProvider, InactivityProvider>(
+      builder: (context, auth, session, inactivity, child) {
         debugPrint(
-            '🔵 AuthWrapper: auth=${auth.isAuthenticated}, session=${session.hasActiveSession}, checking=$_isChecking, checked=$_hasChecked');
+            '🔵 AuthWrapper: auth=${auth.isAuthenticated}, session=${session.hasActiveSession}, locked=${inactivity.isLocked}, checking=$_isChecking, checked=$_hasChecked');
 
         // NOT authenticated
         if (!auth.isAuthenticated) {
@@ -149,7 +162,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
               }
             });
           }
+          // Stop inactivity tracking when logged out
+          inactivity.stopTracking();
           return const LoginScreen();
+        }
+
+        // Check if locked (only when authenticated)
+        if (inactivity.isLocked) {
+          return LockScreen(
+            onUnlock: () {
+              inactivity.unlock();
+            },
+          );
+        }
+
+        // Start inactivity tracking when authenticated
+        if (!inactivity.isLocked) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            inactivity.startTracking();
+          });
         }
 
         // ✅ Authenticated - need to check session

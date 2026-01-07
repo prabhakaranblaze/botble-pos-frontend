@@ -122,6 +122,26 @@ class AuthService {
   }
 
   /**
+   * Verify user password (for lock screen unlock)
+   */
+  async verifyPassword(userId, password) {
+    const user = await prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+    });
+
+    if (!user || user.deleted_at) {
+      throw new Error('User not found');
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password || '');
+    if (!isValidPassword) {
+      throw new Error('Invalid password');
+    }
+
+    return true;
+  }
+
+  /**
    * Format user for API response
    */
   formatUser(user) {

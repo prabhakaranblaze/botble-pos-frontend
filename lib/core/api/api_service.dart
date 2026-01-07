@@ -164,6 +164,19 @@ class ApiService {
     }
   }
 
+  /// Verify password for lock screen unlock
+  Future<bool> verifyPassword(String password) async {
+    try {
+      final response = await _dio.post('/auth/verify-password', data: {
+        'password': password,
+      });
+      return response.data['error'] == false;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: Verify password failed: $e');
+      return false;
+    }
+  }
+
   // Product APIs
   Future<List<Product>> getProducts({int page = 1, String? search}) async {
     debugPrint(

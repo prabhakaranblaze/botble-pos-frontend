@@ -71,6 +71,38 @@ class AuthController {
       next(error);
     }
   }
+
+  /**
+   * POST /auth/verify-password
+   * Verify password for lock screen unlock
+   */
+  async verifyPassword(req, res, next) {
+    try {
+      const { password } = req.body;
+
+      if (!password) {
+        return res.status(400).json({
+          error: true,
+          message: 'Password is required',
+        });
+      }
+
+      await authService.verifyPassword(req.user.id, password);
+
+      res.json({
+        error: false,
+        message: 'Password verified',
+      });
+    } catch (error) {
+      if (error.message === 'Invalid password') {
+        return res.status(401).json({
+          error: true,
+          message: 'Invalid password',
+        });
+      }
+      next(error);
+    }
+  }
 }
 
 module.exports = new AuthController();

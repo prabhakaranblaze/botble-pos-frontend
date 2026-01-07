@@ -1,5 +1,6 @@
 const { prisma } = require('../../config/database');
 const config = require('../../config');
+const settingsService = require('../settings/settings.service');
 
 class ProductsService {
   /**
@@ -36,7 +37,7 @@ class ProductsService {
       where.store_id = BigInt(storeId);
     }
 
-    const [products, total] = await Promise.all([
+    const [products, total, siteSettings] = await Promise.all([
       prisma.product.findMany({
         where,
         skip,
@@ -46,6 +47,11 @@ class ProductsService {
           categories: {
             include: {
               category: true,
+            },
+          },
+          taxProducts: {
+            include: {
+              tax: true,
             },
           },
           variations: {
@@ -65,10 +71,11 @@ class ProductsService {
         },
       }),
       prisma.product.count({ where }),
+      settingsService.getSettings(),
     ]);
 
     return {
-      products: products.map((p) => this.formatProduct(p)),
+      products: products.map((p) => this.formatProduct(p, siteSettings.default_tax)),
       pagination: {
         current_page: page,
         per_page: perPage,
@@ -82,35 +89,43 @@ class ProductsService {
    * Get product by barcode
    */
   async getProductByBarcode(barcode) {
-    const product = await prisma.product.findFirst({
-      where: {
-        barcode,
-        status: 'published',
-        is_available_in_pos: true,
-        deleted_at: null,
-      },
-      include: {
-        categories: {
-          include: { category: true },
+    const [product, siteSettings] = await Promise.all([
+      prisma.product.findFirst({
+        where: {
+          barcode,
+          status: 'published',
+          is_available_in_pos: true,
+          deleted_at: null,
         },
-        variations: {
-          include: {
-            product: true,
-            variationItems: {
-              include: {
-                attribute: {
-                  include: {
-                    attributeSet: true,
+        include: {
+          categories: {
+            include: { category: true },
+          },
+          taxProducts: {
+            include: {
+              tax: true,
+            },
+          },
+          variations: {
+            include: {
+              product: true,
+              variationItems: {
+                include: {
+                  attribute: {
+                    include: {
+                      attributeSet: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      }),
+      settingsService.getSettings(),
+    ]);
 
-    return product ? this.formatProduct(product) : null;
+    return product ? this.formatProduct(product, siteSettings.default_tax) : null;
   }
 
   /**
@@ -156,39 +171,49 @@ class ProductsService {
    * Get single product by ID
    */
   async getProductById(id) {
-    const product = await prisma.product.findFirst({
-      where: {
-        id: BigInt(id),
-        deleted_at: null,
-      },
-      include: {
-        categories: {
-          include: { category: true },
+    const [product, siteSettings] = await Promise.all([
+      prisma.product.findFirst({
+        where: {
+          id: BigInt(id),
+          deleted_at: null,
         },
-        variations: {
-          include: {
-            product: true,
-            variationItems: {
-              include: {
-                attribute: {
-                  include: {
-                    attributeSet: true,
+        include: {
+          categories: {
+            include: { category: true },
+          },
+          taxProducts: {
+            include: {
+              tax: true,
+            },
+          },
+          variations: {
+            include: {
+              product: true,
+              variationItems: {
+                include: {
+                  attribute: {
+                    include: {
+                      attributeSet: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      }),
+      settingsService.getSettings(),
+    ]);
 
-    return product ? this.formatProduct(product) : null;
+    return product ? this.formatProduct(product, siteSettings.default_tax) : null;
   }
 
   /**
    * Format product for API response
+   * @param {Object} product - Product from database
+   * @param {Object} defaultTax - Site-wide default tax object {id, title, percentage}
    */
-  formatProduct(product) {
+  formatProduct(product, defaultTax = null) {
     const hasVariations = product.variations_count > 0 || product.variations?.length > 0;
 
     // Build image URL
@@ -215,6 +240,27 @@ class ProductsService {
     const salePrice = product.sale_price;
     const finalPrice = salePrice && salePrice < price ? salePrice : price;
 
+    // Get tax info - product tax takes priority, fallback to site default tax
+    let taxInfo = null;
+
+    // Check if product has specific tax assigned via pivot table
+    if (product.taxProducts && product.taxProducts.length > 0) {
+      // Get the first tax (sorted by priority would be better, but for now take first)
+      const productTax = product.taxProducts[0].tax;
+      if (productTax && productTax.status === 'published' && !productTax.deleted_at) {
+        taxInfo = {
+          id: Number(productTax.id),
+          title: productTax.title,
+          percentage: parseFloat(productTax.percentage) || 0,
+        };
+      }
+    }
+
+    // Fallback to site default tax if no product-specific tax
+    if (!taxInfo && defaultTax) {
+      taxInfo = defaultTax;
+    }
+
     return {
       id: Number(product.id),
       name: product.name,
@@ -229,6 +275,7 @@ class ProductsService {
       is_available: product.is_available_in_pos && product.stock_status === 'in_stock',
       has_variants: hasVariations,
       variants: hasVariations ? this.formatVariations(product.variations) : null,
+      tax: taxInfo,
     };
   }
 

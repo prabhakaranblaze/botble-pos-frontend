@@ -30,22 +30,39 @@ class SettingsService {
         };
       }
 
-      // Try to get tax rate from settings
-      let taxRate = 0.15; // Default 15% tax
+      // Get default tax from settings (stores tax_id, not percentage)
+      let defaultTax = null;
       try {
         const taxSetting = await prisma.$queryRaw`
-          SELECT * FROM settings WHERE key = 'ecommerce_tax_percentage' LIMIT 1
+          SELECT * FROM settings WHERE \`key\` = 'ecommerce_default_tax_rate' LIMIT 1
         `;
         if (taxSetting && taxSetting.length > 0) {
-          taxRate = parseFloat(taxSetting[0].value) / 100 || 0.15;
+          const defaultTaxId = parseInt(taxSetting[0].value);
+          if (defaultTaxId > 0) {
+            // Look up the actual tax record
+            const taxRecord = await prisma.tax.findFirst({
+              where: {
+                id: BigInt(defaultTaxId),
+                status: 'published',
+                deleted_at: null,
+              },
+            });
+            if (taxRecord) {
+              defaultTax = {
+                id: Number(taxRecord.id),
+                title: taxRecord.title,
+                percentage: parseFloat(taxRecord.percentage) || 0,
+              };
+            }
+          }
         }
       } catch (e) {
-        // Ignore - use default
+        console.warn('Error fetching default tax:', e.message);
       }
 
       return {
         currency,
-        tax_rate: taxRate,
+        default_tax: defaultTax,
         store_name: 'StampSmart POS',
       };
     } catch (e) {
@@ -59,7 +76,7 @@ class SettingsService {
           decimal_digits: 2,
           is_prefix: false,
         },
-        tax_rate: 0.15,
+        default_tax: null,
         store_name: 'StampSmart POS',
       };
     }

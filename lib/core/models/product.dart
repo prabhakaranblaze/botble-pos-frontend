@@ -14,6 +14,7 @@ class Product {
   final bool isAvailable;
   final bool hasVariants;
   final List<ProductVariant>? variants;
+  final ProductTax? tax;
 
   Product({
     required this.id,
@@ -28,6 +29,7 @@ class Product {
     this.isAvailable = true,
     this.hasVariants = false,
     this.variants,
+    this.tax,
   });
 
   double get finalPrice => salePrice ?? price;
@@ -65,6 +67,7 @@ class Product {
               .map((v) => ProductVariant.fromJson(v))
               .toList()
           : null,
+      tax: json['tax'] != null ? ProductTax.fromJson(json['tax']) : null,
     );
   }
 
@@ -83,6 +86,7 @@ class Product {
       'is_available': isAvailable,
       'has_variants': hasVariants,
       'variants': variants?.map((v) => v.toJson()).toList(),
+      'tax': tax?.toJson(),
     };
   }
 
@@ -103,6 +107,7 @@ class Product {
       'variants_json': variants != null
           ? jsonEncode(variants!.map((v) => v.toJson()).toList())
           : null,
+      'tax_json': tax != null ? jsonEncode(tax!.toJson()) : null,
       'synced': 1,
     };
   }
@@ -110,6 +115,7 @@ class Product {
   // ⭐ FROM DATABASE JSON
   factory Product.fromDbJson(Map<String, dynamic> json) {
     List<ProductVariant>? variantsList;
+    ProductTax? taxData;
 
     if (json['variants_json'] != null && json['variants_json'] != '') {
       try {
@@ -118,6 +124,16 @@ class Product {
         variantsList = decoded.map((v) => ProductVariant.fromJson(v)).toList();
       } catch (e) {
         variantsList = null;
+      }
+    }
+
+    if (json['tax_json'] != null && json['tax_json'] != '') {
+      try {
+        final Map<String, dynamic> decoded =
+            jsonDecode(json['tax_json'] as String);
+        taxData = ProductTax.fromJson(decoded);
+      } catch (e) {
+        taxData = null;
       }
     }
 
@@ -138,6 +154,7 @@ class Product {
           ? (json['has_variants'] as int) == 1
           : false,
       variants: variantsList,
+      tax: taxData,
     );
   }
 }
@@ -244,5 +261,41 @@ class ProductCategory {
       name: json['name'] as String,
       productCount: json['product_count'] ?? 0,
     );
+  }
+}
+
+/// Tax information for a product
+class ProductTax {
+  final int? id;
+  final String title;
+  final double percentage;
+
+  ProductTax({
+    this.id,
+    required this.title,
+    required this.percentage,
+  });
+
+  factory ProductTax.fromJson(Map<String, dynamic> json) {
+    return ProductTax(
+      id: json['id'] as int?,
+      title: json['title'] as String? ?? 'Tax',
+      percentage: json['percentage'] != null
+          ? double.parse(json['percentage'].toString())
+          : 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'percentage': percentage,
+    };
+  }
+
+  /// Calculate tax amount for a given price
+  double calculateTax(double price) {
+    return price * (percentage / 100);
   }
 }

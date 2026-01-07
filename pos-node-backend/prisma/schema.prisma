@@ -150,6 +150,7 @@ model Product {
   variations      ProductVariation[]       @relation("ConfigurableProduct")
   variationOf     ProductVariation?        @relation("VariationProduct")
   orderProducts   OrderProduct[]
+  taxProducts     TaxProduct[]
 
   @@index([barcode])
   @@index([sku])
@@ -256,6 +257,49 @@ model ProductAttribute {
   variationItems  ProductVariationItem[]
 
   @@map("ec_product_attributes")
+}
+
+// ============================================
+// TAXES
+// ============================================
+
+model Tax {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  title       String    @db.VarChar(191)
+  percentage  Decimal   @default(0.00) @db.Decimal(8, 4)
+  priority    Int       @default(0) @db.UnsignedInt
+  status      String    @default("published") @db.VarChar(60)
+  created_at  DateTime?
+  updated_at  DateTime?
+  deleted_at  DateTime?
+
+  taxProducts TaxProduct[]
+
+  @@map("ec_taxes")
+}
+
+// Pivot table for product-tax relationship
+model TaxProduct {
+  tax_id      BigInt @db.UnsignedBigInt
+  product_id  BigInt @db.UnsignedBigInt
+
+  tax         Tax     @relation(fields: [tax_id], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@id([tax_id, product_id])
+  @@map("ec_tax_products")
+}
+
+// ============================================
+// SETTINGS (for site-wide config)
+// ============================================
+
+model Setting {
+  id    BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  key   String @unique @db.VarChar(191)
+  value String? @db.LongText
+
+  @@map("settings")
 }
 
 // ============================================

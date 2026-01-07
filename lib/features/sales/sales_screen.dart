@@ -1223,6 +1223,7 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   /// Large cart item card for Kiosk mode
+  /// Layout: [Image] [SKU/Name/Options] [UnitPrice] [QtyControls] [Total]
   Widget _buildKioskCartItem(dynamic item, SalesProvider sales) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1259,31 +1260,60 @@ class _SalesScreenState extends State<SalesScreen> {
             ),
             const SizedBox(width: 16),
 
-            // Product Details
+            // Product Details (3 lines: SKU, Name, Options)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Line 1: SKU
+                  if (item.sku != null && item.sku!.isNotEmpty)
+                    Text(
+                      'SKU: ${item.sku}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  // Line 2: Product Name
                   Text(
                     item.name,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    AppCurrency.format(item.price),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                  // Line 3: Options/Variations
+                  if (item.options != null && item.options!.isNotEmpty)
+                    Text(
+                      item.options!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
                 ],
               ),
             ),
+
+            const SizedBox(width: 12),
+
+            // Unit Price
+            Text(
+              AppCurrency.format(item.price),
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+
+            const SizedBox(width: 12),
 
             // Quantity Controls
             Container(
@@ -1292,6 +1322,7 @@ class _SalesScreenState extends State<SalesScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     icon: Icon(
@@ -1301,6 +1332,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       color: item.quantity == 1
                           ? AppColors.error
                           : AppColors.primary,
+                      size: 20,
                     ),
                     onPressed: () {
                       if (item.quantity == 1) {
@@ -1309,36 +1341,40 @@ class _SalesScreenState extends State<SalesScreen> {
                         sales.updateCartItem(item.productId, item.quantity - 1);
                       }
                     },
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: EdgeInsets.zero,
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
                       '${item.quantity}',
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.add, color: AppColors.primary),
+                    icon: Icon(Icons.add, color: AppColors.primary, size: 20),
                     onPressed: () {
                       sales.updateCartItem(item.productId, item.quantity + 1);
                     },
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: EdgeInsets.zero,
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
 
             // Line Total
             SizedBox(
-              width: 100,
+              width: 90,
               child: Text(
                 AppCurrency.format(item.lineTotal),
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                 ),

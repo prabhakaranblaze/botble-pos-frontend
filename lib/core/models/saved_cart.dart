@@ -148,6 +148,7 @@ class SavedCartItem {
   final int quantity;
   final String? image;
   final String? sku;
+  final String? options; // "Size: Large • Color: Red"
   final double taxRate;
 
   SavedCartItem({
@@ -157,6 +158,7 @@ class SavedCartItem {
     required this.quantity,
     this.image,
     this.sku,
+    this.options,
     this.taxRate = 0.0,
   });
 
@@ -170,6 +172,7 @@ class SavedCartItem {
       quantity: json['quantity'] as int,
       image: json['image'] as String?,
       sku: json['sku'] as String?,
+      options: json['options'] as String?,
       taxRate: json['tax_rate'] != null
           ? double.parse(json['tax_rate'].toString())
           : 0.0,
@@ -184,6 +187,7 @@ class SavedCartItem {
       'quantity': quantity,
       'image': image,
       'sku': sku,
+      'options': options,
       'tax_rate': taxRate,
     };
   }
@@ -195,6 +199,7 @@ class SavedCartItem {
     int? quantity,
     String? image,
     String? sku,
+    String? options,
     double? taxRate,
   }) {
     return SavedCartItem(
@@ -204,6 +209,7 @@ class SavedCartItem {
       quantity: quantity ?? this.quantity,
       image: image ?? this.image,
       sku: sku ?? this.sku,
+      options: options ?? this.options,
       taxRate: taxRate ?? this.taxRate,
     );
   }

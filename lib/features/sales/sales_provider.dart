@@ -264,8 +264,9 @@ class SalesProvider with ChangeNotifier {
 
   // ✅ CLIENT-SIDE: Add to cart with full Product object (for API search results)
   // priceOverride: Use this for variant products where price comes from variant selection
+  // options: Display string for selected options (e.g., "Size: Large • Color: Red")
   Future<void> addProductToCart(Product product,
-      {int quantity = 1, double? priceOverride}) async {
+      {int quantity = 1, double? priceOverride, String? options}) async {
     try {
       final unitPrice = priceOverride ?? product.finalPrice;
       debugPrint(
@@ -293,6 +294,9 @@ class SalesProvider with ChangeNotifier {
         final productTax = product.tax?.percentage ?? 0.0;
         final taxRate = productTax > 0 ? productTax : _defaultTaxRate;
 
+        // Build options string: use provided options or "Default" for simple products
+        final optionsDisplay = options ?? (product.hasVariants ? null : 'Default');
+
         _cartItems.add(SavedCartItem(
           productId: product.id,
           name: product.name,
@@ -300,6 +304,7 @@ class SalesProvider with ChangeNotifier {
           quantity: quantity,
           image: product.image,
           sku: product.sku,
+          options: optionsDisplay,
           taxRate: taxRate,
         ));
         debugPrint('✅ Added new item with tax rate: $taxRate% (product: $productTax%, default: $_defaultTaxRate%)');
@@ -537,7 +542,7 @@ class SalesProvider with ChangeNotifier {
         throw Exception('Cart is empty');
       }
 
-      // Build items for direct checkout (include tax_rate and sku)
+      // Build items for direct checkout (include tax_rate, sku, and options)
       final items = _cartItems
           .map((item) => {
                 'product_id': item.productId,
@@ -546,6 +551,7 @@ class SalesProvider with ChangeNotifier {
                 'price': item.price,
                 'image': item.image,
                 'sku': item.sku,
+                'options': item.options,
                 'tax_rate': item.taxRate,
               })
           .toList();

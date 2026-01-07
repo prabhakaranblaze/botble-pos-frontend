@@ -373,9 +373,10 @@ class OrdersService {
       const itemTotal = itemSubtotal + itemTax;
 
       // Build options JSON matching Laravel format
+      // attributes: display string like "Size: Large • Color: Red" or "Default"
       const itemOptions = {
         image: item.image || '',
-        attributes: '',
+        attributes: item.options || '',
         taxRate: itemTaxRate,
         taxClasses: itemTaxRate > 0 ? { 'VAT': itemTaxRate } : {},
         options: [],

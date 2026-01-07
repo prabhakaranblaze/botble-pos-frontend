@@ -514,11 +514,13 @@ class ApiService {
     String? customerEmail,
     String? customerPhone,
   }) async {
-    debugPrint('💳 API SERVICE: checkoutDirect called');
+    debugPrint('💳 API SERVICE: ========== CHECKOUT DIRECT ==========');
     debugPrint('💳 API SERVICE: Items: ${items.length}');
     debugPrint('💳 API SERVICE: Payment method: $paymentMethod');
-    debugPrint('💳 API SERVICE: Discount: $discountAmount (coupon: $couponCode)');
-    debugPrint('💳 API SERVICE: Shipping: $shippingAmount');
+    debugPrint('💳 API SERVICE: Tax amount: $taxAmount');
+    debugPrint('💳 API SERVICE: Discount amount: $discountAmount (coupon: $couponCode)');
+    debugPrint('💳 API SERVICE: Shipping amount: $shippingAmount');
+    debugPrint('💳 API SERVICE: Customer ID: $customerId');
 
     try {
       if (!_isOnline) {
@@ -526,25 +528,32 @@ class ApiService {
         throw Exception('Cannot checkout while offline');
       }
 
-      final response = await _dio.post('/orders', data: {
+      // Build request data explicitly to debug what's being sent
+      final requestData = {
         'items': items,
         'payment_method': paymentMethod,
-        if (paymentDetails != null) 'payment_details': paymentDetails,
-        if (customerId != null) 'customer_id': customerId,
-        // Discount
-        if (discountId != null) 'discount_id': discountId,
-        if (couponCode != null) 'coupon_code': couponCode,
-        if (discountAmount > 0) 'discount_amount': discountAmount,
-        if (discountDescription != null) 'discount_description': discountDescription,
-        // Shipping
-        if (shippingAmount > 0) 'shipping_amount': shippingAmount,
-        // Tax
-        if (taxAmount != null) 'tax_amount': taxAmount,
-        // Customer info for invoice
-        if (customerName != null) 'customer_name': customerName,
-        if (customerEmail != null) 'customer_email': customerEmail,
-        if (customerPhone != null) 'customer_phone': customerPhone,
-      });
+        // Always send tax, discount, shipping (even if 0) so backend gets explicit values
+        'tax_amount': taxAmount ?? 0,
+        'discount_amount': discountAmount,
+        'shipping_amount': shippingAmount,
+      };
+
+      // Add optional fields
+      if (paymentDetails != null) requestData['payment_details'] = paymentDetails;
+      if (customerId != null) requestData['customer_id'] = customerId;
+      if (discountId != null) requestData['discount_id'] = discountId;
+      if (couponCode != null) requestData['coupon_code'] = couponCode;
+      if (discountDescription != null) requestData['discount_description'] = discountDescription;
+      if (customerName != null) requestData['customer_name'] = customerName;
+      if (customerEmail != null) requestData['customer_email'] = customerEmail;
+      if (customerPhone != null) requestData['customer_phone'] = customerPhone;
+
+      debugPrint('💳 API SERVICE: Request data: $requestData');
+      debugPrint('💳 API SERVICE: Request data (tax_amount): ${requestData['tax_amount']}');
+      debugPrint('💳 API SERVICE: Request data (discount_amount): ${requestData['discount_amount']}');
+      debugPrint('💳 API SERVICE: Request data (shipping_amount): ${requestData['shipping_amount']}');
+
+      final response = await _dio.post('/orders', data: requestData);
 
       if (response.data['error'] == false) {
         final order = Order.fromJson(response.data['data']['order']);

@@ -142,27 +142,43 @@ class OrdersService {
     customerEmail = null,
     customerPhone = null,
   }) {
+    console.log('========== CHECKOUT DIRECT ==========');
+    console.log('checkoutDirect received params:');
+    console.log('  - userId:', userId);
+    console.log('  - items count:', items?.length);
+    console.log('  - paymentMethod:', paymentMethod);
+    console.log('  - taxAmount (from client):', taxAmount, '(type:', typeof taxAmount, ')');
+    console.log('  - discountAmount:', discountAmount, '(type:', typeof discountAmount, ')');
+    console.log('  - shippingAmount:', shippingAmount, '(type:', typeof shippingAmount, ')');
+    console.log('  - couponCode:', couponCode);
+    console.log('  - customerId:', customerId);
+
     if (!items || items.length === 0) {
       throw new Error('Cart is empty');
     }
 
     // Calculate totals from items
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    console.log('  - subtotal (calculated):', subtotal);
 
     // Calculate tax: use client-provided tax or calculate per-item tax
     let tax = 0;
     if (taxAmount !== null && taxAmount !== undefined) {
       tax = taxAmount;
+      console.log('  - Using client-provided tax:', tax);
     } else {
       // Calculate from item tax rates (fallback to 0 if not provided)
       tax = items.reduce((sum, item) => {
         const itemTaxRate = item.tax_rate || 0;
         return sum + (item.price * item.quantity * itemTaxRate / 100);
       }, 0);
+      console.log('  - Tax calculated from item rates:', tax);
     }
 
     // Calculate total: subtotal + tax - discount + shipping
     const total = subtotal + tax - discountAmount + shippingAmount;
+    console.log('  - total (calculated):', total);
+    console.log('  - Final values for order: tax=', tax, ', discount=', discountAmount, ', shipping=', shippingAmount);
 
     // Map payment method to Laravel's format (pos_cash, pos_card)
     const paymentChannel = paymentMethod === 'card' ? 'pos_card' :
@@ -191,6 +207,13 @@ class OrdersService {
     const orderCode = await this.generateOrderCode();
 
     // Create order with payment_id linked
+    console.log('Creating order with data:');
+    console.log('  - tax_amount:', tax);
+    console.log('  - discount_amount:', discountAmount);
+    console.log('  - shipping_amount:', shippingAmount);
+    console.log('  - sub_total:', subtotal);
+    console.log('  - amount (total):', total);
+
     const order = await prisma.order.create({
       data: {
         code: orderCode,
@@ -213,6 +236,11 @@ class OrdersService {
         updated_at: new Date(),
       },
     });
+
+    console.log('Order created:', order.id, order.code);
+    console.log('  - Saved tax_amount:', order.tax_amount);
+    console.log('  - Saved discount_amount:', order.discount_amount);
+    console.log('  - Saved shipping_amount:', order.shipping_amount);
 
     // Update payment with order_id
     await prisma.payment.update({

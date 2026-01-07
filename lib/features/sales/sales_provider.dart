@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 import '../../core/models/product.dart';
 import '../../core/models/cart.dart';
 import '../../core/models/customer.dart';
+import '../../core/models/customer_address.dart';
 import '../../core/models/saved_cart.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/database/saved_cart_database.dart';
+import 'delivery_address_widget.dart';
 
 class SalesProvider with ChangeNotifier {
   final ApiService _apiService;
@@ -37,6 +39,12 @@ class SalesProvider with ChangeNotifier {
 
   // ✅ Shipping state
   double _shippingAmount = 0;
+
+  // ✅ Delivery & Address state
+  DeliveryType _deliveryType = DeliveryType.pickup;
+  List<CustomerAddress> _customerAddresses = [];
+  CustomerAddress? _selectedAddress;
+  bool _isLoadingAddresses = false;
 
   // ✅ Saved carts
   List<SavedCart> _savedCarts = [];
@@ -77,6 +85,12 @@ class SalesProvider with ChangeNotifier {
 
   // Shipping getter
   double get shippingAmount => _shippingAmount;
+
+  // Delivery & Address getters
+  DeliveryType get deliveryType => _deliveryType;
+  List<CustomerAddress> get customerAddresses => _customerAddresses;
+  CustomerAddress? get selectedAddress => _selectedAddress;
+  bool get isLoadingAddresses => _isLoadingAddresses;
 
   // ✅ Build cart from local items
   Cart get cart {
@@ -392,12 +406,94 @@ class SalesProvider with ChangeNotifier {
   // Customer operations
   void selectCustomer(Customer customer) {
     _selectedCustomer = customer;
+    // Reset address when customer changes
+    _customerAddresses = [];
+    _selectedAddress = null;
+    _deliveryType = DeliveryType.pickup;
     notifyListeners();
+    // Load addresses for the new customer
+    loadCustomerAddresses(customer.id);
   }
 
   void clearCustomer() {
     _selectedCustomer = null;
+    _customerAddresses = [];
+    _selectedAddress = null;
+    _deliveryType = DeliveryType.pickup;
     notifyListeners();
+  }
+
+  // ========== DELIVERY & ADDRESS OPERATIONS ==========
+
+  void setDeliveryType(DeliveryType type) {
+    _deliveryType = type;
+    // Clear address when switching to pickup
+    if (type == DeliveryType.pickup) {
+      _selectedAddress = null;
+    } else if (_customerAddresses.isNotEmpty && _selectedAddress == null) {
+      // Auto-select default address when switching to ship
+      _selectedAddress = _customerAddresses.firstWhere(
+        (a) => a.isDefault,
+        orElse: () => _customerAddresses.first,
+      );
+    }
+    notifyListeners();
+  }
+
+  void selectAddress(CustomerAddress? address) {
+    _selectedAddress = address;
+    notifyListeners();
+  }
+
+  Future<void> loadCustomerAddresses(int customerId) async {
+    _isLoadingAddresses = true;
+    notifyListeners();
+
+    try {
+      _customerAddresses = await _apiService.getCustomerAddresses(customerId);
+      // Auto-select default address if available
+      if (_customerAddresses.isNotEmpty) {
+        _selectedAddress = _customerAddresses.firstWhere(
+          (a) => a.isDefault,
+          orElse: () => _customerAddresses.first,
+        );
+      }
+      debugPrint('✅ Loaded ${_customerAddresses.length} addresses');
+    } catch (e) {
+      debugPrint('❌ Error loading addresses: $e');
+      _customerAddresses = [];
+    } finally {
+      _isLoadingAddresses = false;
+      notifyListeners();
+    }
+  }
+
+  Future<CustomerAddress> createCustomerAddress(Map<String, dynamic> data) async {
+    if (_selectedCustomer == null) {
+      throw Exception('No customer selected');
+    }
+
+    final address = await _apiService.createCustomerAddress(_selectedCustomer!.id, data);
+    _customerAddresses.add(address);
+
+    // Auto-select the new address
+    _selectedAddress = address;
+    notifyListeners();
+
+    return address;
+  }
+
+  Future<Customer> createCustomer(String name, String phone, String? email) async {
+    final customer = await _apiService.createCustomer({
+      'name': name,
+      'phone': phone,
+      'email': email,
+    });
+
+    // Auto-select the new customer
+    selectCustomer(customer);
+
+    return customer;
   }
 
   void updatePaymentMethod(String method) {
@@ -564,7 +660,13 @@ class SalesProvider with ChangeNotifier {
 
       debugPrint('💳 CHECKOUT: Sending ${items.length} items to server...');
 
-      // Direct checkout with discount and shipping
+      // Build customer address string for invoice
+      String? customerAddressStr;
+      if (_deliveryType == DeliveryType.ship && _selectedAddress != null) {
+        customerAddressStr = _selectedAddress!.displayText;
+      }
+
+      // Direct checkout with discount, shipping, and address
       final order = await _apiService.checkoutDirect(
         items: items,
         paymentMethod: _paymentMethod,
@@ -575,14 +677,18 @@ class SalesProvider with ChangeNotifier {
         couponCode: _couponCode,
         discountAmount: totalDiscountAmount,
         discountDescription: _discountDescription,
-        // Shipping
+        // Shipping & Delivery
         shippingAmount: _shippingAmount,
+        deliveryType: _deliveryType == DeliveryType.ship ? 'ship' : 'pickup',
         // Tax (calculated from cart)
         taxAmount: cart.tax,
         // Customer info for invoice
         customerName: _selectedCustomer?.name,
         customerEmail: _selectedCustomer?.email,
         customerPhone: _selectedCustomer?.phone,
+        // Address info (for delivery)
+        addressId: _selectedAddress?.id,
+        customerAddress: customerAddressStr,
       );
 
       // Clear local cart and all state
@@ -597,6 +703,9 @@ class SalesProvider with ChangeNotifier {
       _manualDiscountAmount = 0;
       _discountDescription = null;
       _shippingAmount = 0;
+      _deliveryType = DeliveryType.pickup;
+      _customerAddresses = [];
+      _selectedAddress = null;
 
       await _audioService.playSuccess();
 

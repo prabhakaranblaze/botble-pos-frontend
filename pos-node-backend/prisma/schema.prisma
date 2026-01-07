@@ -252,12 +252,47 @@ model Order {
 
   // Relations
   customer        Customer?      @relation(fields: [user_id], references: [id])
+  payment         Payment?       @relation(fields: [payment_id], references: [id])
   orderProducts   OrderProduct[]
 
   @@index([code])
   @@index([status])
   @@index([user_id])
+  @@index([payment_id])
   @@map("ec_orders")
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+
+model Payment {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  channel         String?   @db.VarChar(60)
+  customer_id     BigInt?   @db.UnsignedBigInt
+  charge_id       String    @db.VarChar(60)
+  payment_channel String?   @db.VarChar(60)
+  customer_type   String?   @db.VarChar(191)
+  amount          Decimal   @default(0.00) @db.Decimal(15, 2)
+  currency        String    @default("USD") @db.VarChar(10)
+  order_id        BigInt?   @db.UnsignedBigInt
+  refunded_amount Decimal?  @db.Decimal(15, 2)
+  status          String    @default("pending") @db.VarChar(60)
+  payment_type    String?   @default("confirm") @db.VarChar(60)
+  refund_note     String?   @db.MediumText
+  user_id         BigInt?   @db.UnsignedBigInt
+  metadata        Json?
+  created_at      DateTime?
+  updated_at      DateTime?
+  deleted_at      DateTime?
+
+  // Relations
+  orders          Order[]
+
+  @@index([charge_id])
+  @@index([order_id])
+  @@index([status])
+  @@map("payments")
 }
 
 model OrderProduct {

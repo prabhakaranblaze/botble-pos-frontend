@@ -4,15 +4,18 @@ const crypto = require('crypto');
 
 class OrdersService {
   /**
-   * Generate order code
+   * Generate order code (Laravel style: #SF-10000XXX)
+   * Gets next ID from database to create sequential codes
    */
-  generateOrderCode() {
-    const date = new Date();
-    const year = date.getFullYear();
-    const random = Math.floor(Math.random() * 100000)
-      .toString()
-      .padStart(5, '0');
-    return `#POS-${year}-${random}`;
+  async generateOrderCode() {
+    // Get the highest order ID to generate next code
+    const lastOrder = await prisma.order.findFirst({
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+    const nextId = lastOrder ? Number(lastOrder.id) + 1 : 1;
+    // Laravel format: #SF-10000XXX (10 million + order id)
+    return `#SF-${10000000 + nextId}`;
   }
 
   /**
@@ -20,6 +23,18 @@ class OrdersService {
    */
   generateToken() {
     return crypto.randomBytes(16).toString('hex');
+  }
+
+  /**
+   * Generate charge ID for payment (10 random uppercase chars)
+   */
+  generateChargeId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   }
 
   /**
@@ -94,8 +109,9 @@ class OrdersService {
   /**
    * Create order directly from client cart items
    * No server-side cart sync needed - items sent directly from Flutter
+   * Creates payment record and links to order (Laravel style)
    */
-  async checkoutDirect(userId, { items, paymentMethod = 'cash', paymentDetails = null, customerId = null }) {
+  async checkoutDirect(userId, { items, paymentMethod = 'pos_cash', paymentDetails = null, customerId = null }) {
     if (!items || items.length === 0) {
       throw new Error('Cart is empty');
     }
@@ -106,10 +122,35 @@ class OrdersService {
     const tax = subtotal * taxRate;
     const total = subtotal + tax;
 
-    // Create order
+    // Map payment method to Laravel's format (pos_cash, pos_card)
+    const paymentChannel = paymentMethod === 'card' ? 'pos_card' :
+                           paymentMethod === 'pos_card' ? 'pos_card' : 'pos_cash';
+
+    // Create payment record first (Laravel style)
+    const payment = await prisma.payment.create({
+      data: {
+        channel: 'SCR', // Screen/POS channel
+        customer_id: customerId ? BigInt(customerId) : null,
+        charge_id: this.generateChargeId(),
+        payment_channel: paymentChannel,
+        customer_type: customerId ? 'Botble\\Ecommerce\\Models\\Customer' : null,
+        amount: total,
+        currency: 'USD',
+        status: 'completed',
+        payment_type: 'confirm',
+        user_id: BigInt(userId),
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+
+    // Generate order code (async - sequential like Laravel)
+    const orderCode = await this.generateOrderCode();
+
+    // Create order with payment_id linked
     const order = await prisma.order.create({
       data: {
-        code: this.generateOrderCode(),
+        code: orderCode,
         user_id: customerId ? BigInt(customerId) : null,
         status: 'completed', // POS orders are completed immediately
         amount: total,
@@ -121,10 +162,17 @@ class OrdersService {
         is_finished: true,
         completed_at: new Date(),
         token: this.generateToken(),
-        description: `POS Order - ${paymentMethod.toUpperCase()}`,
+        payment_id: payment.id, // Link to payment record
+        description: `POS Order - ${paymentChannel.toUpperCase()}`,
         created_at: new Date(),
         updated_at: new Date(),
       },
+    });
+
+    // Update payment with order_id
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { order_id: order.id },
     });
 
     // Create order products
@@ -175,7 +223,8 @@ class OrdersService {
       amount: total,
       sub_total: subtotal,
       tax_amount: tax,
-      payment_method: paymentMethod,
+      payment_method: paymentChannel,
+      payment_id: Number(payment.id),
       status: order.status,
       created_at: order.created_at.toISOString(),
       payment_details: paymentDetails,

@@ -21,7 +21,7 @@ class SalesProvider with ChangeNotifier {
   // ✅ Client-side cart (local memory)
   final List<SavedCartItem> _cartItems = [];
   Customer? _selectedCustomer;
-  String _paymentMethod = 'cash';
+  String _paymentMethod = 'pos_cash'; // Laravel-style payment method
 
   // ✅ Saved carts
   List<SavedCart> _savedCarts = [];
@@ -242,7 +242,7 @@ class SalesProvider with ChangeNotifier {
       debugPrint('🗑️ CLIENT CART: Clearing cart');
       _cartItems.clear();
       _selectedCustomer = null;
-      _paymentMethod = 'cash';
+      _paymentMethod = 'pos_cash';
       debugPrint('✅ CLIENT CART: Cleared successfully');
       notifyListeners();
     } catch (e) {
@@ -307,7 +307,7 @@ class SalesProvider with ChangeNotifier {
       // Clear local cart
       _cartItems.clear();
       _selectedCustomer = null;
-      _paymentMethod = 'cash';
+      _paymentMethod = 'pos_cash';
 
       await _audioService.playSuccess();
 

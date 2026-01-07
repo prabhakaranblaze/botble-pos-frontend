@@ -2,6 +2,7 @@ const ordersService = require('./orders.service');
 const { z } = require('zod');
 
 // Schema for direct checkout (items sent from client)
+// Accepts both legacy (cash/card) and Laravel-style (pos_cash/pos_card) payment methods
 const checkoutSchema = z.object({
   items: z.array(z.object({
     product_id: z.number().int().positive(),
@@ -11,7 +12,7 @@ const checkoutSchema = z.object({
     image: z.string().optional().nullable(),
     sku: z.string().optional().nullable(),
   })).min(1, 'Cart is empty'),
-  payment_method: z.enum(['cash', 'card']).default('cash'),
+  payment_method: z.enum(['cash', 'card', 'pos_cash', 'pos_card']).default('pos_cash'),
   payment_details: z.string().optional().nullable(),
   customer_id: z.number().int().positive().optional().nullable(),
 });

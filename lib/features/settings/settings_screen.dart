@@ -5,7 +5,10 @@ import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:flutter_thermal_printer/utils/printer.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../core/services/thermal_print_service.dart';
+import '../../core/database/database_service.dart';
+import '../../core/database/saved_cart_database.dart';
 import '../auth/auth_provider.dart';
+import '../sales/sales_provider.dart';
 import '../../core/models/user.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -44,6 +47,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Printer Settings',
               icon: Icons.print,
               child: const PrinterSettingsCard(),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Data Management
+            _buildSection(
+              title: 'Data Management',
+              icon: Icons.storage,
+              child: _buildDataManagementCard(),
             ),
 
             const SizedBox(height: 24),
@@ -122,6 +134,264 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildDataManagementCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Clear & Resync Products
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.sync, color: AppColors.warning),
+              ),
+              title: const Text(
+                'Clear & Resync Products',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Clear local product cache and download fresh data from server',
+                style: TextStyle(fontSize: 12),
+              ),
+              trailing: ElevatedButton(
+                onPressed: () => _showClearAndResyncDialog(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.warning,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Resync'),
+              ),
+            ),
+
+            const Divider(height: 24),
+
+            // Clear All Local Data
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.delete_forever, color: AppColors.error),
+              ),
+              title: const Text(
+                'Clear All Local Data',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Remove all cached data including products, saved carts, and pending orders',
+                style: TextStyle(fontSize: 12),
+              ),
+              trailing: OutlinedButton(
+                onPressed: () => _showClearAllDataDialog(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(color: AppColors.error),
+                ),
+                child: const Text('Clear'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showClearAndResyncDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.sync, color: AppColors.warning),
+            const SizedBox(width: 12),
+            const Text('Clear & Resync Products'),
+          ],
+        ),
+        content: const Text(
+          'This will:\n'
+          '• Delete all locally cached products\n'
+          '• Download fresh product data from server\n'
+          '• Update product images and prices\n\n'
+          'Your saved carts and pending orders will NOT be affected.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Resync Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _performResync();
+    }
+  }
+
+  Future<void> _performResync() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 24),
+            Text('Resyncing products...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final db = DatabaseService();
+      final salesProvider = context.read<SalesProvider>();
+
+      // Clear products table
+      final database = await db.database;
+      await database.delete('products');
+      debugPrint('🗑️ RESYNC: Products table cleared');
+
+      // Reload products from API
+      await salesProvider.loadProducts(refresh: true);
+      debugPrint('✅ RESYNC: Products reloaded from API');
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Products resynced successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ RESYNC: Error - $e');
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Resync failed: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showClearAllDataDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: AppColors.error),
+            const SizedBox(width: 12),
+            const Text('Clear All Data'),
+          ],
+        ),
+        content: const Text(
+          '⚠️ WARNING: This will permanently delete:\n\n'
+          '• All cached products\n'
+          '• All saved/held carts\n'
+          '• All pending offline orders\n'
+          '• Session history\n\n'
+          'This action cannot be undone!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _performClearAll();
+    }
+  }
+
+  Future<void> _performClearAll() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 24),
+            Text('Clearing all data...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final db = DatabaseService();
+      final savedCartDb = SavedCartDatabase();
+      final salesProvider = context.read<SalesProvider>();
+
+      // Clear all tables
+      await db.clearAllData();
+      await savedCartDb.clearAll();
+      debugPrint('🗑️ CLEAR ALL: All local data cleared');
+
+      // Reload fresh data
+      await salesProvider.loadProducts(refresh: true);
+      debugPrint('✅ CLEAR ALL: Fresh data loaded');
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All local data cleared and resynced!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ CLEAR ALL: Error - $e');
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Clear failed: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 }
 

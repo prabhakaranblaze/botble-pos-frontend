@@ -117,4 +117,11 @@ class SavedCartDatabase {
       _database = null;
     }
   }
+
+  /// Clear all saved carts
+  Future<void> clearAll() async {
+    final db = await database;
+    await db.delete('saved_carts');
+    debugPrint('🗑️ SavedCartDB: All saved carts cleared');
+  }
 }

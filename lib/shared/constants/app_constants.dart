@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/config/env_config.dart';
 
 class AppConstants {
@@ -9,7 +10,8 @@ class AppConstants {
 
   // App Configuration
   static const String appName = 'StampSmart POS';
-// Dynamic device name based on computer name
+
+  // Dynamic device name based on computer name
   static String get deviceName {
     try {
       return Platform.localHostname.isNotEmpty
@@ -20,12 +22,29 @@ class AppConstants {
     }
   }
 
+  // Currency Configuration
+  static const String currencyCode = 'SCR'; // Seychelles Rupee
+  static const String currencySymbol = 'SCR';
+  static const int currencyDecimalDigits = 2;
+
+  // Currency formatter
+  static NumberFormat get currencyFormat => NumberFormat.currency(
+        symbol: '$currencySymbol ',
+        decimalDigits: currencyDecimalDigits,
+      );
+
+  // Format amount with currency
+  static String formatCurrency(double amount) {
+    return currencyFormat.format(amount);
+  }
+
   // Storage Keys
   static const String keyToken = 'auth_token';
   static const String keyUser = 'user_data';
   static const String keyStoreId = 'store_id';
   static const String keyActiveSession = 'active_session';
   static const String keyIsOnline = 'is_online';
+  static const String keyLocale = 'app_locale';
 
   // Database
   static const String dbName = 'pos_local.db';

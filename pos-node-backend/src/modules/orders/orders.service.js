@@ -129,7 +129,7 @@ class OrdersService {
     // Create payment record first (Laravel style)
     const payment = await prisma.payment.create({
       data: {
-        currency: 'USD',
+        currency: 'SCR',
         user_id: BigInt(userId),
         charge_id: this.generateChargeId(),
         payment_channel: paymentChannel,
@@ -329,8 +329,8 @@ class OrdersService {
         <tr>
           <td>${item.name}</td>
           <td style="text-align:center">${item.quantity}</td>
-          <td style="text-align:right">$${item.price.toFixed(2)}</td>
-          <td style="text-align:right">$${(item.price * item.quantity).toFixed(2)}</td>
+          <td style="text-align:right">SCR ${item.price.toFixed(2)}</td>
+          <td style="text-align:right">SCR ${(item.price * item.quantity).toFixed(2)}</td>
         </tr>
       `
       )
@@ -388,21 +388,21 @@ class OrdersService {
         <table class="totals">
           <tr>
             <td>Subtotal:</td>
-            <td style="text-align:right">$${order.sub_total.toFixed(2)}</td>
+            <td style="text-align:right">SCR ${order.sub_total.toFixed(2)}</td>
           </tr>
           <tr>
             <td>Tax:</td>
-            <td style="text-align:right">$${order.tax_amount.toFixed(2)}</td>
+            <td style="text-align:right">SCR ${order.tax_amount.toFixed(2)}</td>
           </tr>
           ${order.discount_amount > 0 ? `
           <tr>
             <td>Discount:</td>
-            <td style="text-align:right">-$${order.discount_amount.toFixed(2)}</td>
+            <td style="text-align:right">-SCR ${order.discount_amount.toFixed(2)}</td>
           </tr>
           ` : ''}
           <tr class="total-row">
             <td>TOTAL:</td>
-            <td style="text-align:right">$${order.amount.toFixed(2)}</td>
+            <td style="text-align:right">SCR ${order.amount.toFixed(2)}</td>
           </tr>
         </table>
 

@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State Management
   provider: ^6.1.1
@@ -50,7 +52,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+  generate: true
+
   assets:
     - assets/sounds/
     - assets/images/

@@ -4,7 +4,7 @@ class DenominationsService {
   /**
    * Get denominations by currency
    */
-  async getDenominations(currency = 'USD') {
+  async getDenominations(currency = 'SCR') {
     const denominations = await prisma.posDenomination.findMany({
       where: {
         currency_code: currency.toUpperCase(),

@@ -7,6 +7,7 @@ import '../sales/cart_item_widget.dart';
 import '../sales/payment_dialog.dart';
 import '../../core/models/product.dart';
 import '../../core/services/auto_print_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/save_cart_dialog.dart';
 
@@ -728,6 +729,8 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Widget _buildCartPanel() {
+    final l10n = AppLocalizations.of(context);
+
     return Consumer<SalesProvider>(
       builder: (context, sales, _) {
         final cart = sales.cart;
@@ -748,7 +751,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     Icon(Icons.shopping_cart, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Text(
-                      'Cart (${cart.items.length})',
+                      '${l10n?.cart ?? 'Cart'} (${cart.items.length})',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -760,7 +763,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       IconButton(
                         icon: const Icon(Icons.save_outlined),
                         onPressed: _handleSaveCart,
-                        tooltip: 'Save Cart',
+                        tooltip: l10n?.saveCart ?? 'Save Cart',
                       ),
                     IconButton(
                       icon: Icon(Icons.delete_outline, color: AppColors.error),
@@ -784,7 +787,7 @@ class _SalesScreenState extends State<SalesScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Your cart is empty',
+                              l10n?.emptyCart ?? 'Your cart is empty',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: AppColors.textSecondary,
@@ -824,17 +827,17 @@ class _SalesScreenState extends State<SalesScreen> {
                   ),
                   child: Column(
                     children: [
-                      _buildSummaryRow('Subtotal', cart.subtotal),
+                      _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
                       if (cart.discount > 0)
                         _buildSummaryRow(
-                          'Discount',
+                          l10n?.discount ?? 'Discount',
                           -cart.discount,
                           color: AppColors.success,
                         ),
-                      if (cart.tax > 0) _buildSummaryRow('Tax', cart.tax),
+                      if (cart.tax > 0) _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
                       const Divider(height: 24),
                       _buildSummaryRow(
-                        'Total',
+                        l10n?.total ?? 'Total',
                         cart.total,
                         isTotal: true,
                       ),
@@ -847,7 +850,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           onPressed: _handleCheckout,
                           icon: const Icon(Icons.payment),
                           label: Text(
-                            'Checkout - ${currencyFormat.format(cart.total)}',
+                            '${l10n?.checkout ?? 'Checkout'} - ${currencyFormat.format(cart.total)}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

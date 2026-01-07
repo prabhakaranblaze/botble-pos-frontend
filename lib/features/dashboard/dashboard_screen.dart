@@ -11,6 +11,7 @@ import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/services/connectivity_provider.dart';
 import '../../core/providers/locale_provider.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/saved_carts_screen.dart';
 
@@ -53,35 +54,39 @@ class _DashboardScreenState extends State<DashboardScreen>
     try {
       await windowManager.ensureInitialized();
       _windowManagerReady = true;
-      _isFullScreen = await windowManager.isFullScreen();
+      // Check if maximized (more reliable than fullscreen check)
+      _isFullScreen = await windowManager.isMaximized();
       if (mounted) setState(() {});
+      debugPrint('🖥️ Window manager initialized, maximized: $_isFullScreen');
     } catch (e) {
-      debugPrint('Window manager init error: $e');
+      debugPrint('🖥️ Window manager init error: $e');
       _windowManagerReady = false;
     }
   }
 
   Future<void> _toggleFullScreen() async {
     if (!_windowManagerReady) {
-      debugPrint('Window manager not ready');
+      debugPrint('🖥️ Window manager not ready');
       return;
     }
+
     try {
-      _isFullScreen = !_isFullScreen;
-      await windowManager.setFullScreen(_isFullScreen);
+      // Use maximize/restore instead of fullscreen (more reliable on Windows)
+      final isMaximized = await windowManager.isMaximized();
+      debugPrint('🖥️ Current maximized state: $isMaximized');
+
+      if (isMaximized) {
+        await windowManager.restore();
+        _isFullScreen = false;
+        debugPrint('🖥️ Window restored');
+      } else {
+        await windowManager.maximize();
+        _isFullScreen = true;
+        debugPrint('🖥️ Window maximized');
+      }
       setState(() {});
     } catch (e) {
-      debugPrint('Fullscreen toggle error: $e');
-      // Try alternative approach - maximize window instead
-      try {
-        if (_isFullScreen) {
-          await windowManager.maximize();
-        } else {
-          await windowManager.unmaximize();
-        }
-      } catch (e2) {
-        debugPrint('Maximize fallback error: $e2');
-      }
+      debugPrint('🖥️ Toggle fullscreen error: $e');
     }
   }
 
@@ -154,31 +159,42 @@ class _DashboardScreenState extends State<DashboardScreen>
               color: AppColors.primary,
               child: Column(
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
                   // Logo
-                  Icon(
+                  const Icon(
                     Icons.point_of_sale_rounded,
-                    size: 40,
+                    size: 32,
                     color: Colors.white,
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 12),
 
-                  // Menu Items
-                  _buildMenuItem(Icons.shopping_cart_rounded, 'Sale', 0),
-                  _buildMenuItem(Icons.bookmark_rounded, 'Saved', 1),
-                  _buildMenuItem(Icons.schedule_rounded, 'Session', 2),
-                  _buildMenuItem(Icons.bar_chart_rounded, 'Reports', 3),
-                  _buildMenuItem(Icons.settings_rounded, 'Settings', 4),
-
-                  const Spacer(),
+                  // Scrollable Menu Items
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context);
+                          return Column(
+                            children: [
+                              _buildMenuItem(Icons.shopping_cart_rounded, l10n?.sales ?? 'Sale', 0),
+                              _buildMenuItem(Icons.bookmark_rounded, l10n?.savedCarts ?? 'Saved', 1),
+                              _buildMenuItem(Icons.schedule_rounded, l10n?.session ?? 'Session', 2),
+                              _buildMenuItem(Icons.bar_chart_rounded, l10n?.reports ?? 'Reports', 3),
+                              _buildMenuItem(Icons.settings_rounded, l10n?.settings ?? 'Settings', 4),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
 
                   // Online/Offline Indicator
                   Consumer<ConnectivityProvider>(
                     builder: (context, connectivity, _) {
                       return Container(
-                        margin: const EdgeInsets.all(12),
-                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: connectivity.isOnline
                               ? AppColors.success.withOpacity(0.2)
@@ -192,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           color: connectivity.isOnline
                               ? AppColors.success
                               : AppColors.error,
-                          size: 20,
+                          size: 18,
                         ),
                       );
                     },
@@ -202,8 +218,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   InkWell(
                     onTap: _handleLogout,
                     child: Container(
-                      margin: const EdgeInsets.all(12),
-                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -211,11 +227,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       child: const Icon(
                         Icons.logout_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 20,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),

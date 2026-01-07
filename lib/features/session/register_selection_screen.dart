@@ -18,16 +18,8 @@ class RegisterSelectionScreen extends StatefulWidget {
 }
 
 class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Show open session dialog after build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _showOpenSessionDialog();
-      }
-    });
-  }
+  // Don't auto-show dialog - let user click the button
+  // This allows them to logout if they closed session to logout
 
   Future<void> _showOpenSessionDialog() async {
     final result = await showDialog<bool>(

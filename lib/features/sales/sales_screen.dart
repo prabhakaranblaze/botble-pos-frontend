@@ -598,12 +598,16 @@ class _SalesScreenState extends State<SalesScreen> {
             flex: 7,
             child: Container(
               color: AppColors.surface,
-              child: Stack(
-                clipBehavior: Clip.none,
+              child: Column(
                 children: [
-                  // Cart content with top padding for search bar
-                  Padding(
-                    padding: const EdgeInsets.only(top: 88),
+                  // Search bar at top
+                  _buildKioskSearchBar(),
+
+                  // Horizontal tabs for held carts
+                  _buildHeldCartsTabs(),
+
+                  // Cart content
+                  Expanded(
                     child: Consumer<SalesProvider>(
                       builder: (context, sales, _) {
                         final cart = sales.cart;
@@ -651,14 +655,6 @@ class _SalesScreenState extends State<SalesScreen> {
                       },
                     ),
                   ),
-
-                  // Search bar on top (in Stack to allow dropdown overflow)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildSearchBar(),
-                  ),
                 ],
               ),
             ),
@@ -669,6 +665,336 @@ class _SalesScreenState extends State<SalesScreen> {
             flex: 3,
             child: _buildKioskCheckoutPanel(),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Horizontal tabs for held carts (Kiosk mode)
+  Widget _buildHeldCartsTabs() {
+    return Consumer<SalesProvider>(
+      builder: (context, sales, _) {
+        if (sales.savedCarts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            border: Border(bottom: BorderSide(color: AppColors.border)),
+          ),
+          child: Row(
+            children: [
+              // Current Cart tab (always shown, highlighted)
+              _buildCartTab(
+                label: 'Current',
+                itemCount: sales.cart.items.length,
+                isActive: true,
+                onTap: null, // Already active
+              ),
+
+              const SizedBox(width: 8),
+
+              // Held carts tabs (scrollable)
+              Expanded(
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: sales.savedCarts.length,
+                  itemBuilder: (context, index) {
+                    final savedCart = sales.savedCarts[index];
+                    // Extract short time from cart name
+                    final shortName = _getShortCartName(savedCart.name);
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildCartTab(
+                        label: shortName,
+                        itemCount: savedCart.items.length,
+                        isActive: false,
+                        onTap: () => _handleQuickLoad(savedCart.id),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Single cart tab widget
+  Widget _buildCartTab({
+    required String label,
+    required int itemCount,
+    required bool isActive,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? AppColors.primary : AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isActive ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isActive ? Icons.shopping_cart : Icons.pause_circle_outline,
+                size: 16,
+                color: isActive ? Colors.white : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.white : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.white.withOpacity(0.2)
+                      : AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$itemCount',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isActive ? Colors.white : AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Get short name from cart name (extract time)
+  String _getShortCartName(String name) {
+    // Cart name format: "Cart - 01/07/2026, 05:12:41 PM"
+    // Extract just the time part
+    final timeMatch = RegExp(r'(\d{1,2}:\d{2}:\d{2}\s*[AP]M)').firstMatch(name);
+    if (timeMatch != null) {
+      return timeMatch.group(1) ?? name;
+    }
+    // Fallback: truncate to 10 chars
+    return name.length > 10 ? '${name.substring(0, 10)}...' : name;
+  }
+
+  /// Kiosk search bar without refresh button and with proper dropdown handling
+  Widget _buildKioskSearchBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.surface,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // TextField
+          KeyboardListener(
+            focusNode: FocusNode(),
+            onKeyEvent: (event) {
+              if (event is KeyDownEvent) {
+                if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
+                    _showSearchDropdown &&
+                    _searchResults.isNotEmpty) {
+                  setState(() {
+                    _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
+                  });
+                } else if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+                    _showSearchDropdown &&
+                    _searchResults.isNotEmpty) {
+                  setState(() {
+                    _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
+                  });
+                } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+                  _clearSearch();
+                }
+              }
+            },
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: 'Scan barcode, SKU, or search products...',
+                prefixIcon: Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: AppColors.primary,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: _clearSearch,
+                      )
+                    : null,
+              ),
+              onSubmitted: (value) async {
+                debugPrint('⏎ ENTER: Submitted with value: "$value"');
+
+                // If user has selected an item via keyboard, use that
+                if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
+                  debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
+                  await _addProductToCart(_searchResults[_selectedIndex]);
+                  _clearSearch();
+                  return;
+                }
+
+                if (value.isEmpty) return;
+
+                // Always try barcode/SKU API first
+                debugPrint('⏎ ENTER: Trying barcode/SKU API...');
+                final product = await context.read<SalesProvider>().scanBarcode(value);
+
+                if (product != null) {
+                  debugPrint('⏎ ENTER: Product found via API: ${product.name}');
+                  await _addProductToCart(product);
+                  _clearSearch();
+                } else if (_searchResults.length == 1) {
+                  debugPrint('⏎ ENTER: Not found via API, using local result');
+                  await _addProductToCart(_searchResults.first);
+                  _clearSearch();
+                } else if (_searchResults.isNotEmpty) {
+                  debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
+                  // Select first if not already selected
+                  if (_selectedIndex < 0) {
+                    setState(() => _selectedIndex = 0);
+                  }
+                } else {
+                  debugPrint('⏎ ENTER: Product not found');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Product not found')),
+                  );
+                }
+              },
+              onChanged: (value) {
+                setState(() {});
+                _handleSearch(value);
+              },
+            ),
+          ),
+
+          // Search Results Dropdown
+          if (_showSearchDropdown && _searchResults.isNotEmpty)
+            Positioned(
+              top: 56,
+              left: 0,
+              right: 0,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: _searchResults.length,
+                    itemBuilder: (context, index) {
+                      final product = _searchResults[index];
+                      final isSelected = index == _selectedIndex;
+                      return InkWell(
+                        onTap: () async {
+                          debugPrint('🖱️ TAP: Search result tapped - ${product.name}');
+                          await _addProductToCart(product);
+                          _clearSearch();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.primary.withOpacity(0.1) : null,
+                            border: Border(
+                              bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              // Product image
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: product.image != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Image.network(
+                                          product.image!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Icon(
+                                            Icons.inventory_2_outlined,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.inventory_2_outlined,
+                                        color: AppColors.primary,
+                                      ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Product details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product.name,
+                                      style: TextStyle(
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '${product.sku ?? ''} - ${AppCurrency.format(product.finalPrice)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Selection indicator
+                              if (isSelected)
+                                Icon(
+                                  Icons.keyboard_return,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1066,92 +1392,8 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
               ),
 
-              // Saved Carts (Held Orders) - Scrollable list
-              if (sales.savedCarts.isNotEmpty)
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.pause_circle_outline,
-                              size: 18,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Held Orders (${sales.savedCarts.length})',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: sales.savedCarts.length,
-                            itemBuilder: (context, index) {
-                              final savedCart = sales.savedCarts[index];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: InkWell(
-                                  onTap: () => _handleQuickLoad(savedCart.id),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                savedCart.name,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 13,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                '${savedCart.items.length} items - ${AppCurrency.format(savedCart.total)}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: AppColors.textSecondary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 14,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Spacer if no saved carts
-              if (sales.savedCarts.isEmpty)
-                const Spacer(),
+              // Spacer to push summary to bottom
+              const Spacer(),
 
               // Order Summary
               if (cart.items.isNotEmpty)

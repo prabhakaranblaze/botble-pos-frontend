@@ -14,6 +14,7 @@ import '../../core/providers/locale_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/saved_carts_screen.dart';
+import 'recent_bills_dialog.dart';
 
 /// Dashboard Screen - Main application screen
 ///
@@ -357,6 +358,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                           },
                         ),
                         const SizedBox(width: 12),
+
+                        // Recent Bills Button
+                        IconButton(
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          tooltip: 'Recent Bills',
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const RecentBillsDialog(),
+                            );
+                          },
+                        ),
 
                         // Calculator Button
                         IconButton(

@@ -234,6 +234,32 @@ class OrdersService {
   }
 
   /**
+   * Get recent orders for reprinting
+   * Returns last N orders from today's session
+   */
+  async getRecentOrders({ limit = 20, search = null }) {
+    const where = {
+      status: 'completed',
+    };
+
+    // Search by order code if provided
+    if (search) {
+      where.code = { contains: search };
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      include: {
+        orderProducts: true,
+      },
+    });
+
+    return orders.map(order => this.formatOrderFromDb(order));
+  }
+
+  /**
    * Get order by ID
    */
   async getOrderById(orderId) {

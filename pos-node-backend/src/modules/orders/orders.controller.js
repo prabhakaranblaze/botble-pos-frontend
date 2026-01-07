@@ -19,6 +19,25 @@ const checkoutSchema = z.object({
 
 class OrdersController {
   /**
+   * GET /orders (list recent orders)
+   */
+  async getOrders(req, res, next) {
+    try {
+      const limit = parseInt(req.query.limit) || 20;
+      const search = req.query.search || null;
+
+      const orders = await ordersService.getRecentOrders({ limit, search });
+
+      res.json({
+        error: false,
+        data: { orders },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /orders (checkout)
    * Accepts cart items directly from client - no server-side cart sync needed
    */

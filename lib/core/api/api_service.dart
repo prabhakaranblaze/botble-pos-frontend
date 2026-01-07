@@ -532,6 +532,50 @@ class ApiService {
     }
   }
 
+  /// Get recent orders for reprinting
+  Future<List<Order>> getRecentOrders({int limit = 20, String? search}) async {
+    debugPrint('📋 API SERVICE: getRecentOrders called - Limit: $limit, Search: $search');
+
+    try {
+      final response = await _dio.get('/orders', queryParameters: {
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+
+      if (response.data['error'] == false) {
+        final ordersData = response.data['data']['orders'] as List;
+        final orders = ordersData.map((json) => Order.fromJson(json)).toList();
+        debugPrint('✅ API SERVICE: Recent orders loaded - Count: ${orders.length}');
+        return orders;
+      }
+
+      return [];
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getRecentOrders error: $e');
+      return [];
+    }
+  }
+
+  /// Get single order by ID
+  Future<Order?> getOrderById(int orderId) async {
+    debugPrint('📋 API SERVICE: getOrderById called - ID: $orderId');
+
+    try {
+      final response = await _dio.get('/orders/$orderId');
+
+      if (response.data['error'] == false) {
+        final order = Order.fromJson(response.data['data']['order']);
+        debugPrint('✅ API SERVICE: Order loaded - Code: ${order.code}');
+        return order;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getOrderById error: $e');
+      return null;
+    }
+  }
+
   // Denomination APIs
   Future<List<Denomination>> getDenominations({String currency = 'USD'}) async {
     debugPrint('💵 API SERVICE: getDenominations called - Currency: $currency');

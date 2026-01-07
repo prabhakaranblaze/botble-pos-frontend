@@ -5,8 +5,8 @@ import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
 import '../sales/cart_item_widget.dart';
 import '../sales/payment_dialog.dart';
-import '../sales/receipt_dialog.dart';
 import '../../core/models/product.dart';
+import '../../core/services/auto_print_service.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/save_cart_dialog.dart';
 
@@ -304,12 +304,25 @@ class _SalesScreenState extends State<SalesScreen> {
       debugPrint(
           '✅ CHECKOUT: Order created successfully - ID: ${order.id}, Code: ${order.code}');
 
-      // Show receipt
-      await showDialog(
-        context: context,
-        builder: (context) => ReceiptDialog(order: order),
+      // Show success toast immediately
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Text('Order ${order.code} completed! Printing...'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 3),
+        ),
       );
 
+      // Auto-print in background (don't wait for it)
+      _autoPrintReceipt(order);
+
+      // Refresh for new order
       _searchFocusNode.requestFocus();
     } else if (salesProvider.error != null && mounted) {
       debugPrint('❌ CHECKOUT: Error during checkout: ${salesProvider.error}');
@@ -324,7 +337,40 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
-  @override
+  /// Auto-print receipt in background
+  Future<void> _autoPrintReceipt(dynamic order) async {
+    final autoPrintService = AutoPrintService();
+
+    try {
+      final result = await autoPrintService.autoPrint(order);
+
+      if (mounted) {
+        if (!result.success && result.didPrint == false) {
+          // Show error only if printing was attempted but failed
+          if (await autoPrintService.hasDefaultPrinter()) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.print_disabled, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(result.message)),
+                  ],
+                ),
+                backgroundColor: AppColors.warning,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } else if (result.didPrint) {
+          debugPrint('🖨️ Receipt printed successfully');
+        }
+      }
+    } catch (e) {
+      debugPrint('🖨️ Auto-print error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('🎨 BUILD: SalesScreen build called');

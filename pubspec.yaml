@@ -44,6 +44,9 @@ dependencies:
   uuid: ^4.2.1
   collection: ^1.18.0
 
+  # Window Management
+  window_manager: ^0.3.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

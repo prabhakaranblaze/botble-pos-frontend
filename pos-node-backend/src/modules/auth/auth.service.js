@@ -82,9 +82,12 @@ class AuthService {
       data: { last_login: new Date() },
     });
 
+    // Collect all permissions (user + roles)
+    const allPermissions = this.collectPermissions(user);
+
     return {
       token: jwtToken,
-      user: this.formatUser(user),
+      user: this.formatUser(user, allPermissions),
     };
   }
 
@@ -94,13 +97,51 @@ class AuthService {
   async getCurrentUser(userId) {
     const user = await prisma.user.findUnique({
       where: { id: BigInt(userId) },
+      include: {
+        roleUsers: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
 
     if (!user || user.deleted_at) {
       throw new Error('User not found');
     }
 
-    return this.formatUser(user);
+    const allPermissions = this.collectPermissions(user);
+    return this.formatUser(user, allPermissions);
+  }
+
+  /**
+   * Collect all permissions from user and their roles
+   */
+  collectPermissions(user) {
+    const permSet = new Set();
+
+    // Super user has all permissions
+    if (user.super_user) {
+      permSet.add('*'); // Wildcard for all permissions
+    }
+
+    // User-level permissions
+    const userPerms = user.permissions ? JSON.parse(user.permissions) : {};
+    Object.keys(userPerms).forEach((perm) => {
+      if (userPerms[perm]) permSet.add(perm);
+    });
+
+    // Role-level permissions
+    if (user.roleUsers) {
+      user.roleUsers.forEach((ru) => {
+        const rolePerms = ru.role?.permissions ? JSON.parse(ru.role.permissions) : {};
+        Object.keys(rolePerms).forEach((perm) => {
+          if (rolePerms[perm]) permSet.add(perm);
+        });
+      });
+    }
+
+    return Array.from(permSet);
   }
 
   /**
@@ -144,13 +185,15 @@ class AuthService {
   /**
    * Format user for API response
    */
-  formatUser(user) {
+  formatUser(user, permissions = []) {
     return {
       id: Number(user.id),
       name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User',
       email: user.email,
       store_id: user.store_id ? Number(user.store_id) : null,
       store_name: null, // Could be fetched from mp_stores if needed
+      is_super_user: user.super_user || false,
+      permissions: permissions,
     };
   }
 }

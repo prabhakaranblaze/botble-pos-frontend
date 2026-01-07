@@ -79,14 +79,14 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
       final selectedOptionId = _selectedVariantOptions[variant.id];
       if (selectedOptionId != null) {
         // Find the selected option
-        VariantOption? selectedOption;
-        for (var opt in variant.options!) {
+        final options = variant.options!;
+        VariantOption selectedOption = options.first; // Default to first
+        for (var opt in options) {
           if (opt.id == selectedOptionId) {
             selectedOption = opt;
             break;
           }
         }
-        selectedOption ??= variant.options!.first;
 
         final variantName = variant.name ?? variant.type ?? 'Option';
         parts.add('$variantName: ${selectedOption.name}');

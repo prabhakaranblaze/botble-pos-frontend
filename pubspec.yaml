@@ -37,9 +37,8 @@ dependencies:
   # Barcode
   audioplayers: ^5.2.1
   
-  # Printing
-  pdf: ^3.10.7
-  printing: ^5.11.1
+  # Thermal Printing
+  flutter_thermal_printer: ^2.0.0
   
   # Utils
   uuid: ^4.2.1

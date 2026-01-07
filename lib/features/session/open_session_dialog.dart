@@ -5,9 +5,7 @@ import 'session_provider.dart';
 import '../../shared/constants/app_constants.dart';
 
 class OpenSessionDialog extends StatefulWidget {
-  final int registerId;
-
-  const OpenSessionDialog({super.key, required this.registerId});
+  const OpenSessionDialog({super.key});
 
   @override
   State<OpenSessionDialog> createState() => _OpenSessionDialogState();
@@ -16,15 +14,6 @@ class OpenSessionDialog extends StatefulWidget {
 class _OpenSessionDialogState extends State<OpenSessionDialog> {
   final _openingCashController = TextEditingController();
   final _notesController = TextEditingController();
-  final Map<int, int> _denominationCounts = {};
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SessionProvider>().loadDenominations();
-    });
-  }
 
   @override
   void dispose() {
@@ -35,20 +24,16 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
 
   Future<void> _handleOpenSession() async {
     final amount = double.tryParse(_openingCashController.text) ?? 0;
-    if (amount <= 0) {
+    if (amount < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter opening cash amount')),
+        const SnackBar(content: Text('Please enter a valid opening cash amount')),
       );
       return;
     }
 
     final session = context.read<SessionProvider>();
     final success = await session.openSession(
-      cashRegisterId: widget.registerId,
       openingCash: amount,
-      denominations: _denominationCounts.isEmpty
-          ? null
-          : _denominationCounts.map((k, v) => MapEntry(k.toString(), v)),
       notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 
@@ -65,7 +50,7 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       child: Container(
-        width: 500,
+        width: 450,
         padding: const EdgeInsets.all(24),
         child: Consumer<SessionProvider>(
           builder: (context, session, _) {
@@ -79,7 +64,7 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
                         color: AppColors.primary, size: 28),
                     const SizedBox(width: 12),
                     const Text(
-                      'Open Session',
+                      'Open Register',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -88,12 +73,15 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
                   ],
                 ),
                 const Divider(height: 32),
+
+                // Opening Cash Amount
                 TextField(
                   controller: _openingCashController,
                   decoration: const InputDecoration(
                     labelText: 'Opening Cash Amount',
                     prefixIcon: Icon(Icons.attach_money),
                     hintText: '0.00',
+                    helperText: 'Enter the cash in your drawer',
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -101,75 +89,23 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
                     FilteringTextInputFormatter.allow(
                         RegExp(r'^\d+\.?\d{0,2}')),
                   ],
-                  onChanged: (_) => setState(() {}),
+                  autofocus: true,
                 ),
-                const SizedBox(height: 16),
-                if (session.denominations.isNotEmpty) ...[
-                  ExpansionTile(
-                    title: const Text('Count Denominations (Optional)'),
-                    children: [
-                      ...session.denominations.map((denom) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 120,
-                                child: Text(
-                                  denom.displayName,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                icon: const Icon(Icons.remove),
-                                onPressed: () {
-                                  setState(() {
-                                    _denominationCounts[denom.id] =
-                                        (_denominationCounts[denom.id] ?? 0) -
-                                            1;
-                                    if (_denominationCounts[denom.id]! <= 0) {
-                                      _denominationCounts.remove(denom.id);
-                                    }
-                                    _updateCashFromDenominations(session);
-                                  });
-                                },
-                              ),
-                              Text(
-                                '${_denominationCounts[denom.id] ?? 0}',
-                                style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.add),
-                                onPressed: () {
-                                  setState(() {
-                                    _denominationCounts[denom.id] =
-                                        (_denominationCounts[denom.id] ?? 0) +
-                                            1;
-                                    _updateCashFromDenominations(session);
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                const SizedBox(height: 20),
+
+                // Notes
                 TextField(
                   controller: _notesController,
                   decoration: const InputDecoration(
                     labelText: 'Notes (Optional)',
                     hintText: 'Add any notes...',
+                    prefixIcon: Icon(Icons.note_outlined),
                   ),
-                  maxLines: 3,
+                  maxLines: 2,
                 ),
                 const SizedBox(height: 24),
+
+                // Buttons
                 Row(
                   children: [
                     Expanded(
@@ -181,20 +117,21 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 2,
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         onPressed:
                             session.isLoading ? null : _handleOpenSession,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: session.isLoading
+                        icon: session.isLoading
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Text('Open Session'),
+                            : const Icon(Icons.play_arrow_rounded),
+                        label: Text(session.isLoading ? 'Opening...' : 'Open Register'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
                       ),
                     ),
                   ],
@@ -205,10 +142,5 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
         ),
       ),
     );
-  }
-
-  void _updateCashFromDenominations(SessionProvider session) {
-    final total = session.calculateTotal(_denominationCounts);
-    _openingCashController.text = total.toStringAsFixed(2);
   }
 }

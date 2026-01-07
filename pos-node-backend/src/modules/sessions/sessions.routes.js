@@ -7,6 +7,7 @@ const { verifyToken } = require('../../middleware/auth.middleware');
 router.use(verifyToken);
 
 router.get('/active', sessionsController.getActiveSession.bind(sessionsController));
+router.get('/history', sessionsController.getSessionHistory.bind(sessionsController));
 router.post('/open', sessionsController.openSession.bind(sessionsController));
 router.post('/close', sessionsController.closeSession.bind(sessionsController));
 

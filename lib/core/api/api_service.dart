@@ -604,20 +604,15 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> openSession({
-    required int cashRegisterId,
     required double openingCash,
-    Map<String, int>? denominations,
     String? notes,
   }) async {
     debugPrint('📂 API SERVICE: openSession called');
-    debugPrint('📂 API SERVICE: Register ID: $cashRegisterId');
     debugPrint('📂 API SERVICE: Opening cash: $openingCash');
 
     try {
       final response = await _dio.post('/sessions/open', data: {
-        'cash_register_id': cashRegisterId,
         'opening_cash': openingCash,
-        if (denominations != null) 'opening_denominations': denominations,
         if (notes != null) 'opening_notes': notes,
       });
 

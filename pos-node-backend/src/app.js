@@ -19,7 +19,6 @@ const cartRoutes = require('./modules/cart/cart.routes');
 const ordersRoutes = require('./modules/orders/orders.routes');
 const customersRoutes = require('./modules/customers/customers.routes');
 const sessionsRoutes = require('./modules/sessions/sessions.routes');
-const cashRegistersRoutes = require('./modules/sessions/sessions.routes');
 const denominationsRoutes = require('./modules/denominations/denominations.routes');
 const printerRoutes = require('./modules/printer/printer.routes');
 
@@ -70,10 +69,15 @@ apiRouter.use('/cart', cartRoutes);
 apiRouter.use('/orders', ordersRoutes);
 apiRouter.use('/customers', customersRoutes);
 apiRouter.use('/sessions', sessionsRoutes);
-apiRouter.use('/cash-registers', (req, res, next) => {
-  // Forward to sessions controller
-  const sessionsController = require('./modules/sessions/sessions.controller');
-  sessionsController.getCashRegisters(req, res, next);
+
+// Deprecated: cash-registers endpoint - returns empty for backward compatibility
+// Flutter app should skip register selection and go directly to open session
+apiRouter.get('/cash-registers', (req, res) => {
+  res.json({
+    error: false,
+    message: 'Register selection not required. Use /sessions/open directly.',
+    data: { cash_registers: [] },
+  });
 });
 apiRouter.use('/denominations', denominationsRoutes);
 apiRouter.use('/printer', printerRoutes);

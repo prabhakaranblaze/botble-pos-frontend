@@ -33,16 +33,11 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
     for (var variant in widget.product.variants ?? []) {
       if (variant.options == null || variant.options!.isEmpty) continue;
       final selectedOptionId = _selectedVariantOptions[variant.id];
-      if (selectedOptionId != null) {
+      if (selectedOptionId != null && variant.options!.isNotEmpty) {
         // Find selected option or use first as fallback
-        VariantOption? option;
-        for (var o in variant.options!) {
-          if (o.id == selectedOptionId) {
-            option = o;
-            break;
-          }
-        }
-        option ??= variant.options!.first;
+        final options = variant.options!;
+        final selectedOption = options.where((o) => o.id == selectedOptionId);
+        final option = selectedOption.isNotEmpty ? selectedOption.first : options.first;
         modifiersTotal += option.priceModifier ?? 0;
       }
     }

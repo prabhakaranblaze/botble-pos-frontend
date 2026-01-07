@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../core/config/env_config.dart';
 
 class AppConstants {
-  // API Configuration
-  static const String baseUrl = 'https://stampsmart.test/api/v1/pos';
-  static const String apiKey =
-      'GcrrfWGSHhVvwZVh7Skj4GPCQT08skcZ'; // Replace with your actual API key
+  // API Configuration - now uses environment config
+  static String get baseUrl => EnvConfig.baseUrl;
+  static String get apiKey => EnvConfig.apiKey;
 
   // App Configuration
   static const String appName = 'StampSmart POS';

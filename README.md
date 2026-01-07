@@ -49,14 +49,16 @@ cd pos_desktop
 # Or simply copy the pos_desktop folder to your desired location
 ```
 
-### 2. Configure API Settings
+### 2. Environment Configuration
 
-Open `lib/shared/constants/app_constants.dart` and update:
+The app supports multiple environments (dev/prod) via compile-time configuration:
 
-```dart
-static const String baseUrl = 'http://localhost/api/v1/pos'; // Your API URL
-static const String apiKey = 'YOUR_API_KEY_HERE'; // Your API key
-```
+| Environment | Backend | Base URL |
+|-------------|---------|----------|
+| `dev` | Node.js | `http://localhost:3001/api/v1/pos` |
+| `prod` | Laravel | `https://stampsmart.test/api/v1/pos` |
+
+Configuration is in `lib/core/config/env_config.dart`. The API key can also be overridden at build time.
 
 ### 3. Install Dependencies
 
@@ -73,18 +75,27 @@ flutter config --enable-windows-desktop
 ### 5. Run the Application
 
 ```bash
-# Development mode
-flutter run -d windows
+# Development mode (uses Node.js backend at localhost:3001)
+flutter run -d windows --dart-define=ENV=dev
 
-# Release mode (faster)
-flutter run -d windows --release
+# Production mode (uses Laravel backend)
+flutter run -d windows --dart-define=ENV=prod
+
+# With custom API key
+flutter run -d windows --dart-define=ENV=dev --dart-define=API_KEY=your-key
+
+# Release mode (faster, production backend)
+flutter run -d windows --release --dart-define=ENV=prod
 ```
 
 ### 6. Build Executable
 
 ```bash
-# Build Windows executable
-flutter build windows --release
+# Build for Development (Node.js backend)
+flutter build windows --release --dart-define=ENV=dev
+
+# Build for Production (Laravel backend)
+flutter build windows --release --dart-define=ENV=prod
 
 # The executable will be in: build/windows/runner/Release/
 ```
@@ -96,6 +107,7 @@ pos_desktop/
 ├── lib/
 │   ├── core/
 │   │   ├── api/              # API service with offline support
+│   │   ├── config/           # Environment configuration (dev/prod)
 │   │   ├── database/         # Local SQLite database
 │   │   ├── models/           # Data models
 │   │   └── services/         # Storage, audio, connectivity services

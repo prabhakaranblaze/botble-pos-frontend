@@ -313,6 +313,7 @@ class OrdersService {
 
   /**
    * Create invoice for an order
+   * Uses Laravel-compatible defaults for guest customers
    */
   async createInvoice({
     orderId,
@@ -333,15 +334,22 @@ class OrdersService {
   }) {
     const invoiceCode = await this.generateInvoiceCode();
 
+    // Use Laravel-compatible defaults for guest customers
+    const finalCustomerName = customerName || 'Guest';
+    const finalCustomerEmail = customerEmail || 'guest@example.com';
+    const finalCustomerPhone = customerPhone || 'N/A';
+    const finalCustomerAddress = 'Pickup at Store'; // POS orders are always pickup
+
     // Create invoice
     const invoice = await prisma.invoice.create({
       data: {
         reference_type: 'Botble\\Ecommerce\\Models\\Order',
         reference_id: orderId,
         code: invoiceCode,
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
+        customer_name: finalCustomerName,
+        customer_email: finalCustomerEmail,
+        customer_phone: finalCustomerPhone,
+        customer_address: finalCustomerAddress,
         sub_total: subtotal,
         tax_amount: taxAmount,
         shipping_amount: shippingAmount,
@@ -357,12 +365,24 @@ class OrdersService {
       },
     });
 
-    // Create invoice items
+    // Create invoice items with Laravel-compatible options JSON
     for (const item of items) {
       const itemTaxRate = item.tax_rate || 0;
       const itemSubtotal = item.price * item.quantity;
       const itemTax = itemSubtotal * itemTaxRate / 100;
       const itemTotal = itemSubtotal + itemTax;
+
+      // Build options JSON matching Laravel format
+      const itemOptions = {
+        image: item.image || '',
+        attributes: '',
+        taxRate: itemTaxRate,
+        taxClasses: itemTaxRate > 0 ? { 'VAT': itemTaxRate } : {},
+        options: [],
+        extras: [],
+        sku: item.sku || '',
+        weight: item.weight || 0,
+      };
 
       await prisma.invoiceItem.create({
         data: {
@@ -376,6 +396,7 @@ class OrdersService {
           tax_amount: itemTax,
           discount_amount: 0,
           amount: itemTotal,
+          options: JSON.stringify(itemOptions),
           created_at: new Date(),
           updated_at: new Date(),
         },

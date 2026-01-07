@@ -299,6 +299,7 @@ class SalesProvider with ChangeNotifier {
           price: unitPrice,
           quantity: quantity,
           image: product.image,
+          sku: product.sku,
           taxRate: taxRate,
         ));
         debugPrint('✅ Added new item with tax rate: $taxRate% (product: $productTax%, default: $_defaultTaxRate%)');
@@ -536,7 +537,7 @@ class SalesProvider with ChangeNotifier {
         throw Exception('Cart is empty');
       }
 
-      // Build items for direct checkout (include tax_rate)
+      // Build items for direct checkout (include tax_rate and sku)
       final items = _cartItems
           .map((item) => {
                 'product_id': item.productId,
@@ -544,6 +545,7 @@ class SalesProvider with ChangeNotifier {
                 'quantity': item.quantity,
                 'price': item.price,
                 'image': item.image,
+                'sku': item.sku,
                 'tax_rate': item.taxRate,
               })
           .toList();

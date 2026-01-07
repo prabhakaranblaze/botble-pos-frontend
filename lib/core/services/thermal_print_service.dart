@@ -38,18 +38,16 @@ class ThermalPrintService {
     _availablePrinters = [];
 
     try {
-      // Get printers stream
-      final printersStream = _flutterThermalPrinterPlugin.devicesStream;
-
-      _printerSubscription = printersStream.listen((printers) {
+      // Listen to devices stream
+      _printerSubscription = _flutterThermalPrinterPlugin.devicesStream.listen((printers) {
         _availablePrinters = printers;
         debugPrint('Found ${printers.length} printers');
       });
 
-      // Start discovery for each connection type
-      for (final type in connectionTypes) {
-        await _flutterThermalPrinterPlugin.startScan(connectionType: type);
-      }
+      // Start scanning using getPrinters
+      await _flutterThermalPrinterPlugin.getPrinters(
+        connectionTypes: connectionTypes,
+      );
     } catch (e) {
       debugPrint('Error scanning for printers: $e');
     }
@@ -80,9 +78,9 @@ class ThermalPrintService {
     }
 
     try {
-      await _flutterThermalPrinterPlugin.connect(_selectedPrinter!);
-      debugPrint('Printer connected');
-      return true;
+      final connected = await _flutterThermalPrinterPlugin.connect(_selectedPrinter!);
+      debugPrint('Printer connected: $connected');
+      return connected;
     } catch (e) {
       debugPrint('Failed to connect to printer: $e');
       return false;

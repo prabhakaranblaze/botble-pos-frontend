@@ -746,4 +746,25 @@ class ApiService {
       throw Exception('Failed to close session: ${e.toString()}');
     }
   }
+
+  // Settings APIs
+  /// Get POS settings including currency
+  Future<Map<String, dynamic>?> getSettings() async {
+    debugPrint('⚙️ API SERVICE: getSettings called');
+
+    try {
+      final response = await _dio.get('/settings');
+
+      if (response.data['error'] == false) {
+        final settings = response.data['data']['settings'] as Map<String, dynamic>;
+        debugPrint('✅ API SERVICE: Settings loaded');
+        return settings;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getSettings error: $e');
+      return null;
+    }
+  }
 }

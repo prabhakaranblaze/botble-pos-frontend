@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../core/models/cart.dart';
 import '../session/session_provider.dart';
 import '../../shared/constants/app_constants.dart';
@@ -67,8 +66,6 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
     return Dialog(
       child: Container(
         width: 600,
@@ -116,7 +113,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     ),
                   ),
                   Text(
-                    currencyFormat.format(widget.cart.total),
+                    AppCurrency.format(widget.cart.total),
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/models/product.dart';
 import '../../shared/constants/app_constants.dart';
 
@@ -80,8 +79,6 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
     return Dialog(
       child: Container(
         width: 500,
@@ -170,7 +167,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
                     // Base Price
                     Text(
-                      'Base: ${currencyFormat.format(widget.product.finalPrice)}',
+                      'Base: ${AppCurrency.format(widget.product.finalPrice)}',
                       style: TextStyle(
                         fontSize: 16,
                         color: AppColors.primary,
@@ -263,7 +260,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                             ),
                           ),
                           Text(
-                            currencyFormat.format(_calculatedPrice),
+                            AppCurrency.format(_calculatedPrice),
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -292,7 +289,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                   onPressed: _isValid ? _handleAddToCart : null,
                   icon: const Icon(Icons.shopping_cart),
                   label: Text(
-                    'Add to Cart - ${currencyFormat.format(_calculatedPrice)}',
+                    'Add to Cart - ${AppCurrency.format(_calculatedPrice)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

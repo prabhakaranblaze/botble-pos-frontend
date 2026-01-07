@@ -12,6 +12,7 @@ import 'core/services/audio_service.dart';
 import 'core/services/connectivity_provider.dart';
 import 'core/providers/locale_provider.dart';
 import 'core/providers/inactivity_provider.dart';
+import 'core/providers/currency_provider.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
@@ -58,7 +59,9 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
+        ChangeNotifierProvider(create: (_) => CurrencyProvider()),
         ChangeNotifierProvider.value(value: inactivityProvider),
+        Provider.value(value: apiService),
         ChangeNotifierProvider(
             create: (_) => AuthProvider(apiService, storageService)),
         ChangeNotifierProvider(
@@ -201,6 +204,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             debugPrint('🔒 Starting inactivity tracking...');
             inactivity.startTracking();
+            // Load currency settings from backend
+            _loadCurrencySettings();
           });
         }
 
@@ -262,6 +267,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return const RegisterSelectionScreen();
       },
     );
+  }
+
+  Future<void> _loadCurrencySettings() async {
+    try {
+      final apiService = context.read<ApiService>();
+      final currencyProvider = context.read<CurrencyProvider>();
+      await currencyProvider.loadSettings(apiService);
+    } catch (e) {
+      debugPrint('❌ Error loading currency settings: $e');
+    }
   }
 
   Future<void> _performSessionCheck() async {

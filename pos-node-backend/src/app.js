@@ -21,6 +21,7 @@ const customersRoutes = require('./modules/customers/customers.routes');
 const sessionsRoutes = require('./modules/sessions/sessions.routes');
 const denominationsRoutes = require('./modules/denominations/denominations.routes');
 const printerRoutes = require('./modules/printer/printer.routes');
+const settingsRoutes = require('./modules/settings/settings.routes');
 
 // Initialize Express
 const app = express();
@@ -81,6 +82,7 @@ apiRouter.get('/cash-registers', (req, res) => {
 });
 apiRouter.use('/denominations', denominationsRoutes);
 apiRouter.use('/printer', printerRoutes);
+apiRouter.use('/settings', settingsRoutes);
 
 // Mount API router
 app.use('/api/v1/pos', apiRouter);

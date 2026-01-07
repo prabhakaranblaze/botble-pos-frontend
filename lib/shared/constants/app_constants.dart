@@ -22,20 +22,39 @@ class AppConstants {
     }
   }
 
-  // Currency Configuration
-  static const String currencyCode = 'SCR'; // Seychelles Rupee
-  static const String currencySymbol = 'SCR';
-  static const int currencyDecimalDigits = 2;
+  // Currency Configuration (defaults - can be overridden by backend)
+  static String currencyCode = 'SCR'; // Seychelles Rupee
+  static String currencySymbol = 'Rs';
+  static int currencyDecimalDigits = 2;
+  static bool currencyIsPrefix = false; // false = suffix (100Rs), true = prefix ($100)
 
-  // Currency formatter
-  static NumberFormat get currencyFormat => NumberFormat.currency(
-        symbol: '$currencySymbol ',
-        decimalDigits: currencyDecimalDigits,
-      );
+  // Update currency settings from backend
+  static void updateCurrency({
+    required String code,
+    required String symbol,
+    required int decimalDigits,
+    required bool isPrefix,
+  }) {
+    currencyCode = code;
+    currencySymbol = symbol;
+    currencyDecimalDigits = decimalDigits;
+    currencyIsPrefix = isPrefix;
+    debugPrint('💰 Currency updated: $code ($symbol) prefix=$isPrefix');
+  }
 
   // Format amount with currency
   static String formatCurrency(double amount) {
-    return currencyFormat.format(amount);
+    final formatter = NumberFormat.currency(
+      symbol: '',
+      decimalDigits: currencyDecimalDigits,
+    );
+    final formattedAmount = formatter.format(amount);
+
+    if (currencyIsPrefix) {
+      return '$currencySymbol$formattedAmount';
+    } else {
+      return '$formattedAmount$currencySymbol';
+    }
   }
 
   // Storage Keys

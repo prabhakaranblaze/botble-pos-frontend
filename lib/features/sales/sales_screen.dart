@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
 import '../sales/cart_item_widget.dart';
@@ -22,7 +21,6 @@ class _SalesScreenState extends State<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _barcodeFocusNode = FocusNode();
   final FocusNode _searchFocusNode = FocusNode();
-  final currencyFormat = NumberFormat.currency(symbol: '\$');
 
   List<Product> _searchResults = [];
   bool _showSearchDropdown = false;
@@ -468,7 +466,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                           ),
                                           title: Text(product.name),
                                           subtitle: Text(
-                                            '${product.sku ?? ''} - ${currencyFormat.format(product.finalPrice)}',
+                                            '${product.sku ?? ''} - ${AppCurrency.format(product.finalPrice)}',
                                           ),
                                           onTap: () async {
                                             debugPrint(
@@ -680,7 +678,7 @@ class _SalesScreenState extends State<SalesScreen> {
               Row(
                 children: [
                   Text(
-                    currencyFormat.format(product.finalPrice),
+                    AppCurrency.format(product.finalPrice),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -690,7 +688,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   if (product.salePrice != null) ...[
                     const SizedBox(width: 4),
                     Text(
-                      currencyFormat.format(product.price),
+                      AppCurrency.format(product.price),
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -850,7 +848,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           onPressed: _handleCheckout,
                           icon: const Icon(Icons.payment),
                           label: Text(
-                            '${l10n?.checkout ?? 'Checkout'} - ${currencyFormat.format(cart.total)}',
+                            '${l10n?.checkout ?? 'Checkout'} - ${AppCurrency.format(cart.total)}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -892,7 +890,7 @@ class _SalesScreenState extends State<SalesScreen> {
             ),
           ),
           Text(
-            currencyFormat.format(value),
+            AppCurrency.format(value),
             style: TextStyle(
               fontSize: isTotal ? 20 : 14,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,

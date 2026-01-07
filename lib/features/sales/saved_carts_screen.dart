@@ -237,7 +237,6 @@ class _SavedCartsScreenState extends State<SavedCartsScreen> {
 
   Widget _buildCartCard(cart) {
     final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -327,7 +326,7 @@ class _SavedCartsScreenState extends State<SavedCartsScreen> {
                             ),
                           ),
                           Text(
-                            currencyFormat.format(item.total),
+                            AppCurrency.format(item.total),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -351,7 +350,7 @@ class _SavedCartsScreenState extends State<SavedCartsScreen> {
                       ),
                     ),
                     Text(
-                      currencyFormat.format(cart.total),
+                      AppCurrency.format(cart.total),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

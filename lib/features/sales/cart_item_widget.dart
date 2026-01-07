@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/models/cart.dart';
 import '../../shared/constants/app_constants.dart';
 
@@ -17,8 +16,6 @@ class CartItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
@@ -147,14 +144,14 @@ class CartItemWidget extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${currencyFormat.format(item.price)} ×',
+                      '${AppCurrency.format(item.price)} ×',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
                     ),
                     Text(
-                      currencyFormat.format(item.total),
+                      AppCurrency.format(item.total),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,

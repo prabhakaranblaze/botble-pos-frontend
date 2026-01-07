@@ -195,6 +195,13 @@ class SalesProvider with ChangeNotifier {
     try {
       debugPrint('🛒 CLIENT CART: Adding "${product.name}" (qty: $quantity)');
 
+      // Validate price - API rejects items with price <= 0
+      if (product.finalPrice <= 0) {
+        debugPrint('❌ CLIENT CART: Invalid price ${product.finalPrice}');
+        await _audioService.playError();
+        throw Exception('Cannot add "${product.name}" - price must be greater than 0');
+      }
+
       final existingIndex =
           _cartItems.indexWhere((item) => item.productId == product.id);
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../core/models/cart.dart';
 import '../session/session_provider.dart';
 import '../../shared/constants/app_constants.dart';
@@ -16,13 +15,13 @@ class PaymentDialog extends StatefulWidget {
 }
 
 class _PaymentDialogState extends State<PaymentDialog> {
-  String _paymentMethod = 'cash';
+  String _paymentMethod = 'pos_cash'; // Laravel-style payment method
   final _cashReceivedController = TextEditingController();
   final _cardDigitsController = TextEditingController();
   final Map<int, int> _denominationCounts = {};
 
   double get _cashReceived {
-    if (_paymentMethod == 'cash' && _cashReceivedController.text.isNotEmpty) {
+    if (_paymentMethod == 'pos_cash' && _cashReceivedController.text.isNotEmpty) {
       return double.tryParse(_cashReceivedController.text) ?? 0;
     }
     return 0;
@@ -38,16 +37,16 @@ class _PaymentDialogState extends State<PaymentDialog> {
   }
 
   void _handleSubmit() {
-    if (_paymentMethod == 'cash') {
+    if (_paymentMethod == 'pos_cash') {
       if (_cashReceived < widget.cart.total) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Insufficient cash received')),
         );
         return;
       }
-      
+
       Navigator.pop(context, {
-        'payment_method': 'cash',
+        'payment_method': 'pos_cash',
         'payment_details': 'Cash: \$${_cashReceived.toStringAsFixed(2)}, Change: \$${_change.toStringAsFixed(2)}',
       });
     } else {
@@ -57,9 +56,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
         );
         return;
       }
-      
+
       Navigator.pop(context, {
-        'payment_method': 'card',
+        'payment_method': 'pos_card',
         'payment_details': 'Card ending in ${_cardDigitsController.text}',
       });
     }
@@ -67,8 +66,6 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
     return Dialog(
       child: Container(
         width: 600,
@@ -116,7 +113,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     ),
                   ),
                   Text(
-                    currencyFormat.format(widget.cart.total),
+                    AppCurrency.format(widget.cart.total),
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -135,7 +132,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   child: _buildPaymentMethodButton(
                     'Cash',
                     Icons.money_rounded,
-                    'cash',
+                    'pos_cash',
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -143,7 +140,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   child: _buildPaymentMethodButton(
                     'Card',
                     Icons.credit_card_rounded,
-                    'card',
+                    'pos_card',
                   ),
                 ),
               ],
@@ -151,7 +148,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
             const SizedBox(height: 24),
 
             // Payment Details
-            if (_paymentMethod == 'cash') ...[
+            if (_paymentMethod == 'pos_cash') ...[
               _buildCashPaymentSection(),
             ] else ...[
               _buildCardPaymentSection(),

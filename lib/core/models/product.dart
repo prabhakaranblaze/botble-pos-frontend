@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../config/env_config.dart';
 
 class Product {
   final int id;
@@ -13,6 +14,7 @@ class Product {
   final bool isAvailable;
   final bool hasVariants;
   final List<ProductVariant>? variants;
+  final ProductTax? tax;
 
   Product({
     required this.id,
@@ -27,9 +29,22 @@ class Product {
     this.isAvailable = true,
     this.hasVariants = false,
     this.variants,
+    this.tax,
   });
 
   double get finalPrice => salePrice ?? price;
+
+  /// Check if product has selectable variant options (not just variant flag)
+  bool get hasSelectableVariants {
+    if (!hasVariants || variants == null) return false;
+    return variants!.any((v) => v.options != null && v.options!.isNotEmpty);
+  }
+
+  /// Get full image URL with base URL prefix
+  String? get fullImageUrl {
+    if (image == null || image!.isEmpty) return null;
+    return EnvConfig.getImageUrl(image);
+  }
 
   // ⭐ FROM API JSON
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -52,6 +67,7 @@ class Product {
               .map((v) => ProductVariant.fromJson(v))
               .toList()
           : null,
+      tax: json['tax'] != null ? ProductTax.fromJson(json['tax']) : null,
     );
   }
 
@@ -70,6 +86,7 @@ class Product {
       'is_available': isAvailable,
       'has_variants': hasVariants,
       'variants': variants?.map((v) => v.toJson()).toList(),
+      'tax': tax?.toJson(),
     };
   }
 
@@ -90,6 +107,7 @@ class Product {
       'variants_json': variants != null
           ? jsonEncode(variants!.map((v) => v.toJson()).toList())
           : null,
+      'tax_json': tax != null ? jsonEncode(tax!.toJson()) : null,
       'synced': 1,
     };
   }
@@ -97,6 +115,7 @@ class Product {
   // ⭐ FROM DATABASE JSON
   factory Product.fromDbJson(Map<String, dynamic> json) {
     List<ProductVariant>? variantsList;
+    ProductTax? taxData;
 
     if (json['variants_json'] != null && json['variants_json'] != '') {
       try {
@@ -105,6 +124,16 @@ class Product {
         variantsList = decoded.map((v) => ProductVariant.fromJson(v)).toList();
       } catch (e) {
         variantsList = null;
+      }
+    }
+
+    if (json['tax_json'] != null && json['tax_json'] != '') {
+      try {
+        final Map<String, dynamic> decoded =
+            jsonDecode(json['tax_json'] as String);
+        taxData = ProductTax.fromJson(decoded);
+      } catch (e) {
+        taxData = null;
       }
     }
 
@@ -125,40 +154,54 @@ class Product {
           ? (json['has_variants'] as int) == 1
           : false,
       variants: variantsList,
+      tax: taxData,
     );
   }
 }
 
 class ProductVariant {
   final int id;
-  final String type; // "Size", "Color", etc.
-  final String name;
-  final List<VariantOption> options;
+  final int? productId; // The actual product ID for this variant
+  final bool isDefault;
+  final String? type; // "Size", "Color", etc. - may be null in simple variants
+  final String? name;
+  final List<VariantOption>? options;
 
   ProductVariant({
     required this.id,
-    required this.type,
-    required this.name,
-    required this.options,
+    this.productId,
+    this.isDefault = false,
+    this.type,
+    this.name,
+    this.options,
   });
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
+    List<VariantOption>? optionsList;
+    if (json['options'] != null) {
+      optionsList = (json['options'] as List)
+          .map((o) => VariantOption.fromJson(o))
+          .toList();
+    }
+
     return ProductVariant(
       id: json['id'] as int,
-      type: json['type'] as String,
-      name: json['name'] as String,
-      options: (json['options'] as List)
-          .map((o) => VariantOption.fromJson(o))
-          .toList(),
+      productId: json['product_id'] as int?,
+      isDefault: json['is_default'] ?? false,
+      type: json['type'] as String?,
+      name: json['name'] as String?,
+      options: optionsList,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'product_id': productId,
+      'is_default': isDefault,
       'type': type,
       'name': name,
-      'options': options.map((o) => o.toJson()).toList(),
+      'options': options?.map((o) => o.toJson()).toList(),
     };
   }
 }
@@ -166,11 +209,15 @@ class ProductVariant {
 class VariantOption {
   final int id;
   final String name;
+  final String? color; // Hex color code (e.g., "#FF0000")
+  final String? image; // Image URL for this option
   final double? priceModifier; // Additional cost (+ or -)
 
   VariantOption({
     required this.id,
     required this.name,
+    this.color,
+    this.image,
     this.priceModifier,
   });
 
@@ -178,6 +225,8 @@ class VariantOption {
     return VariantOption(
       id: json['id'] as int,
       name: json['name'] as String,
+      color: json['color'] as String?,
+      image: json['image'] as String?,
       priceModifier: json['price_modifier'] != null
           ? double.parse(json['price_modifier'].toString())
           : null,
@@ -188,6 +237,8 @@ class VariantOption {
     return {
       'id': id,
       'name': name,
+      'color': color,
+      'image': image,
       'price_modifier': priceModifier,
     };
   }
@@ -210,5 +261,41 @@ class ProductCategory {
       name: json['name'] as String,
       productCount: json['product_count'] ?? 0,
     );
+  }
+}
+
+/// Tax information for a product
+class ProductTax {
+  final int? id;
+  final String title;
+  final double percentage;
+
+  ProductTax({
+    this.id,
+    required this.title,
+    required this.percentage,
+  });
+
+  factory ProductTax.fromJson(Map<String, dynamic> json) {
+    return ProductTax(
+      id: json['id'] as int?,
+      title: json['title'] as String? ?? 'Tax',
+      percentage: json['percentage'] != null
+          ? double.parse(json['percentage'].toString())
+          : 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'percentage': percentage,
+    };
+  }
+
+  /// Calculate tax amount for a given price
+  double calculateTax(double price) {
+    return price * (percentage / 100);
   }
 }

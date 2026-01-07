@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:window_manager/window_manager.dart';
+import 'l10n/generated/app_localizations.dart';
 
 import 'core/database/database_service.dart';
 import 'core/api/api_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/connectivity_provider.dart';
+import 'core/providers/locale_provider.dart';
+import 'core/providers/inactivity_provider.dart';
+import 'core/providers/currency_provider.dart';
+import 'core/providers/pos_mode_provider.dart';
 import 'features/auth/auth_provider.dart';
+import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
 import 'features/session/session_provider.dart';
 import 'features/auth/login_screen.dart';
@@ -19,6 +27,22 @@ import 'shared/constants/app_constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize window manager for desktop fullscreen support
+  await windowManager.ensureInitialized();
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(1280, 800),
+    minimumSize: Size(800, 600),
+    center: true,
+    backgroundColor: Colors.transparent,
+    skipTaskbar: false,
+    titleBarStyle: TitleBarStyle.normal,
+    title: 'StampSmart POS',
+  );
+  await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   final storageService = StorageService();
   await storageService.init();
 
@@ -26,10 +50,20 @@ void main() async {
   final apiService = ApiService(databaseService, storageService);
   final audioService = AudioService();
   await audioService.preload(); // preload beep sound for instant playback
+
+  final inactivityProvider = InactivityProvider(
+    lockTimeout: const Duration(minutes: 1), // Change to 30 for production
+  );
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
+        ChangeNotifierProvider(create: (_) => CurrencyProvider()),
+        ChangeNotifierProvider(create: (_) => PosModeProvider()),
+        ChangeNotifierProvider.value(value: inactivityProvider),
+        Provider.value(value: apiService),
         ChangeNotifierProvider(
             create: (_) => AuthProvider(apiService, storageService)),
         ChangeNotifierProvider(
@@ -37,63 +71,84 @@ void main() async {
         ChangeNotifierProvider(
             create: (_) => SessionProvider(apiService, storageService)),
       ],
-      child: const MyApp(),
+      child: MyApp(inactivityProvider: inactivityProvider),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final InactivityProvider inactivityProvider;
+
+  const MyApp({super.key, required this.inactivityProvider});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: AppColors.primary, brightness: Brightness.light),
-        textTheme: GoogleFonts.interTextTheme(),
-        scaffoldBackgroundColor: AppColors.background,
-        appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          titleTextStyle: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary),
-        ),
-        cardTheme: CardThemeData(
-          color: AppColors.surface,
-          elevation: 1,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    return Consumer<LocaleProvider>(
+      builder: (context, localeProvider, child) {
+        return InactivityDetector(
+          inactivityProvider: inactivityProvider,
+          child: MaterialApp(
+            title: AppConstants.appName,
+            debugShowCheckedModeBanner: false,
+
+            // Localization
+            locale: localeProvider.locale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: LocaleProvider.supportedLocales,
+
+            theme: ThemeData(
+              useMaterial3: true,
+              colorScheme: ColorScheme.fromSeed(
+                  seedColor: AppColors.primary, brightness: Brightness.light),
+              textTheme: GoogleFonts.interTextTheme(),
+              scaffoldBackgroundColor: AppColors.background,
+              appBarTheme: AppBarTheme(
+                backgroundColor: AppColors.surface,
+                elevation: 0,
+                titleTextStyle: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
+              ),
+              cardTheme: CardThemeData(
+                color: AppColors.surface,
+                elevation: 1,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              inputDecorationTheme: InputDecorationTheme(
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.border)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.border)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                filled: true,
+                fillColor: AppColors.surface,
+              ),
+            ),
+            home: const AuthWrapper(),
           ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.border)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.border)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.primary, width: 2)),
-          filled: true,
-          fillColor: AppColors.surface,
-        ),
-      ),
-      home: const AuthWrapper(),
+        );
+      },
     );
   }
 }
@@ -108,28 +163,52 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _isChecking = false;
   bool _hasChecked = false;
+  bool _trackingStarted = false;
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<AuthProvider, SessionProvider>(
-      builder: (context, auth, session, child) {
+    return Consumer3<AuthProvider, SessionProvider, InactivityProvider>(
+      builder: (context, auth, session, inactivity, child) {
         debugPrint(
-            '🔵 AuthWrapper: auth=${auth.isAuthenticated}, session=${session.hasActiveSession}, checking=$_isChecking, checked=$_hasChecked');
+            '🔵 AuthWrapper: auth=${auth.isAuthenticated}, session=${session.hasActiveSession}, locked=${inactivity.isLocked}, checking=$_isChecking, checked=$_hasChecked');
 
         // NOT authenticated
         if (!auth.isAuthenticated) {
           // Reset flags for next login
-          if (_hasChecked || _isChecking) {
+          if (_hasChecked || _isChecking || _trackingStarted) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 setState(() {
                   _hasChecked = false;
                   _isChecking = false;
+                  _trackingStarted = false;
                 });
               }
             });
           }
+          // Stop inactivity tracking when logged out
+          inactivity.stopTracking();
           return const LoginScreen();
+        }
+
+        // Check if locked (only when authenticated)
+        if (inactivity.isLocked) {
+          return LockScreen(
+            onUnlock: () {
+              inactivity.unlock();
+            },
+          );
+        }
+
+        // Start inactivity tracking when authenticated (only once)
+        if (!_trackingStarted && !inactivity.isLocked) {
+          _trackingStarted = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint('🔒 Starting inactivity tracking...');
+            inactivity.startTracking();
+            // Load currency settings from backend
+            _loadCurrencySettings();
+          });
         }
 
         // ✅ Authenticated - need to check session
@@ -190,6 +269,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return const RegisterSelectionScreen();
       },
     );
+  }
+
+  Future<void> _loadCurrencySettings() async {
+    try {
+      final apiService = context.read<ApiService>();
+      final currencyProvider = context.read<CurrencyProvider>();
+      await currencyProvider.loadSettings(apiService);
+    } catch (e) {
+      debugPrint('❌ Error loading currency settings: $e');
+    }
   }
 
   Future<void> _performSessionCheck() async {

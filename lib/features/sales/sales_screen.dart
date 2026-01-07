@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
 import '../sales/cart_item_widget.dart';
 import '../sales/payment_dialog.dart';
-import '../sales/receipt_dialog.dart';
+import '../auth/auth_provider.dart';
 import '../../core/models/product.dart';
+import '../../core/services/auto_print_service.dart';
+import '../../core/providers/pos_mode_provider.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/save_cart_dialog.dart';
 
@@ -21,10 +24,10 @@ class _SalesScreenState extends State<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _barcodeFocusNode = FocusNode();
   final FocusNode _searchFocusNode = FocusNode();
-  final currencyFormat = NumberFormat.currency(symbol: '\$');
 
   List<Product> _searchResults = [];
   bool _showSearchDropdown = false;
+  int _selectedIndex = -1; // For keyboard navigation
 
   @override
   void initState() {
@@ -34,8 +37,18 @@ class _SalesScreenState extends State<SalesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('🟢 SALES SCREEN: Post frame callback - loading data');
       _loadData();
+      _loadSavedCarts();
       _searchFocusNode.requestFocus();
     });
+  }
+
+  Future<void> _loadSavedCarts() async {
+    final authProvider = context.read<AuthProvider>();
+    final salesProvider = context.read<SalesProvider>();
+
+    if (authProvider.user != null) {
+      await salesProvider.loadSavedCarts(authProvider.user!.id);
+    }
   }
 
   Future<void> _loadData() async {
@@ -43,6 +56,11 @@ class _SalesScreenState extends State<SalesScreen> {
     final salesProvider = context.read<SalesProvider>();
 
     try {
+      // Load settings first (for default tax rate)
+      debugPrint('🔵 SALES SCREEN: Loading settings...');
+      await salesProvider.loadSettings();
+      debugPrint('✅ SALES SCREEN: Settings loaded (default tax: ${salesProvider.defaultTaxRate}%)');
+
       debugPrint('🔵 SALES SCREEN: Loading categories...');
       await salesProvider.loadCategories();
       debugPrint('✅ SALES SCREEN: Categories loaded');
@@ -91,7 +109,7 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
-  // ⭐ UNIFIED SEARCH LOGIC
+  // ⭐ UNIFIED SEARCH LOGIC (API-first when online, local when offline)
   Future<void> _handleSearch(String query) async {
     debugPrint('🔍 SEARCH: _handleSearch called with query: "$query"');
 
@@ -100,44 +118,45 @@ class _SalesScreenState extends State<SalesScreen> {
       setState(() {
         _searchResults = [];
         _showSearchDropdown = false;
+        _selectedIndex = -1;
       });
-      await context.read<SalesProvider>().searchProducts('');
       return;
     }
 
     debugPrint('🔍 SEARCH: Searching for: "$query"');
     final salesProvider = context.read<SalesProvider>();
-    salesProvider.searchProducts(query);
 
-    // Filter current products
-    final results = salesProvider.products.where((p) {
-      final searchLower = query.toLowerCase();
-      final matchName = p.name.toLowerCase().contains(searchLower);
-      final matchSku = p.sku?.toLowerCase().contains(searchLower) ?? false;
-      final matchBarcode =
-          p.barcode?.toLowerCase().contains(searchLower) ?? false;
+    List<Product> results = [];
 
-      return matchName || matchSku || matchBarcode;
-    }).toList();
+    // API-first approach when online (for queries >= 2 chars)
+    if (salesProvider.isOnline && query.length >= 2) {
+      debugPrint('🔍 SEARCH: Online - using API search (auto-syncs to DB)');
+      results = await salesProvider.searchProductsOnline(query);
+      debugPrint('🔍 SEARCH: API found ${results.length} results');
+    } else {
+      // Offline: search local database only
+      debugPrint('🔍 SEARCH: Offline - using local search');
+      results = salesProvider.products.where((p) {
+        final searchLower = query.toLowerCase();
+        final matchName = p.name.toLowerCase().contains(searchLower);
+        final matchSku = p.sku?.toLowerCase().contains(searchLower) ?? false;
+        final matchBarcode =
+            p.barcode?.toLowerCase().contains(searchLower) ?? false;
 
-    debugPrint('🔍 SEARCH: Found ${results.length} results');
-
-    // ✅ Check count BEFORE setting dropdown state
-    if (results.length == 1) {
-      debugPrint('🔍 SEARCH: Exactly 1 result found, auto-adding...');
-      await _addProductToCart(results.first);
-      _clearSearch();
-      return; // ✅ Exit early, don't show dropdown
+        return matchName || matchSku || matchBarcode;
+      }).toList();
+      debugPrint('🔍 SEARCH: Local found ${results.length} results');
     }
 
-    // ✅ Only show dropdown for multiple results
+    // Update state with results
     setState(() {
       _searchResults = results;
-      _showSearchDropdown = true;
+      _showSearchDropdown = results.isNotEmpty;
+      _selectedIndex = results.isNotEmpty ? 0 : -1;
     });
 
     debugPrint(
-        '🔍 SEARCH: Multiple results (${results.length}), showing dropdown');
+        '🔍 SEARCH: ${results.length} results, showing dropdown: ${results.isNotEmpty}');
   }
 
   Future<void> _handleRefresh() async {
@@ -166,9 +185,37 @@ class _SalesScreenState extends State<SalesScreen> {
     setState(() {
       _searchResults = [];
       _showSearchDropdown = false;
+      _selectedIndex = -1;
     });
-    context.read<SalesProvider>().searchProducts('');
     _searchFocusNode.requestFocus();
+  }
+
+  /// Handle keyboard events for search dropdown navigation
+  KeyEventResult _handleSearchKeyEvent(KeyEvent event) {
+    if (!_showSearchDropdown || _searchResults.isEmpty) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        setState(() {
+          _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
+        });
+        debugPrint('⬇️ KEYBOARD: Selected index: $_selectedIndex');
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        setState(() {
+          _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
+        });
+        debugPrint('⬆️ KEYBOARD: Selected index: $_selectedIndex');
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _clearSearch();
+        return KeyEventResult.handled;
+      }
+    }
+
+    return KeyEventResult.ignored;
   }
 
   // ⭐ UNIFIED ADD TO CART LOGIC
@@ -177,17 +224,38 @@ class _SalesScreenState extends State<SalesScreen> {
     debugPrint('➕ ADD TO CART: Product ID: ${product.id}');
     debugPrint('➕ ADD TO CART: Product Name: ${product.name}');
     debugPrint('➕ ADD TO CART: Has Variants: ${product.hasVariants}');
+    debugPrint(
+        '➕ ADD TO CART: Has Selectable Variants: ${product.hasSelectableVariants}');
 
     final salesProvider = context.read<SalesProvider>();
 
     try {
-      if (product.hasVariants) {
+      // Determine which product to use for variant dialog
+      Product productForCart = product;
+
+      // If product has variants flag but no selectable options, fetch full details
+      if (product.hasVariants && !product.hasSelectableVariants) {
+        debugPrint(
+            '➕ ADD TO CART: Product has variants flag but no options, fetching details...');
+
+        final fullProduct =
+            await salesProvider.getProductDetails(product.id);
+        if (fullProduct != null) {
+          debugPrint(
+              '➕ ADD TO CART: Got full product, hasSelectableVariants: ${fullProduct.hasSelectableVariants}');
+          productForCart = fullProduct;
+        }
+      }
+
+      // Now check if we should show variant dialog
+      if (productForCart.hasSelectableVariants) {
         debugPrint('➕ ADD TO CART: Product has variants, showing dialog...');
 
         // Show variant selection dialog
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
-          builder: (context) => VariantSelectionDialog(product: product),
+          builder: (context) =>
+              VariantSelectionDialog(product: productForCart),
         );
 
         debugPrint('➕ ADD TO CART: Dialog result: $result');
@@ -196,36 +264,27 @@ class _SalesScreenState extends State<SalesScreen> {
           debugPrint('➕ ADD TO CART: Adding with variants...');
           debugPrint('➕ ADD TO CART: Quantity: ${result['quantity']}');
           debugPrint('➕ ADD TO CART: Variants: ${result['variants']}');
+          debugPrint('➕ ADD TO CART: Total Price: ${result['price']}');
 
-          await salesProvider.addToCart(product.id,
-              quantity: result['quantity']);
+          // Calculate unit price from total (dialog returns total = unit * qty)
+          final int qty = result['quantity'] as int;
+          final double totalPrice = result['price'] as double;
+          final double unitPrice = totalPrice / qty;
+          debugPrint('➕ ADD TO CART: Unit Price: $unitPrice');
+
+          await salesProvider.addProductToCart(productForCart,
+              quantity: qty, priceOverride: unitPrice);
 
           debugPrint('✅ ADD TO CART: Product added with variants');
-
-          // Play beep sound
-          try {
-            await salesProvider.audioService.playBeep();
-            debugPrint('🔊 ADD TO CART: Beep played');
-          } catch (e) {
-            debugPrint('⚠️ ADD TO CART: Could not play beep: $e');
-          }
         } else {
           debugPrint('⚠️ ADD TO CART: User cancelled variant selection');
         }
       } else {
         debugPrint('➕ ADD TO CART: Product has no variants, direct add...');
 
-        await salesProvider.addToCart(product.id, quantity: 1);
+        await salesProvider.addProductToCart(productForCart, quantity: 1);
 
         debugPrint('✅ ADD TO CART: Product added directly');
-
-        // Play beep sound
-        try {
-          await salesProvider.audioService.playBeep();
-          debugPrint('🔊 ADD TO CART: Beep played');
-        } catch (e) {
-          debugPrint('⚠️ ADD TO CART: Could not play beep: $e');
-        }
       }
     } catch (e) {
       debugPrint('❌ ADD TO CART: Error adding product: $e');
@@ -262,6 +321,94 @@ class _SalesScreenState extends State<SalesScreen> {
 
     if (result == true && mounted) {
       _barcodeFocusNode.requestFocus();
+    }
+  }
+
+  /// Quick hold cart without dialog (auto-generated name)
+  Future<void> _handleQuickHold() async {
+    final salesProvider = context.read<SalesProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    if (salesProvider.cart.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty')),
+      );
+      return;
+    }
+
+    if (authProvider.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    final success = await salesProvider.quickSaveCart(
+      userId: authProvider.user!.id,
+      userName: authProvider.user!.name,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      // Reload saved carts list
+      await salesProvider.loadSavedCarts(authProvider.user!.id);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cart held successfully!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      _searchFocusNode.requestFocus();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(salesProvider.error ?? 'Failed to hold cart'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  /// Quick load a saved cart (auto-saves current cart if not empty)
+  Future<void> _handleQuickLoad(String cartId) async {
+    final salesProvider = context.read<SalesProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    if (authProvider.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    final success = await salesProvider.loadCart(
+      cartId,
+      authProvider.user!.id,
+      userName: authProvider.user!.name,
+      autoSaveCurrentCart: true,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cart loaded!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      _searchFocusNode.requestFocus();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(salesProvider.error ?? 'Failed to load cart'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -304,12 +451,25 @@ class _SalesScreenState extends State<SalesScreen> {
       debugPrint(
           '✅ CHECKOUT: Order created successfully - ID: ${order.id}, Code: ${order.code}');
 
-      // Show receipt
-      await showDialog(
-        context: context,
-        builder: (context) => ReceiptDialog(order: order),
+      // Show success toast immediately
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Text('Order ${order.code} completed! Printing...'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 3),
+        ),
       );
 
+      // Auto-print in background (don't wait for it)
+      _autoPrintReceipt(order);
+
+      // Refresh for new order
       _searchFocusNode.requestFocus();
     } else if (salesProvider.error != null && mounted) {
       debugPrint('❌ CHECKOUT: Error during checkout: ${salesProvider.error}');
@@ -324,11 +484,57 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
-  @override
+  /// Auto-print receipt in background
+  Future<void> _autoPrintReceipt(dynamic order) async {
+    final autoPrintService = AutoPrintService();
+
+    try {
+      final result = await autoPrintService.autoPrint(order);
+
+      if (mounted) {
+        if (!result.success && result.didPrint == false) {
+          // Show error only if printing was attempted but failed
+          if (await autoPrintService.hasDefaultPrinter()) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.print_disabled, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(result.message)),
+                  ],
+                ),
+                backgroundColor: AppColors.warning,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } else if (result.didPrint) {
+          debugPrint('🖨️ Receipt printed successfully');
+        }
+      }
+    } catch (e) {
+      debugPrint('🖨️ Auto-print error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('🎨 BUILD: SalesScreen build called');
 
+    return Consumer<PosModeProvider>(
+      builder: (context, modeProvider, _) {
+        if (modeProvider.isKiosk) {
+          return _buildKioskLayout();
+        } else {
+          return _buildQuickSelectLayout();
+        }
+      },
+    );
+  }
+
+  /// Quick Select Mode - Product grid on left, cart on right
+  Widget _buildQuickSelectLayout() {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Row(
@@ -339,127 +545,7 @@ class _SalesScreenState extends State<SalesScreen> {
             child: Column(
               children: [
                 // Single Unified Search Bar
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: AppColors.surface,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            TextField(
-                              controller: _searchController,
-                              focusNode: _searchFocusNode,
-                              decoration: InputDecoration(
-                                hintText:
-                                    'Scan barcode, SKU, or search products...',
-                                prefixIcon: Icon(
-                                  Icons.qr_code_scanner_rounded,
-                                  color: AppColors.primary,
-                                ),
-                                suffixIcon: _searchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.close),
-                                        onPressed: _clearSearch,
-                                      )
-                                    : null,
-                              ),
-                              onSubmitted: (value) async {
-                                // ✅ If it looks like a barcode (numeric, 8+ digits), use barcode scan
-                                if (RegExp(r'^\d{8,}$').hasMatch(value)) {
-                                  await _handleBarcodeScan(value);
-                                } else {
-                                  await _handleSearch(value);
-                                }
-                              },
-                              onChanged: (value) {
-                                setState(() {});
-                                if (value.isEmpty) {
-                                  _handleSearch('');
-                                }
-                              },
-                            ),
-
-                            // Search Results Dropdown
-                            if (_showSearchDropdown &&
-                                _searchResults.isNotEmpty)
-                              Positioned(
-                                top: 60,
-                                left: 0,
-                                right: 0,
-                                child: Material(
-                                  elevation: 8,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    constraints:
-                                        const BoxConstraints(maxHeight: 300),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surface,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border:
-                                          Border.all(color: AppColors.border),
-                                    ),
-                                    child: ListView.builder(
-                                      shrinkWrap: true,
-                                      itemCount: _searchResults.length,
-                                      itemBuilder: (context, index) {
-                                        final product = _searchResults[index];
-                                        return ListTile(
-                                          leading: Container(
-                                            width: 40,
-                                            height: 40,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.background,
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Icon(
-                                              Icons.inventory_2_outlined,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                          title: Text(product.name),
-                                          subtitle: Text(
-                                            '${product.sku ?? ''} - ${currencyFormat.format(product.finalPrice)}',
-                                          ),
-                                          onTap: () async {
-                                            debugPrint(
-                                                '🖱️ UI: Search result tapped - ${product.name}');
-                                            await _addProductToCart(product);
-                                            _clearSearch();
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-
-                      // ✅ REFRESH BUTTON - ADDED HERE
-                      const SizedBox(width: 12),
-
-                      Consumer<SalesProvider>(
-                        builder: (context, sales, _) {
-                          return IconButton(
-                            icon: Icon(
-                              Icons.refresh_rounded,
-                              color: sales.isLoading
-                                  ? AppColors.textSecondary
-                                  : AppColors.primary,
-                            ),
-                            onPressed: sales.isLoading ? null : _handleRefresh,
-                            tooltip: 'Refresh products',
-                            iconSize: 28,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+                _buildSearchBar(),
 
                 // Product Grid
                 Expanded(
@@ -527,9 +613,930 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
+  /// Kiosk Mode - Cart on left (scan-focused), checkout panel on right
+  Widget _buildKioskLayout() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Row(
+        children: [
+          // LEFT SIDE - Cart with Search (70%)
+          Expanded(
+            flex: 7,
+            child: Stack(
+              children: [
+                // Main content layer
+                Container(
+                  color: AppColors.surface,
+                  child: Column(
+                    children: [
+                      // Search bar (without dropdown - dropdown rendered separately)
+                      _buildKioskSearchField(),
+
+                      // Horizontal tabs for held carts
+                      _buildHeldCartsTabs(),
+
+                      // Cart content
+                      Expanded(
+                        child: Consumer<SalesProvider>(
+                          builder: (context, sales, _) {
+                            final cart = sales.cart;
+
+                            if (cart.items.isEmpty) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.qr_code_scanner_rounded,
+                                      size: 80,
+                                      color: AppColors.primary.withOpacity(0.3),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'Scan products to add to cart',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Use barcode scanner or search above',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: cart.items.length,
+                              itemBuilder: (context, index) {
+                                final item = cart.items[index];
+                                return _buildKioskCartItem(item, sales);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Dropdown overlay layer (above everything)
+                if (_showSearchDropdown && _searchResults.isNotEmpty)
+                  Positioned(
+                    top: 72, // Below search bar (16 padding + 56 textfield)
+                    left: 16,
+                    right: 16,
+                    child: Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 300),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: _searchResults.length,
+                          itemBuilder: (context, index) {
+                            final product = _searchResults[index];
+                            final isSelected = index == _selectedIndex;
+                            return InkWell(
+                              onTap: () async {
+                                debugPrint('🖱️ TAP: Search result tapped - ${product.name}');
+                                await _addProductToCart(product);
+                                _clearSearch();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppColors.primary.withOpacity(0.1) : null,
+                                  border: Border(
+                                    bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Product image
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.background,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: product.fullImageUrl != null
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: Image.network(
+                                                product.fullImageUrl!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => Icon(
+                                                  Icons.inventory_2_outlined,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.inventory_2_outlined,
+                                              color: AppColors.primary,
+                                            ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Product details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            product.name,
+                                            style: TextStyle(
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            '${product.sku ?? ''} - ${AppCurrency.format(product.finalPrice)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Selection indicator
+                                    if (isSelected)
+                                      Icon(
+                                        Icons.keyboard_return,
+                                        size: 16,
+                                        color: AppColors.primary,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // RIGHT SIDE - Checkout Panel (30%)
+          Expanded(
+            flex: 3,
+            child: _buildKioskCheckoutPanel(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Kiosk search field only (dropdown rendered separately in overlay)
+  Widget _buildKioskSearchField() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.surface,
+      child: Focus(
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
+                _showSearchDropdown &&
+                _searchResults.isNotEmpty) {
+              setState(() {
+                _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
+              });
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+                _showSearchDropdown &&
+                _searchResults.isNotEmpty) {
+              setState(() {
+                _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
+              });
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+              _clearSearch();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(
+          controller: _searchController,
+          focusNode: _searchFocusNode,
+          decoration: InputDecoration(
+            hintText: 'Scan barcode, SKU, or search products...',
+            prefixIcon: Icon(
+              Icons.qr_code_scanner_rounded,
+              color: AppColors.primary,
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: _clearSearch,
+                  )
+                : null,
+          ),
+          onSubmitted: (value) async {
+            debugPrint('⏎ ENTER: Submitted with value: "$value"');
+
+            // If user has selected an item via keyboard, use that
+            if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
+              debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
+              await _addProductToCart(_searchResults[_selectedIndex]);
+              _clearSearch();
+              return;
+            }
+
+            if (value.isEmpty) return;
+
+            // Always try barcode/SKU API first
+            debugPrint('⏎ ENTER: Trying barcode/SKU API...');
+            final product = await context.read<SalesProvider>().scanBarcode(value);
+
+            if (product != null) {
+              debugPrint('⏎ ENTER: Product found via API: ${product.name}');
+              await _addProductToCart(product);
+              _clearSearch();
+            } else if (_searchResults.length == 1) {
+              debugPrint('⏎ ENTER: Not found via API, using local result');
+              await _addProductToCart(_searchResults.first);
+              _clearSearch();
+            } else if (_searchResults.isNotEmpty) {
+              debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
+              if (_selectedIndex < 0) {
+                setState(() => _selectedIndex = 0);
+              }
+            } else {
+              debugPrint('⏎ ENTER: Product not found');
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Product not found')),
+              );
+            }
+          },
+          onChanged: (value) {
+            setState(() {});
+            _handleSearch(value);
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Horizontal tabs for held carts (Kiosk mode)
+  Widget _buildHeldCartsTabs() {
+    return Consumer<SalesProvider>(
+      builder: (context, sales, _) {
+        if (sales.savedCarts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            border: Border(bottom: BorderSide(color: AppColors.border)),
+          ),
+          child: Row(
+            children: [
+              // Current Cart tab (always shown, highlighted)
+              _buildCartTab(
+                label: 'Current',
+                itemCount: sales.cart.items.length,
+                isActive: true,
+                onTap: null, // Already active
+              ),
+
+              const SizedBox(width: 8),
+
+              // Held carts tabs (scrollable)
+              Expanded(
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: sales.savedCarts.length,
+                  itemBuilder: (context, index) {
+                    final savedCart = sales.savedCarts[index];
+                    // Extract short time from cart name
+                    final shortName = _getShortCartName(savedCart.name);
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildCartTab(
+                        label: shortName,
+                        itemCount: savedCart.items.length,
+                        isActive: false,
+                        onTap: () => _handleQuickLoad(savedCart.id),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Single cart tab widget
+  Widget _buildCartTab({
+    required String label,
+    required int itemCount,
+    required bool isActive,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? AppColors.primary : AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isActive ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isActive ? Icons.shopping_cart : Icons.pause_circle_outline,
+                size: 16,
+                color: isActive ? Colors.white : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.white : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.white.withOpacity(0.2)
+                      : AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$itemCount',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isActive ? Colors.white : AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Get short name from cart name (extract time)
+  String _getShortCartName(String name) {
+    // Cart name format: "Cart - 01/07/2026, 05:12:41 PM"
+    // Extract just the time part
+    final timeMatch = RegExp(r'(\d{1,2}:\d{2}:\d{2}\s*[AP]M)').firstMatch(name);
+    if (timeMatch != null) {
+      return timeMatch.group(1) ?? name;
+    }
+    // Fallback: truncate to 10 chars
+    return name.length > 10 ? '${name.substring(0, 10)}...' : name;
+  }
+
+  /// Search bar widget (shared between modes)
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.surface,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Stack(
+              clipBehavior: Clip.none, // Allow dropdown to overflow
+              children: [
+                Focus(
+                  onKeyEvent: (node, event) => _handleSearchKeyEvent(event),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Scan barcode, SKU, or search products...',
+                      prefixIcon: Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: AppColors.primary,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: _clearSearch,
+                            )
+                          : null,
+                    ),
+                    onSubmitted: (value) async {
+                      debugPrint('⏎ ENTER: Submitted with value: "$value"');
+
+                      // If user has selected an item via keyboard, use that
+                      if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
+                        debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
+                        await _addProductToCart(_searchResults[_selectedIndex]);
+                        _clearSearch();
+                        return;
+                      }
+
+                      if (value.isEmpty) return;
+
+                      // Always try barcode/SKU API first (for any input)
+                      debugPrint('⏎ ENTER: Trying barcode/SKU API...');
+                      final product = await context.read<SalesProvider>().scanBarcode(value);
+
+                      if (product != null) {
+                        debugPrint('⏎ ENTER: Product found via API: ${product.name}');
+                        await _addProductToCart(product);
+                        _clearSearch();
+                      }
+                      // If API didn't find it but we have single local result
+                      else if (_searchResults.length == 1) {
+                        debugPrint('⏎ ENTER: Not found via API, using local result');
+                        await _addProductToCart(_searchResults.first);
+                        _clearSearch();
+                      }
+                      // Multiple local results - keep dropdown open
+                      else if (_searchResults.isNotEmpty) {
+                        debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Use arrow keys to select product')),
+                        );
+                      }
+                      // No results anywhere
+                      else {
+                        debugPrint('⏎ ENTER: Product not found');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Product not found')),
+                        );
+                      }
+                    },
+                    onChanged: (value) {
+                      setState(() {});
+                      _handleSearch(value);
+                    },
+                  ),
+                ),
+
+                // Search Results Dropdown
+                if (_showSearchDropdown && _searchResults.isNotEmpty)
+                  Positioned(
+                    top: 56,
+                    left: 0,
+                    right: 0,
+                    child: Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 300),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _searchResults.length,
+                          itemBuilder: (context, index) {
+                            final product = _searchResults[index];
+                            final isSelected = index == _selectedIndex;
+                            return ListTile(
+                              tileColor: isSelected ? AppColors.primary.withOpacity(0.1) : null,
+                              selected: isSelected,
+                              selectedTileColor: AppColors.primary.withOpacity(0.1),
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: product.fullImageUrl != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Image.network(
+                                          product.fullImageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Icon(
+                                            Icons.inventory_2_outlined,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.inventory_2_outlined,
+                                        color: AppColors.primary,
+                                      ),
+                              ),
+                              title: Text(product.name),
+                              subtitle: Text(
+                                '${product.sku ?? ''} - ${AppCurrency.format(product.finalPrice)}',
+                              ),
+                              trailing: product.hasVariants
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppColors.primary.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Options',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                              onTap: () async {
+                                debugPrint(
+                                    '🖱️ UI: Search result tapped - ${product.name}');
+                                await _addProductToCart(product);
+                                _clearSearch();
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          Consumer<SalesProvider>(
+            builder: (context, sales, _) {
+              return IconButton(
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: sales.isLoading
+                      ? AppColors.textSecondary
+                      : AppColors.primary,
+                ),
+                onPressed: sales.isLoading ? null : _handleRefresh,
+                tooltip: 'Refresh products',
+                iconSize: 28,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Large cart item card for Kiosk mode
+  Widget _buildKioskCartItem(dynamic item, SalesProvider sales) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Product Image
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: item.fullImageUrl != null && item.fullImageUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        item.fullImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.inventory_2_outlined,
+                          color: AppColors.primary,
+                          size: 32,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      Icons.inventory_2_outlined,
+                      color: AppColors.primary,
+                      size: 32,
+                    ),
+            ),
+            const SizedBox(width: 16),
+
+            // Product Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    AppCurrency.format(item.price),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Quantity Controls
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      item.quantity == 1
+                          ? Icons.delete_outline
+                          : Icons.remove,
+                      color: item.quantity == 1
+                          ? AppColors.error
+                          : AppColors.primary,
+                    ),
+                    onPressed: () {
+                      if (item.quantity == 1) {
+                        sales.removeFromCart(item.productId);
+                      } else {
+                        sales.updateCartItem(item.productId, item.quantity - 1);
+                      }
+                    },
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      '${item.quantity}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.add, color: AppColors.primary),
+                    onPressed: () {
+                      sales.updateCartItem(item.productId, item.quantity + 1);
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // Line Total
+            SizedBox(
+              width: 100,
+              child: Text(
+                AppCurrency.format(item.lineTotal),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Checkout panel for Kiosk mode
+  Widget _buildKioskCheckoutPanel() {
+    final l10n = AppLocalizations.of(context);
+
+    return Consumer<SalesProvider>(
+      builder: (context, sales, _) {
+        final cart = sales.cart;
+
+        return Container(
+          color: AppColors.surface,
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.receipt_long, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      l10n?.checkout ?? 'Checkout',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (cart.items.isNotEmpty)
+                      IconButton(
+                        icon: Icon(Icons.delete_outline, color: AppColors.error),
+                        onPressed: () => _showClearCartDialog(),
+                        tooltip: 'Clear cart',
+                      ),
+                  ],
+                ),
+              ),
+
+              // Customer Selection (placeholder)
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Walk-in Customer',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Spacer to push summary to bottom
+              const Spacer(),
+
+              // Order Summary
+              if (cart.items.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(top: BorderSide(color: AppColors.border)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Items count
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${cart.items.length} ${cart.items.length == 1 ? 'item' : 'items'}',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${cart.totalQuantity} units',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
+                      if (cart.discount > 0)
+                        _buildSummaryRow(
+                          l10n?.discount ?? 'Discount',
+                          -cart.discount,
+                          color: AppColors.success,
+                        ),
+                      _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                      const Divider(height: 24),
+                      _buildSummaryRow(
+                        l10n?.total ?? 'Total',
+                        cart.total,
+                        isTotal: true,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Hold Button (Quick Save)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _handleQuickHold,
+                          icon: const Icon(Icons.pause_circle_outline),
+                          label: const Text('Hold'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: AppColors.primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Checkout Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _handleCheckout,
+                          icon: const Icon(Icons.payment),
+                          label: Text(
+                            '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            backgroundColor: AppColors.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Empty state for checkout panel
+              if (cart.items.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.shopping_cart_outlined,
+                        size: 48,
+                        color: AppColors.textSecondary.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Cart is empty',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildProductCard(Product product) {
     debugPrint(
-        '🎨 BUILD: Product card - ${product.name}, Image: ${product.image}');
+        '🎨 BUILD: Product card - ${product.name}, Image: ${product.fullImageUrl}');
 
     return Card(
       child: InkWell(
@@ -551,17 +1558,17 @@ class _SalesScreenState extends State<SalesScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
-                    child: product.image != null && product.image!.isNotEmpty
+                    child: product.fullImageUrl != null && product.fullImageUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(
-                              product.image!,
+                              product.fullImageUrl!,
                               fit: BoxFit.cover,
                               width: double.infinity,
                               height: double.infinity,
                               errorBuilder: (context, error, stackTrace) {
                                 debugPrint(
-                                    '⚠️ IMAGE: Failed to load ${product.image}');
+                                    '⚠️ IMAGE: Failed to load ${product.fullImageUrl}');
                                 return Icon(
                                   Icons.inventory_2_outlined,
                                   size: 48,
@@ -633,7 +1640,7 @@ class _SalesScreenState extends State<SalesScreen> {
               Row(
                 children: [
                   Text(
-                    currencyFormat.format(product.finalPrice),
+                    AppCurrency.format(product.finalPrice),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -643,7 +1650,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   if (product.salePrice != null) ...[
                     const SizedBox(width: 4),
                     Text(
-                      currencyFormat.format(product.price),
+                      AppCurrency.format(product.price),
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -682,6 +1689,8 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Widget _buildCartPanel() {
+    final l10n = AppLocalizations.of(context);
+
     return Consumer<SalesProvider>(
       builder: (context, sales, _) {
         final cart = sales.cart;
@@ -702,7 +1711,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     Icon(Icons.shopping_cart, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Text(
-                      'Cart (${cart.items.length})',
+                      '${l10n?.cart ?? 'Cart'} (${cart.items.length})',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -714,7 +1723,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       IconButton(
                         icon: const Icon(Icons.save_outlined),
                         onPressed: _handleSaveCart,
-                        tooltip: 'Save Cart',
+                        tooltip: l10n?.saveCart ?? 'Save Cart',
                       ),
                     IconButton(
                       icon: Icon(Icons.delete_outline, color: AppColors.error),
@@ -738,7 +1747,7 @@ class _SalesScreenState extends State<SalesScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Your cart is empty',
+                              l10n?.emptyCart ?? 'Your cart is empty',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: AppColors.textSecondary,
@@ -778,17 +1787,17 @@ class _SalesScreenState extends State<SalesScreen> {
                   ),
                   child: Column(
                     children: [
-                      _buildSummaryRow('Subtotal', cart.subtotal),
+                      _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
                       if (cart.discount > 0)
                         _buildSummaryRow(
-                          'Discount',
+                          l10n?.discount ?? 'Discount',
                           -cart.discount,
                           color: AppColors.success,
                         ),
-                      if (cart.tax > 0) _buildSummaryRow('Tax', cart.tax),
+                      _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
                       const Divider(height: 24),
                       _buildSummaryRow(
-                        'Total',
+                        l10n?.total ?? 'Total',
                         cart.total,
                         isTotal: true,
                       ),
@@ -801,7 +1810,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           onPressed: _handleCheckout,
                           icon: const Icon(Icons.payment),
                           label: Text(
-                            'Checkout - ${currencyFormat.format(cart.total)}',
+                            '${l10n?.checkout ?? 'Checkout'} - ${AppCurrency.format(cart.total)}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -843,7 +1852,7 @@ class _SalesScreenState extends State<SalesScreen> {
             ),
           ),
           Text(
-            currencyFormat.format(value),
+            AppCurrency.format(value),
             style: TextStyle(
               fontSize: isTotal ? 20 : 14,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,

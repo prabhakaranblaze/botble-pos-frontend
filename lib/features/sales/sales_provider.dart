@@ -21,7 +21,10 @@ class SalesProvider with ChangeNotifier {
   // ✅ Client-side cart (local memory)
   final List<SavedCartItem> _cartItems = [];
   Customer? _selectedCustomer;
-  String _paymentMethod = 'cash';
+  String _paymentMethod = 'pos_cash'; // Laravel-style payment method
+
+  // ✅ Default tax rate from settings (percentage, e.g., 15 for 15%)
+  double _defaultTaxRate = 0.0;
 
   // ✅ Saved carts
   List<SavedCart> _savedCarts = [];
@@ -44,6 +47,8 @@ class SalesProvider with ChangeNotifier {
   String? get error => _error;
   String get searchQuery => _searchQuery;
   AudioService get audioService => _audioService;
+  bool get isOnline => _apiService.isOnline;
+  double get defaultTaxRate => _defaultTaxRate;
 
   // ✅ Build cart from local items
   Cart get cart {
@@ -73,6 +78,26 @@ class SalesProvider with ChangeNotifier {
       customer: _selectedCustomer,
       paymentMethod: _paymentMethod,
     );
+  }
+
+  // Load settings (including default tax rate)
+  Future<void> loadSettings() async {
+    try {
+      debugPrint('⚙️ SALES: Loading settings...');
+      final settings = await _apiService.getSettings();
+      if (settings != null) {
+        // Extract default tax from settings
+        final defaultTax = settings['default_tax'];
+        if (defaultTax != null && defaultTax is Map<String, dynamic>) {
+          _defaultTaxRate = (defaultTax['percentage'] as num?)?.toDouble() ?? 0.0;
+          debugPrint('✅ SALES: Default tax rate loaded: $_defaultTaxRate%');
+        } else {
+          debugPrint('⚠️ SALES: No default tax in settings');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ SALES: Error loading settings: $e');
+    }
   }
 
   // Load products
@@ -127,10 +152,43 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
-  // Search products
+  // Search products (updates main list)
   Future<void> searchProducts(String query) async {
     _searchQuery = query;
     await loadProducts(refresh: true);
+  }
+
+  /// Search products online without modifying the main products list
+  /// Used for autocomplete when local cache is empty
+  Future<List<Product>> searchProductsOnline(String query) async {
+    if (query.isEmpty) return [];
+
+    debugPrint('🔍 ONLINE SEARCH: Searching for "$query"');
+    try {
+      final results = await _apiService.getProducts(search: query);
+      debugPrint('🔍 ONLINE SEARCH: Found ${results.length} results');
+      return results;
+    } catch (e) {
+      debugPrint('❌ ONLINE SEARCH: Error - $e');
+      return [];
+    }
+  }
+
+  /// Get product details with full variant options
+  /// Used when product.hasVariants but no options in the search result
+  Future<Product?> getProductDetails(int productId) async {
+    debugPrint('📦 PRODUCT DETAILS: Fetching product $productId');
+    try {
+      final product = await _apiService.getProductDetails(productId);
+      if (product != null) {
+        debugPrint(
+            '📦 PRODUCT DETAILS: Got ${product.name}, variants: ${product.variants?.length ?? 0}');
+      }
+      return product;
+    } catch (e) {
+      debugPrint('❌ PRODUCT DETAILS: Error - $e');
+      return null;
+    }
   }
 
   // Scan barcode - just return the product, don't add to cart
@@ -155,18 +213,43 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
-  // ✅ CLIENT-SIDE: Add to cart
+  // ✅ CLIENT-SIDE: Add to cart by product ID (looks up in _products)
   Future<void> addToCart(int productId, {int quantity = 1}) async {
     try {
       debugPrint('🛒 CLIENT CART: Adding product $productId (qty: $quantity)');
 
       final product = _products.firstWhere(
         (p) => p.id == productId,
-        orElse: () => throw Exception('Product not found'),
+        orElse: () => throw Exception('Product not found in local cache'),
       );
 
+      await addProductToCart(product, quantity: quantity);
+    } catch (e) {
+      debugPrint('❌ CLIENT CART: Add error: $e');
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // ✅ CLIENT-SIDE: Add to cart with full Product object (for API search results)
+  // priceOverride: Use this for variant products where price comes from variant selection
+  Future<void> addProductToCart(Product product,
+      {int quantity = 1, double? priceOverride}) async {
+    try {
+      final unitPrice = priceOverride ?? product.finalPrice;
+      debugPrint(
+          '🛒 CLIENT CART: Adding "${product.name}" (qty: $quantity, price: $unitPrice)');
+
+      // Validate price - API rejects items with price <= 0
+      if (unitPrice <= 0) {
+        debugPrint('❌ CLIENT CART: Invalid price $unitPrice');
+        await _audioService.playError();
+        throw Exception(
+            'Cannot add "${product.name}" - price must be greater than 0');
+      }
+
       final existingIndex =
-          _cartItems.indexWhere((item) => item.productId == productId);
+          _cartItems.indexWhere((item) => item.productId == product.id);
 
       if (existingIndex >= 0) {
         final existing = _cartItems[existingIndex];
@@ -175,22 +258,26 @@ class SalesProvider with ChangeNotifier {
         );
         debugPrint('✅ Updated qty: ${_cartItems[existingIndex].quantity}');
       } else {
+        // Get tax rate: product tax first, then default tax from settings
+        final productTax = product.tax?.percentage ?? 0.0;
+        final taxRate = productTax > 0 ? productTax : _defaultTaxRate;
+
         _cartItems.add(SavedCartItem(
           productId: product.id,
           name: product.name,
-          price: product.finalPrice,
+          price: unitPrice,
           quantity: quantity,
           image: product.image,
-          taxRate: 0.0,
+          taxRate: taxRate,
         ));
-        debugPrint('✅ Added new item');
+        debugPrint('✅ Added new item with tax rate: $taxRate% (product: $productTax%, default: $_defaultTaxRate%)');
       }
 
       await _audioService.playBeep();
       debugPrint('✅ CLIENT CART: Total items: ${_cartItems.length}');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ CLIENT CART: Add error: $e');
+      debugPrint('❌ CLIENT CART: Add product error: $e');
       _error = e.toString();
       notifyListeners();
     }
@@ -242,7 +329,7 @@ class SalesProvider with ChangeNotifier {
       debugPrint('🗑️ CLIENT CART: Clearing cart');
       _cartItems.clear();
       _selectedCustomer = null;
-      _paymentMethod = 'cash';
+      _paymentMethod = 'pos_cash';
       debugPrint('✅ CLIENT CART: Cleared successfully');
       notifyListeners();
     } catch (e) {
@@ -268,7 +355,7 @@ class SalesProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ CHECKOUT: Create order
+  // ✅ CHECKOUT: Create order - sends cart items directly to backend
   Future<Order?> checkout({String? paymentDetails}) async {
     _isLoading = true;
     _error = null;
@@ -277,34 +364,37 @@ class SalesProvider with ChangeNotifier {
     try {
       debugPrint('💳 CHECKOUT: Starting...');
       debugPrint('💳 CHECKOUT: Items: ${_cartItems.length}');
+      debugPrint('💳 CHECKOUT: Payment method: $_paymentMethod');
 
-      // Build cart for API
-      final cartData = {
-        'items': _cartItems
-            .map((item) => {
-                  'product_id': item.productId,
-                  'name': item.name,
-                  'quantity': item.quantity,
-                  'price': item.price,
-                })
-            .toList(),
-        'payment_method': _paymentMethod,
-        if (paymentDetails != null) 'payment_details': paymentDetails,
-        if (_selectedCustomer != null) 'customer_id': _selectedCustomer!.id,
-      };
-
-      // First sync cart to backend
-      await _apiService.clearCart();
-      for (var item in _cartItems) {
-        await _apiService.addToCart(item.productId, quantity: item.quantity);
+      if (_cartItems.isEmpty) {
+        throw Exception('Cart is empty');
       }
 
-      // Then checkout
-      final order = await _apiService.checkout(paymentDetails: paymentDetails);
+      // Build items for direct checkout
+      final items = _cartItems
+          .map((item) => {
+                'product_id': item.productId,
+                'name': item.name,
+                'quantity': item.quantity,
+                'price': item.price,
+                'image': item.image,
+              })
+          .toList();
 
+      debugPrint('💳 CHECKOUT: Sending ${items.length} items to server...');
+
+      // Direct checkout - no server cart sync needed
+      final order = await _apiService.checkoutDirect(
+        items: items,
+        paymentMethod: _paymentMethod,
+        paymentDetails: paymentDetails,
+        customerId: _selectedCustomer?.id,
+      );
+
+      // Clear local cart
       _cartItems.clear();
       _selectedCustomer = null;
-      _paymentMethod = 'cash';
+      _paymentMethod = 'pos_cash';
 
       await _audioService.playSuccess();
 
@@ -387,10 +477,42 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
+  /// Quick save current cart with auto-generated name (no dialog)
+  Future<bool> quickSaveCart({
+    required int userId,
+    required String userName,
+  }) async {
+    if (_cartItems.isEmpty) {
+      debugPrint('⚠️ QUICK SAVE: Cart is empty, nothing to save');
+      return false;
+    }
+
+    final name = getAutoCartName();
+    return await saveCart(
+      name: name,
+      userId: userId,
+      userName: userName,
+      saveOnline: false,
+    );
+  }
+
   /// Load a saved cart into active cart
-  Future<bool> loadCart(String cartId, int userId) async {
+  /// If autoSaveCurrentCart is true, saves current cart before loading
+  Future<bool> loadCart(
+    String cartId,
+    int userId, {
+    String? userName,
+    bool autoSaveCurrentCart = true,
+  }) async {
     try {
       debugPrint('📂 LOAD CART: Loading $cartId');
+
+      // Auto-save current cart if it has items
+      if (autoSaveCurrentCart && _cartItems.isNotEmpty && userName != null) {
+        debugPrint('📂 LOAD CART: Auto-saving current cart first...');
+        await quickSaveCart(userId: userId, userName: userName);
+        debugPrint('📂 LOAD CART: Current cart auto-saved');
+      }
 
       final savedCart = await _savedCartDb.getCartById(cartId, userId);
 
@@ -423,6 +545,9 @@ class SalesProvider with ChangeNotifier {
       debugPrint('📂 LOAD CART: Deleting saved cart from database...');
       await _savedCartDb.deleteCart(cartId, userId);
       debugPrint('📂 LOAD CART: Saved cart deleted');
+
+      // Reload saved carts list
+      await loadSavedCarts(userId);
 
       debugPrint('✅ LOAD CART: Loaded successfully, calling notifyListeners');
       notifyListeners();

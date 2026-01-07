@@ -75,11 +75,9 @@ class SessionProvider with ChangeNotifier {
     }
   }
 
-  // Open session
+  // Open session (simplified - no register selection needed)
   Future<bool> openSession({
-    required int cashRegisterId,
     required double openingCash,
-    Map<String, int>? denominations,
     String? notes,
   }) async {
     _isLoading = true;
@@ -88,9 +86,7 @@ class SessionProvider with ChangeNotifier {
 
     try {
       _activeSession = await _apiService.openSession(
-        cashRegisterId: cashRegisterId,
         openingCash: openingCash,
-        denominations: denominations,
         notes: notes,
       );
 

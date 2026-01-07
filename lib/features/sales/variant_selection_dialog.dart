@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/models/product.dart';
 import '../../shared/constants/app_constants.dart';
 
@@ -19,18 +18,26 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
   final Map<int, int> _selectedVariantOptions = {}; // variantId -> optionId
   int _quantity = 1;
 
+  // Check if product has actual variant options to select
+  bool get _hasSelectableVariants {
+    if (widget.product.variants == null) return false;
+    return widget.product.variants!
+        .any((v) => v.options != null && v.options!.isNotEmpty);
+  }
+
   double get _calculatedPrice {
     double basePrice = widget.product.finalPrice;
     double modifiersTotal = 0;
 
     // Add price modifiers from selected variants
     for (var variant in widget.product.variants ?? []) {
+      if (variant.options == null || variant.options!.isEmpty) continue;
       final selectedOptionId = _selectedVariantOptions[variant.id];
-      if (selectedOptionId != null) {
-        final option = variant.options.firstWhere(
-          (o) => o.id == selectedOptionId,
-          orElse: () => variant.options.first,
-        );
+      if (selectedOptionId != null && variant.options!.isNotEmpty) {
+        // Find selected option or use first as fallback
+        final options = variant.options!;
+        final selectedOption = options.where((o) => o.id == selectedOptionId);
+        final option = selectedOption.isNotEmpty ? selectedOption.first : options.first;
         modifiersTotal += option.priceModifier ?? 0;
       }
     }
@@ -39,12 +46,15 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
   }
 
   bool get _isValid {
-    // Check if all variants have a selection
-    if (widget.product.variants == null) return true;
+    // If no selectable variants, always valid
+    if (!_hasSelectableVariants) return true;
 
-    for (var variant in widget.product.variants!) {
-      if (!_selectedVariantOptions.containsKey(variant.id)) {
-        return false;
+    // Check if all variants with options have a selection
+    for (var variant in widget.product.variants ?? []) {
+      if (variant.options != null && variant.options!.isNotEmpty) {
+        if (!_selectedVariantOptions.containsKey(variant.id)) {
+          return false;
+        }
       }
     }
     return true;
@@ -53,10 +63,10 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
   @override
   void initState() {
     super.initState();
-    // Pre-select first option for each variant
+    // Pre-select first option for each variant that has options
     for (var variant in widget.product.variants ?? []) {
-      if (variant.options.isNotEmpty) {
-        _selectedVariantOptions[variant.id] = variant.options.first.id;
+      if (variant.options != null && variant.options!.isNotEmpty) {
+        _selectedVariantOptions[variant.id] = variant.options!.first.id;
       }
     }
   }
@@ -80,8 +90,6 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
     return Dialog(
       child: Container(
         width: 500,
@@ -170,7 +178,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
                     // Base Price
                     Text(
-                      'Base: ${currencyFormat.format(widget.product.finalPrice)}',
+                      'Base: ${AppCurrency.format(widget.product.finalPrice)}',
                       style: TextStyle(
                         fontSize: 16,
                         color: AppColors.primary,
@@ -184,8 +192,11 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
                     const SizedBox(height: 16),
 
-                    // Variant Options
-                    ...widget.product.variants?.map((variant) {
+                    // Variant Options (only show variants that have options)
+                    ...widget.product.variants
+                            ?.where((v) =>
+                                v.options != null && v.options!.isNotEmpty)
+                            .map((variant) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 24),
                             child: _buildVariantSelector(variant),
@@ -263,7 +274,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                             ),
                           ),
                           Text(
-                            currencyFormat.format(_calculatedPrice),
+                            AppCurrency.format(_calculatedPrice),
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -292,7 +303,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                   onPressed: _isValid ? _handleAddToCart : null,
                   icon: const Icon(Icons.shopping_cart),
                   label: Text(
-                    'Add to Cart - ${currencyFormat.format(_calculatedPrice)}',
+                    'Add to Cart - ${AppCurrency.format(_calculatedPrice)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -313,12 +324,14 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
   Widget _buildVariantSelector(ProductVariant variant) {
     final selectedOptionId = _selectedVariantOptions[variant.id];
+    // Check if this is a color-type variant (has color values)
+    final isColorVariant = (variant.options ?? []).any((o) => o.color != null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          variant.name,
+          variant.name ?? variant.type ?? 'Option',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -328,9 +341,15 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: variant.options.map((option) {
+          children: (variant.options ?? []).map((option) {
             final isSelected = option.id == selectedOptionId;
 
+            // For color variants, show color swatch
+            if (isColorVariant && option.color != null) {
+              return _buildColorSwatch(option, isSelected);
+            }
+
+            // Default: text-based option
             return InkWell(
               onTap: () {
                 setState(() {
@@ -386,5 +405,74 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
         ),
       ],
     );
+  }
+
+  /// Build a color swatch button for color-type variants
+  Widget _buildColorSwatch(VariantOption option, bool isSelected) {
+    // Parse hex color string to Color
+    Color swatchColor = Colors.grey;
+    if (option.color != null) {
+      try {
+        String hex = option.color!.replaceFirst('#', '');
+        if (hex.length == 6) {
+          swatchColor = Color(int.parse('FF$hex', radix: 16));
+        }
+      } catch (e) {
+        // Fallback to grey if parsing fails
+      }
+    }
+
+    return Tooltip(
+      message: option.name,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            // Find the variant ID for this option
+            for (var variant in widget.product.variants ?? []) {
+              if (variant.options?.any((o) => o.id == option.id) ?? false) {
+                _selectedVariantOptions[variant.id] = option.id;
+                break;
+              }
+            }
+          });
+        },
+        borderRadius: BorderRadius.circular(25),
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: swatchColor,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+              width: isSelected ? 3 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    )
+                  ]
+                : null,
+          ),
+          child: isSelected
+              ? Icon(
+                  Icons.check,
+                  color: _getContrastColor(swatchColor),
+                  size: 24,
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  /// Get contrasting color for check icon on color swatch
+  Color _getContrastColor(Color color) {
+    // Calculate luminance and return black or white for contrast
+    final luminance = color.computeLuminance();
+    return luminance > 0.5 ? Colors.black : Colors.white;
   }
 }

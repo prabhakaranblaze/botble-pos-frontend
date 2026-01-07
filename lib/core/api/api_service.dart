@@ -164,6 +164,19 @@ class ApiService {
     }
   }
 
+  /// Verify password for lock screen unlock
+  Future<bool> verifyPassword(String password) async {
+    try {
+      final response = await _dio.post('/auth/verify-password', data: {
+        'password': password,
+      });
+      return response.data['error'] == false;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: Verify password failed: $e');
+      return false;
+    }
+  }
+
   // Product APIs
   Future<List<Product>> getProducts({int page = 1, String? search}) async {
     debugPrint(
@@ -244,6 +257,27 @@ class ApiService {
     } catch (e) {
       debugPrint('❌ API SERVICE: Barcode scan error: $e');
       return await _db.getProductByBarcode(barcode);
+    }
+  }
+
+  /// Get single product with full variant details
+  Future<Product?> getProductDetails(int productId) async {
+    debugPrint('📦 API SERVICE: getProductDetails called - ID: $productId');
+
+    try {
+      final response = await _dio.get('/products/$productId');
+
+      if (response.data['error'] == false) {
+        final productData = response.data['data']['product'];
+        debugPrint('📦 API SERVICE: Product details: $productData');
+        return Product.fromJson(productData);
+      }
+
+      debugPrint('⚠️ API SERVICE: Product not found');
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getProductDetails error: $e');
+      return null;
     }
   }
 
@@ -460,9 +494,16 @@ class ApiService {
   }
 
   // Order APIs
-  Future<Order> checkout({String? paymentDetails}) async {
-    debugPrint('💳 API SERVICE: checkout called');
-    debugPrint('💳 API SERVICE: Payment details: $paymentDetails');
+  /// Checkout with cart items sent directly (no server-side cart sync)
+  Future<Order> checkoutDirect({
+    required List<Map<String, dynamic>> items,
+    required String paymentMethod,
+    String? paymentDetails,
+    int? customerId,
+  }) async {
+    debugPrint('💳 API SERVICE: checkoutDirect called');
+    debugPrint('💳 API SERVICE: Items: ${items.length}');
+    debugPrint('💳 API SERVICE: Payment method: $paymentMethod');
 
     try {
       if (!_isOnline) {
@@ -471,7 +512,10 @@ class ApiService {
       }
 
       final response = await _dio.post('/orders', data: {
+        'items': items,
+        'payment_method': paymentMethod,
         if (paymentDetails != null) 'payment_details': paymentDetails,
+        if (customerId != null) 'customer_id': customerId,
       });
 
       if (response.data['error'] == false) {
@@ -485,9 +529,15 @@ class ApiService {
         throw Exception(response.data['message']);
       }
     } catch (e) {
-      debugPrint('❌ API SERVICE: checkout exception: $e');
+      debugPrint('❌ API SERVICE: checkoutDirect exception: $e');
       throw Exception('Checkout failed: ${e.toString()}');
     }
+  }
+
+  /// @deprecated Use checkoutDirect instead
+  Future<Order> checkout({String? paymentDetails}) async {
+    debugPrint('💳 API SERVICE: checkout called (deprecated)');
+    throw Exception('Use checkoutDirect instead');
   }
 
   Future<String> getReceipt(int orderId) async {
@@ -500,6 +550,50 @@ class ApiService {
     } catch (e) {
       debugPrint('❌ API SERVICE: getReceipt error: $e');
       throw Exception('Failed to get receipt: ${e.toString()}');
+    }
+  }
+
+  /// Get recent orders for reprinting
+  Future<List<Order>> getRecentOrders({int limit = 20, String? search}) async {
+    debugPrint('📋 API SERVICE: getRecentOrders called - Limit: $limit, Search: $search');
+
+    try {
+      final response = await _dio.get('/orders', queryParameters: {
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+
+      if (response.data['error'] == false) {
+        final ordersData = response.data['data']['orders'] as List;
+        final orders = ordersData.map((json) => Order.fromJson(json)).toList();
+        debugPrint('✅ API SERVICE: Recent orders loaded - Count: ${orders.length}');
+        return orders;
+      }
+
+      return [];
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getRecentOrders error: $e');
+      return [];
+    }
+  }
+
+  /// Get single order by ID
+  Future<Order?> getOrderById(int orderId) async {
+    debugPrint('📋 API SERVICE: getOrderById called - ID: $orderId');
+
+    try {
+      final response = await _dio.get('/orders/$orderId');
+
+      if (response.data['error'] == false) {
+        final order = Order.fromJson(response.data['data']['order']);
+        debugPrint('✅ API SERVICE: Order loaded - Code: ${order.code}');
+        return order;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getOrderById error: $e');
+      return null;
     }
   }
 
@@ -604,20 +698,15 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> openSession({
-    required int cashRegisterId,
     required double openingCash,
-    Map<String, int>? denominations,
     String? notes,
   }) async {
     debugPrint('📂 API SERVICE: openSession called');
-    debugPrint('📂 API SERVICE: Register ID: $cashRegisterId');
     debugPrint('📂 API SERVICE: Opening cash: $openingCash');
 
     try {
       final response = await _dio.post('/sessions/open', data: {
-        'cash_register_id': cashRegisterId,
         'opening_cash': openingCash,
-        if (denominations != null) 'opening_denominations': denominations,
         if (notes != null) 'opening_notes': notes,
       });
 
@@ -676,6 +765,27 @@ class ApiService {
     } catch (e) {
       debugPrint('❌ API SERVICE: closeSession exception: $e');
       throw Exception('Failed to close session: ${e.toString()}');
+    }
+  }
+
+  // Settings APIs
+  /// Get POS settings including currency
+  Future<Map<String, dynamic>?> getSettings() async {
+    debugPrint('⚙️ API SERVICE: getSettings called');
+
+    try {
+      final response = await _dio.get('/settings');
+
+      if (response.data['error'] == false) {
+        final settings = response.data['data']['settings'] as Map<String, dynamic>;
+        debugPrint('✅ API SERVICE: Settings loaded');
+        return settings;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getSettings error: $e');
+      return null;
     }
   }
 }

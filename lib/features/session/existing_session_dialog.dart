@@ -28,8 +28,7 @@ class ExistingSessionDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
     final openedAt = DateTime.parse(session['opened_at']);
-    final durationHours = session['duration_hours'] ?? 0;
-    final durationMinutes = session['duration_minutes'] ?? 0;
+    final userName = session['user_name'] ?? 'User';
 
     return Dialog(
       child: Container(
@@ -85,11 +84,11 @@ class ExistingSessionDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // Register info
+                  // User name
                   _buildInfoRow(
-                    Icons.point_of_sale,
-                    'Register',
-                    session['cash_register_name'] ?? 'Unknown',
+                    Icons.person,
+                    'User',
+                    userName,
                   ),
 
                   const SizedBox(height: 8),
@@ -103,30 +102,32 @@ class ExistingSessionDialog extends StatelessWidget {
 
                   const SizedBox(height: 8),
 
-                  // Duration
-                  _buildInfoRow(
-                    Icons.timer,
-                    'Duration',
-                    '${durationHours}h ${durationMinutes}m',
-                  ),
-
-                  const SizedBox(height: 8),
-
                   // Opening cash
                   _buildInfoRow(
                     Icons.attach_money,
                     'Opening Cash',
-                    '\$${(session['opening_cash'] as num).toStringAsFixed(2)}',
+                    AppCurrency.format((session['opening_cash'] as num).toDouble()),
                   ),
 
                   // Transaction count if available
-                  if (session['total_transactions'] != null &&
-                      session['total_transactions'] > 0) ...[
+                  if (session['total_orders'] != null &&
+                      session['total_orders'] > 0) ...[
                     const SizedBox(height: 8),
                     _buildInfoRow(
                       Icons.receipt_long,
                       'Transactions',
-                      '${session['total_transactions']}',
+                      '${session['total_orders']}',
+                    ),
+                  ],
+
+                  // Total sales if available
+                  if (session['total_sales'] != null &&
+                      session['total_sales'] > 0) ...[
+                    const SizedBox(height: 8),
+                    _buildInfoRow(
+                      Icons.point_of_sale,
+                      'Total Sales',
+                      AppCurrency.format((session['total_sales'] as num).toDouble()),
                     ),
                   ],
                 ],

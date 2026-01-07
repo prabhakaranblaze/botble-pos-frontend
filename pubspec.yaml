@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State Management
   provider: ^6.1.1
@@ -28,20 +30,22 @@ dependencies:
   
   # UI Components
   google_fonts: ^6.1.0
-  intl: ^0.18.1
+  intl: ^0.20.2
   cached_network_image: ^3.3.0
   shimmer: ^3.0.0
   
   # Barcode
   audioplayers: ^5.2.1
   
-  # Printing
-  pdf: ^3.10.7
-  printing: ^5.11.1
+  # Thermal Printing
+  flutter_thermal_printer: ^2.0.0
   
   # Utils
   uuid: ^4.2.1
   collection: ^1.18.0
+
+  # Window Management
+  window_manager: ^0.3.7
 
 dev_dependencies:
   flutter_test:
@@ -50,7 +54,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+  generate: true
+
   assets:
     - assets/sounds/
     - assets/images/

@@ -23,14 +23,14 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2, // ⭐ UPDATED VERSION for new schema
+      version: 3, // ⭐ UPDATED VERSION for tax support
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Products table with variants support
+    // Products table with variants and tax support
     await db.execute('''
       CREATE TABLE products (
         id INTEGER PRIMARY KEY,
@@ -45,6 +45,7 @@ class DatabaseService {
         is_available INTEGER DEFAULT 1,
         has_variants INTEGER DEFAULT 0,
         variants_json TEXT,
+        tax_json TEXT,
         synced INTEGER DEFAULT 1,
         last_updated TEXT
       )
@@ -103,6 +104,10 @@ class DatabaseService {
       await db.execute(
           'ALTER TABLE products ADD COLUMN has_variants INTEGER DEFAULT 0');
       await db.execute('ALTER TABLE products ADD COLUMN variants_json TEXT');
+    }
+    if (oldVersion < 3) {
+      // Add tax support
+      await db.execute('ALTER TABLE products ADD COLUMN tax_json TEXT');
     }
   }
 

@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'product.dart';
 import 'customer.dart';
+import '../config/env_config.dart';
 
 class CartItem {
   final int productId;
@@ -24,6 +25,13 @@ class CartItem {
   });
 
   double get total => price * quantity;
+  double get lineTotal => total; // Alias for total
+
+  /// Get full image URL with base URL prefix
+  String? get fullImageUrl {
+    if (image == null || image!.isEmpty) return null;
+    return EnvConfig.getImageUrl(image);
+  }
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
     debugPrint('🛒 CART ITEM: Parsing from JSON');
@@ -89,6 +97,7 @@ class Cart {
 
   bool get isEmpty => items.isEmpty;
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
+  int get totalQuantity => itemCount; // Alias for itemCount
 
   factory Cart.empty() {
     debugPrint('🛒 CART: Creating empty cart');
@@ -178,6 +187,9 @@ class Order {
   final int id;
   final String code;
   final double amount;
+  final double subTotal;
+  final double taxAmount;
+  final double discountAmount;
   final String paymentMethod;
   final String status;
   final DateTime createdAt;
@@ -189,7 +201,10 @@ class Order {
     required this.id,
     required this.code,
     required this.amount,
-    required this.paymentMethod,
+    this.subTotal = 0,
+    this.taxAmount = 0,
+    this.discountAmount = 0,
+    this.paymentMethod = 'pos_cash',
     required this.status,
     required this.createdAt,
     this.customer,
@@ -209,7 +224,10 @@ class Order {
         id: json['id'] as int,
         code: json['code'] as String,
         amount: (json['amount'] as num).toDouble(),
-        paymentMethod: json['payment_method'] as String,
+        subTotal: (json['sub_total'] as num?)?.toDouble() ?? 0,
+        taxAmount: (json['tax_amount'] as num?)?.toDouble() ?? 0,
+        discountAmount: (json['discount_amount'] as num?)?.toDouble() ?? 0,
+        paymentMethod: json['payment_method'] as String? ?? 'pos_cash',
         status: json['status'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
         items: itemsList
@@ -231,6 +249,9 @@ class Order {
       'id': id,
       'code': code,
       'amount': amount,
+      'sub_total': subTotal,
+      'tax_amount': taxAmount,
+      'discount_amount': discountAmount,
       'payment_method': paymentMethod,
       'status': status,
       'created_at': createdAt.toIso8601String(),

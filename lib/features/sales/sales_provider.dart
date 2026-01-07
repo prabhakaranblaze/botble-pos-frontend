@@ -390,10 +390,42 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
+  /// Quick save current cart with auto-generated name (no dialog)
+  Future<bool> quickSaveCart({
+    required int userId,
+    required String userName,
+  }) async {
+    if (_cartItems.isEmpty) {
+      debugPrint('⚠️ QUICK SAVE: Cart is empty, nothing to save');
+      return false;
+    }
+
+    final name = getAutoCartName();
+    return await saveCart(
+      name: name,
+      userId: userId,
+      userName: userName,
+      saveOnline: false,
+    );
+  }
+
   /// Load a saved cart into active cart
-  Future<bool> loadCart(String cartId, int userId) async {
+  /// If autoSaveCurrentCart is true, saves current cart before loading
+  Future<bool> loadCart(
+    String cartId,
+    int userId, {
+    String? userName,
+    bool autoSaveCurrentCart = true,
+  }) async {
     try {
       debugPrint('📂 LOAD CART: Loading $cartId');
+
+      // Auto-save current cart if it has items
+      if (autoSaveCurrentCart && _cartItems.isNotEmpty && userName != null) {
+        debugPrint('📂 LOAD CART: Auto-saving current cart first...');
+        await quickSaveCart(userId: userId, userName: userName);
+        debugPrint('📂 LOAD CART: Current cart auto-saved');
+      }
 
       final savedCart = await _savedCartDb.getCartById(cartId, userId);
 
@@ -426,6 +458,9 @@ class SalesProvider with ChangeNotifier {
       debugPrint('📂 LOAD CART: Deleting saved cart from database...');
       await _savedCartDb.deleteCart(cartId, userId);
       debugPrint('📂 LOAD CART: Saved cart deleted');
+
+      // Reload saved carts list
+      await loadSavedCarts(userId);
 
       debugPrint('✅ LOAD CART: Loaded successfully, calling notifyListeners');
       notifyListeners();

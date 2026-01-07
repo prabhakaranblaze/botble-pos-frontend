@@ -5,6 +5,7 @@ import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
 import '../sales/cart_item_widget.dart';
 import '../sales/payment_dialog.dart';
+import '../auth/auth_provider.dart';
 import '../../core/models/product.dart';
 import '../../core/services/auto_print_service.dart';
 import '../../core/providers/pos_mode_provider.dart';
@@ -36,8 +37,18 @@ class _SalesScreenState extends State<SalesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('🟢 SALES SCREEN: Post frame callback - loading data');
       _loadData();
+      _loadSavedCarts();
       _searchFocusNode.requestFocus();
     });
+  }
+
+  Future<void> _loadSavedCarts() async {
+    final authProvider = context.read<AuthProvider>();
+    final salesProvider = context.read<SalesProvider>();
+
+    if (authProvider.user != null) {
+      await salesProvider.loadSavedCarts(authProvider.user!.id);
+    }
   }
 
   Future<void> _loadData() async {
@@ -284,6 +295,94 @@ class _SalesScreenState extends State<SalesScreen> {
 
     if (result == true && mounted) {
       _barcodeFocusNode.requestFocus();
+    }
+  }
+
+  /// Quick hold cart without dialog (auto-generated name)
+  Future<void> _handleQuickHold() async {
+    final salesProvider = context.read<SalesProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    if (salesProvider.cart.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty')),
+      );
+      return;
+    }
+
+    if (authProvider.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    final success = await salesProvider.quickSaveCart(
+      userId: authProvider.user!.id,
+      userName: authProvider.user!.name,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      // Reload saved carts list
+      await salesProvider.loadSavedCarts(authProvider.user!.id);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cart held successfully!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      _searchFocusNode.requestFocus();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(salesProvider.error ?? 'Failed to hold cart'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  /// Quick load a saved cart (auto-saves current cart if not empty)
+  Future<void> _handleQuickLoad(String cartId) async {
+    final salesProvider = context.read<SalesProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    if (authProvider.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    final success = await salesProvider.loadCart(
+      cartId,
+      authProvider.user!.id,
+      userName: authProvider.user!.name,
+      autoSaveCurrentCart: true,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cart loaded!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      _searchFocusNode.requestFocus();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(salesProvider.error ?? 'Failed to load cart'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -967,7 +1066,92 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
               ),
 
-              const Spacer(),
+              // Saved Carts (Held Orders) - Scrollable list
+              if (sales.savedCarts.isNotEmpty)
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.pause_circle_outline,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Held Orders (${sales.savedCarts.length})',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: sales.savedCarts.length,
+                            itemBuilder: (context, index) {
+                              final savedCart = sales.savedCarts[index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: InkWell(
+                                  onTap: () => _handleQuickLoad(savedCart.id),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                savedCart.name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '${savedCart.items.length} items - ${AppCurrency.format(savedCart.total)}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.arrow_forward_ios,
+                                          size: 14,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Spacer if no saved carts
+              if (sales.savedCarts.isEmpty)
+                const Spacer(),
 
               // Order Summary
               if (cart.items.isNotEmpty)
@@ -1016,13 +1200,13 @@ class _SalesScreenState extends State<SalesScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Hold Button
+                      // Hold Button (Quick Save)
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: _handleSaveCart,
+                          onPressed: _handleQuickHold,
                           icon: const Icon(Icons.pause_circle_outline),
-                          label: Text(l10n?.saveCart ?? 'Hold'),
+                          label: const Text('Hold'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             side: BorderSide(color: AppColors.primary),

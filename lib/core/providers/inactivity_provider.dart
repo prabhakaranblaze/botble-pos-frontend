@@ -106,7 +106,7 @@ class InactivityProvider with ChangeNotifier {
 
 /// Widget that wraps the app to detect user activity
 /// Use this at the root of your app to track all interactions
-class InactivityDetector extends StatelessWidget {
+class InactivityDetector extends StatefulWidget {
   final Widget child;
   final InactivityProvider inactivityProvider;
 
@@ -117,15 +117,32 @@ class InactivityDetector extends StatelessWidget {
   });
 
   @override
+  State<InactivityDetector> createState() => _InactivityDetectorState();
+}
+
+class _InactivityDetectorState extends State<InactivityDetector> {
+  DateTime _lastRecorded = DateTime.now();
+
+  // Debounce activity recording to avoid constant timer resets
+  void _recordActivity() {
+    final now = DateTime.now();
+    // Only record activity if at least 1 second has passed
+    if (now.difference(_lastRecorded).inSeconds >= 1) {
+      _lastRecorded = now;
+      widget.inactivityProvider.recordActivity();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: (_) => inactivityProvider.recordActivity(),
-      onPointerMove: (_) => inactivityProvider.recordActivity(),
-      onPointerUp: (_) => inactivityProvider.recordActivity(),
+      onPointerDown: (_) => _recordActivity(),
+      onPointerUp: (_) => _recordActivity(),
+      // Removed onPointerMove - too sensitive
       child: KeyboardListener(
         focusNode: FocusNode(),
-        onKeyEvent: (_) => inactivityProvider.recordActivity(),
-        child: child,
+        onKeyEvent: (_) => _recordActivity(),
+        child: widget.child,
       ),
     );
   }

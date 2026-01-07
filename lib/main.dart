@@ -141,6 +141,7 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _isChecking = false;
   bool _hasChecked = false;
+  bool _trackingStarted = false;
 
   @override
   Widget build(BuildContext context) {
@@ -152,12 +153,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
         // NOT authenticated
         if (!auth.isAuthenticated) {
           // Reset flags for next login
-          if (_hasChecked || _isChecking) {
+          if (_hasChecked || _isChecking || _trackingStarted) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 setState(() {
                   _hasChecked = false;
                   _isChecking = false;
+                  _trackingStarted = false;
                 });
               }
             });
@@ -176,9 +178,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
 
-        // Start inactivity tracking when authenticated
-        if (!inactivity.isLocked) {
+        // Start inactivity tracking when authenticated (only once)
+        if (!_trackingStarted && !inactivity.isLocked) {
+          _trackingStarted = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint('🔒 Starting inactivity tracking...');
             inactivity.startTracking();
           });
         }

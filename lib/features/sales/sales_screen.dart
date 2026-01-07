@@ -8,6 +8,10 @@ import '../sales/payment_dialog.dart';
 import '../sales/apply_coupon_dialog.dart';
 import '../sales/apply_discount_dialog.dart';
 import '../sales/update_shipping_dialog.dart';
+import '../sales/customer_search_widget.dart';
+import '../sales/add_customer_dialog.dart';
+import '../sales/delivery_address_widget.dart';
+import '../sales/add_address_dialog.dart';
 import '../auth/auth_provider.dart';
 import '../../core/models/product.dart';
 import '../../core/services/auto_print_service.dart';
@@ -1429,36 +1433,44 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
               ),
 
-              // Customer Selection (placeholder)
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.person_outline,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Walk-in Customer',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.chevron_right,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
+              // Customer Selection
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: CustomerSearchWidget(
+                  selectedCustomer: sales.selectedCustomer,
+                  onCustomerSelected: (customer) {
+                    sales.selectCustomer(customer);
+                  },
+                  onCustomerRemoved: () {
+                    sales.clearCustomer();
+                  },
+                  onAddNewCustomer: () {
+                    _showAddCustomerDialog(sales);
+                  },
+                  onSearch: (query) async {
+                    return await context.read<SalesProvider>().searchCustomers(query);
+                  },
                 ),
               ),
+
+              // Delivery & Address (only show when customer is selected)
+              if (sales.selectedCustomer != null)
+                DeliveryAddressWidget(
+                  customer: sales.selectedCustomer!,
+                  deliveryType: sales.deliveryType,
+                  selectedAddress: sales.selectedAddress,
+                  addresses: sales.customerAddresses,
+                  isLoadingAddresses: sales.isLoadingAddresses,
+                  onDeliveryTypeChanged: (type) {
+                    sales.setDeliveryType(type);
+                  },
+                  onAddressSelected: (address) {
+                    sales.selectAddress(address);
+                  },
+                  onAddNewAddress: () {
+                    _showAddAddressDialog(sales);
+                  },
+                ),
 
               // Discount/Coupon/Shipping Actions
               if (cart.items.isNotEmpty)
@@ -2047,6 +2059,31 @@ class _SalesScreenState extends State<SalesScreen> {
             child: const Text('Clear'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddCustomerDialog(SalesProvider sales) {
+    showDialog(
+      context: context,
+      builder: (context) => AddCustomerDialog(
+        onSave: (name, phone, email) async {
+          await sales.createCustomer(name, phone, email);
+        },
+      ),
+    );
+  }
+
+  void _showAddAddressDialog(SalesProvider sales) {
+    if (sales.selectedCustomer == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AddAddressDialog(
+        customer: sales.selectedCustomer!,
+        onSave: (addressData) async {
+          await sales.createCustomerAddress(addressData);
+        },
       ),
     );
   }

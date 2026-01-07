@@ -496,6 +496,13 @@ class SalesProvider with ChangeNotifier {
     return customer;
   }
 
+  Future<List<Customer>> searchCustomers(String query) async {
+    if (query.isEmpty || query.length < 2) {
+      return [];
+    }
+    return await _apiService.searchCustomers(query);
+  }
+
   void updatePaymentMethod(String method) {
     _paymentMethod = method;
     notifyListeners();

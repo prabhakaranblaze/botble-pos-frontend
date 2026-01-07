@@ -260,6 +260,27 @@ class ApiService {
     }
   }
 
+  /// Get single product with full variant details
+  Future<Product?> getProductDetails(int productId) async {
+    debugPrint('📦 API SERVICE: getProductDetails called - ID: $productId');
+
+    try {
+      final response = await _dio.get('/products/$productId');
+
+      if (response.data['error'] == false) {
+        final productData = response.data['data']['product'];
+        debugPrint('📦 API SERVICE: Product details: $productData');
+        return Product.fromJson(productData);
+      }
+
+      debugPrint('⚠️ API SERVICE: Product not found');
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getProductDetails error: $e');
+      return null;
+    }
+  }
+
   Future<List<ProductCategory>> getCategories() async {
     debugPrint('📂 API SERVICE: getCategories called');
 

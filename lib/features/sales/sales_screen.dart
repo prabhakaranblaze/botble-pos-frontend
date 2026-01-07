@@ -225,14 +225,32 @@ class _SalesScreenState extends State<SalesScreen> {
     final salesProvider = context.read<SalesProvider>();
 
     try {
-      // Only show variant dialog if product has actual options to select
-      if (product.hasSelectableVariants) {
+      // Determine which product to use for variant dialog
+      Product productForCart = product;
+
+      // If product has variants flag but no selectable options, fetch full details
+      if (product.hasVariants && !product.hasSelectableVariants) {
+        debugPrint(
+            '➕ ADD TO CART: Product has variants flag but no options, fetching details...');
+
+        final fullProduct =
+            await salesProvider.getProductDetails(product.id);
+        if (fullProduct != null) {
+          debugPrint(
+              '➕ ADD TO CART: Got full product, hasSelectableVariants: ${fullProduct.hasSelectableVariants}');
+          productForCart = fullProduct;
+        }
+      }
+
+      // Now check if we should show variant dialog
+      if (productForCart.hasSelectableVariants) {
         debugPrint('➕ ADD TO CART: Product has variants, showing dialog...');
 
         // Show variant selection dialog
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
-          builder: (context) => VariantSelectionDialog(product: product),
+          builder: (context) =>
+              VariantSelectionDialog(product: productForCart),
         );
 
         debugPrint('➕ ADD TO CART: Dialog result: $result');
@@ -249,7 +267,7 @@ class _SalesScreenState extends State<SalesScreen> {
           final double unitPrice = totalPrice / qty;
           debugPrint('➕ ADD TO CART: Unit Price: $unitPrice');
 
-          await salesProvider.addProductToCart(product,
+          await salesProvider.addProductToCart(productForCart,
               quantity: qty, priceOverride: unitPrice);
 
           debugPrint('✅ ADD TO CART: Product added with variants');
@@ -259,7 +277,7 @@ class _SalesScreenState extends State<SalesScreen> {
       } else {
         debugPrint('➕ ADD TO CART: Product has no variants, direct add...');
 
-        await salesProvider.addProductToCart(product, quantity: 1);
+        await salesProvider.addProductToCart(productForCart, quantity: 1);
 
         debugPrint('✅ ADD TO CART: Product added directly');
       }

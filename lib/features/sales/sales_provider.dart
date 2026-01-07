@@ -150,6 +150,23 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
+  /// Get product details with full variant options
+  /// Used when product.hasVariants but no options in the search result
+  Future<Product?> getProductDetails(int productId) async {
+    debugPrint('📦 PRODUCT DETAILS: Fetching product $productId');
+    try {
+      final product = await _apiService.getProductDetails(productId);
+      if (product != null) {
+        debugPrint(
+            '📦 PRODUCT DETAILS: Got ${product.name}, variants: ${product.variants?.length ?? 0}');
+      }
+      return product;
+    } catch (e) {
+      debugPrint('❌ PRODUCT DETAILS: Error - $e');
+      return null;
+    }
+  }
+
   // Scan barcode - just return the product, don't add to cart
   Future<Product?> scanBarcode(String barcode) async {
     try {

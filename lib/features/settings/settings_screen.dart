@@ -153,7 +153,14 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
   void initState() {
     super.initState();
     _loadSavedPrinter();
-    _printService.init();
+    // Don't auto-scan - only scan when user clicks "Scan" button
+  }
+
+  @override
+  void dispose() {
+    // Stop scanning when leaving settings page
+    _printService.stopScan();
+    super.dispose();
   }
 
   Future<void> _loadSavedPrinter() async {

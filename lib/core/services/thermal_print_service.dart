@@ -21,9 +21,9 @@ class ThermalPrintService {
   Printer? get selectedPrinter => _selectedPrinter;
   List<Printer> get availablePrinters => _availablePrinters;
 
-  /// Initialize and start scanning for printers
+  /// Initialize (does not auto-scan)
   Future<void> init() async {
-    await startScan();
+    // No auto-scan - call startScan() explicitly when needed
   }
 
   /// Start scanning for available printers
@@ -34,14 +34,23 @@ class ThermalPrintService {
       ConnectionType.NETWORK,
     ],
   }) async {
+    // Cancel any existing subscription first
     _printerSubscription?.cancel();
+    _printerSubscription = null;
     _availablePrinters = [];
 
     try {
-      // Listen to devices stream
+      debugPrint('🔍 Starting printer scan...');
+
+      // Listen to devices stream (only log once when list changes significantly)
+      int lastCount = -1;
       _printerSubscription = _flutterThermalPrinterPlugin.devicesStream.listen((printers) {
         _availablePrinters = printers;
-        debugPrint('Found ${printers.length} printers');
+        // Only log when count changes to reduce spam
+        if (printers.length != lastCount) {
+          lastCount = printers.length;
+          debugPrint('🔍 Found ${printers.length} printers');
+        }
       });
 
       // Start scanning using getPrinters
@@ -49,7 +58,7 @@ class ThermalPrintService {
         connectionTypes: connectionTypes,
       );
     } catch (e) {
-      debugPrint('Error scanning for printers: $e');
+      debugPrint('🔍 Error scanning for printers: $e');
     }
   }
 

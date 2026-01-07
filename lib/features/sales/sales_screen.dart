@@ -273,10 +273,12 @@ class _SalesScreenState extends State<SalesScreen> {
           final int qty = result['quantity'] as int;
           final double totalPrice = result['price'] as double;
           final double unitPrice = totalPrice / qty;
+          final String? optionsStr = result['options'] as String?;
           debugPrint('➕ ADD TO CART: Unit Price: $unitPrice');
+          debugPrint('➕ ADD TO CART: Options: $optionsStr');
 
           await salesProvider.addProductToCart(productForCart,
-              quantity: qty, priceOverride: unitPrice);
+              quantity: qty, priceOverride: unitPrice, options: optionsStr);
 
           debugPrint('✅ ADD TO CART: Product added with variants');
         } else {

@@ -296,8 +296,8 @@ class SalesProvider with ChangeNotifier {
         final productTax = product.tax?.percentage ?? 0.0;
         final taxRate = productTax > 0 ? productTax : _defaultTaxRate;
 
-        // Build options string: use provided options or "Default" as fallback
-        final optionsDisplay = options ?? 'Default';
+        // Options string: only show if variants were selected (no "Default" fallback)
+        final optionsDisplay = (options != null && options.isNotEmpty) ? options : null;
 
         _cartItems.add(SavedCartItem(
           productId: product.id,

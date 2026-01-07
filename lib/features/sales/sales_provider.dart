@@ -172,18 +172,31 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
-  // ✅ CLIENT-SIDE: Add to cart
+  // ✅ CLIENT-SIDE: Add to cart by product ID (looks up in _products)
   Future<void> addToCart(int productId, {int quantity = 1}) async {
     try {
       debugPrint('🛒 CLIENT CART: Adding product $productId (qty: $quantity)');
 
       final product = _products.firstWhere(
         (p) => p.id == productId,
-        orElse: () => throw Exception('Product not found'),
+        orElse: () => throw Exception('Product not found in local cache'),
       );
 
+      await addProductToCart(product, quantity: quantity);
+    } catch (e) {
+      debugPrint('❌ CLIENT CART: Add error: $e');
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // ✅ CLIENT-SIDE: Add to cart with full Product object (for API search results)
+  Future<void> addProductToCart(Product product, {int quantity = 1}) async {
+    try {
+      debugPrint('🛒 CLIENT CART: Adding "${product.name}" (qty: $quantity)');
+
       final existingIndex =
-          _cartItems.indexWhere((item) => item.productId == productId);
+          _cartItems.indexWhere((item) => item.productId == product.id);
 
       if (existingIndex >= 0) {
         final existing = _cartItems[existingIndex];
@@ -207,7 +220,7 @@ class SalesProvider with ChangeNotifier {
       debugPrint('✅ CLIENT CART: Total items: ${_cartItems.length}');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ CLIENT CART: Add error: $e');
+      debugPrint('❌ CLIENT CART: Add product error: $e');
       _error = e.toString();
       notifyListeners();
     }

@@ -239,35 +239,19 @@ class _SalesScreenState extends State<SalesScreen> {
           debugPrint('➕ ADD TO CART: Quantity: ${result['quantity']}');
           debugPrint('➕ ADD TO CART: Variants: ${result['variants']}');
 
-          await salesProvider.addToCart(product.id,
+          await salesProvider.addProductToCart(product,
               quantity: result['quantity']);
 
           debugPrint('✅ ADD TO CART: Product added with variants');
-
-          // Play beep sound
-          try {
-            await salesProvider.audioService.playBeep();
-            debugPrint('🔊 ADD TO CART: Beep played');
-          } catch (e) {
-            debugPrint('⚠️ ADD TO CART: Could not play beep: $e');
-          }
         } else {
           debugPrint('⚠️ ADD TO CART: User cancelled variant selection');
         }
       } else {
         debugPrint('➕ ADD TO CART: Product has no variants, direct add...');
 
-        await salesProvider.addToCart(product.id, quantity: 1);
+        await salesProvider.addProductToCart(product, quantity: 1);
 
         debugPrint('✅ ADD TO CART: Product added directly');
-
-        // Play beep sound
-        try {
-          await salesProvider.audioService.playBeep();
-          debugPrint('🔊 ADD TO CART: Beep played');
-        } catch (e) {
-          debugPrint('⚠️ ADD TO CART: Could not play beep: $e');
-        }
       }
     } catch (e) {
       debugPrint('❌ ADD TO CART: Error adding product: $e');

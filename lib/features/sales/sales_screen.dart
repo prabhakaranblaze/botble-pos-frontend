@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
@@ -25,6 +26,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
   List<Product> _searchResults = [];
   bool _showSearchDropdown = false;
+  int _selectedIndex = -1; // For keyboard navigation
 
   @override
   void initState() {
@@ -100,6 +102,7 @@ class _SalesScreenState extends State<SalesScreen> {
       setState(() {
         _searchResults = [];
         _showSearchDropdown = false;
+        _selectedIndex = -1;
       });
       return;
     }
@@ -124,6 +127,7 @@ class _SalesScreenState extends State<SalesScreen> {
     setState(() {
       _searchResults = results;
       _showSearchDropdown = results.isNotEmpty;
+      _selectedIndex = results.isNotEmpty ? 0 : -1; // Select first item by default
     });
 
     debugPrint(
@@ -156,8 +160,37 @@ class _SalesScreenState extends State<SalesScreen> {
     setState(() {
       _searchResults = [];
       _showSearchDropdown = false;
+      _selectedIndex = -1;
     });
     _searchFocusNode.requestFocus();
+  }
+
+  /// Handle keyboard events for search dropdown navigation
+  KeyEventResult _handleSearchKeyEvent(KeyEvent event) {
+    if (!_showSearchDropdown || _searchResults.isEmpty) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        setState(() {
+          _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
+        });
+        debugPrint('⬇️ KEYBOARD: Selected index: $_selectedIndex');
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        setState(() {
+          _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
+        });
+        debugPrint('⬆️ KEYBOARD: Selected index: $_selectedIndex');
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _clearSearch();
+        return KeyEventResult.handled;
+      }
+    }
+
+    return KeyEventResult.ignored;
   }
 
   // ⭐ UNIFIED ADD TO CART LOGIC
@@ -554,60 +587,72 @@ class _SalesScreenState extends State<SalesScreen> {
             child: Stack(
               clipBehavior: Clip.none, // Allow dropdown to overflow
               children: [
-                TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  decoration: InputDecoration(
-                    hintText: 'Scan barcode, SKU, or search products...',
-                    prefixIcon: Icon(
-                      Icons.qr_code_scanner_rounded,
-                      color: AppColors.primary,
+                Focus(
+                  onKeyEvent: (node, event) => _handleSearchKeyEvent(event),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Scan barcode, SKU, or search products...',
+                      prefixIcon: Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: AppColors.primary,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: _clearSearch,
+                            )
+                          : null,
                     ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: _clearSearch,
-                          )
-                        : null,
+                    onSubmitted: (value) async {
+                      debugPrint('⏎ ENTER: Submitted with value: "$value"');
+
+                      // If user has selected an item via keyboard, use that
+                      if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
+                        debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
+                        await _addProductToCart(_searchResults[_selectedIndex]);
+                        _clearSearch();
+                        return;
+                      }
+
+                      if (value.isEmpty) return;
+
+                      // Always try barcode/SKU API first (for any input)
+                      debugPrint('⏎ ENTER: Trying barcode/SKU API...');
+                      final product = await context.read<SalesProvider>().scanBarcode(value);
+
+                      if (product != null) {
+                        debugPrint('⏎ ENTER: Product found via API: ${product.name}');
+                        await _addProductToCart(product);
+                        _clearSearch();
+                      }
+                      // If API didn't find it but we have single local result
+                      else if (_searchResults.length == 1) {
+                        debugPrint('⏎ ENTER: Not found via API, using local result');
+                        await _addProductToCart(_searchResults.first);
+                        _clearSearch();
+                      }
+                      // Multiple local results - keep dropdown open
+                      else if (_searchResults.isNotEmpty) {
+                        debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Use arrow keys to select product')),
+                        );
+                      }
+                      // No results anywhere
+                      else {
+                        debugPrint('⏎ ENTER: Product not found');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Product not found')),
+                        );
+                      }
+                    },
+                    onChanged: (value) {
+                      setState(() {});
+                      _handleSearch(value);
+                    },
                   ),
-                  onSubmitted: (value) async {
-                    debugPrint('⏎ ENTER: Submitted with value: "$value"');
-                    if (value.isEmpty) return;
-
-                    // Always try barcode/SKU API first (for any input)
-                    debugPrint('⏎ ENTER: Trying barcode/SKU API...');
-                    final product = await context.read<SalesProvider>().scanBarcode(value);
-
-                    if (product != null) {
-                      debugPrint('⏎ ENTER: Product found via API: ${product.name}');
-                      await _addProductToCart(product);
-                      _clearSearch();
-                    }
-                    // If API didn't find it but we have single local result
-                    else if (_searchResults.length == 1) {
-                      debugPrint('⏎ ENTER: Not found via API, using local result');
-                      await _addProductToCart(_searchResults.first);
-                      _clearSearch();
-                    }
-                    // Multiple local results - keep dropdown open
-                    else if (_searchResults.isNotEmpty) {
-                      debugPrint('⏎ ENTER: Multiple local results, select from dropdown');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Select product from dropdown')),
-                      );
-                    }
-                    // No results anywhere
-                    else {
-                      debugPrint('⏎ ENTER: Product not found');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Product not found')),
-                      );
-                    }
-                  },
-                  onChanged: (value) {
-                    setState(() {});
-                    _handleSearch(value);
-                  },
                 ),
 
                 // Search Results Dropdown
@@ -631,7 +676,11 @@ class _SalesScreenState extends State<SalesScreen> {
                           itemCount: _searchResults.length,
                           itemBuilder: (context, index) {
                             final product = _searchResults[index];
+                            final isSelected = index == _selectedIndex;
                             return ListTile(
+                              tileColor: isSelected ? AppColors.primary.withOpacity(0.1) : null,
+                              selected: isSelected,
+                              selectedTileColor: AppColors.primary.withOpacity(0.1),
                               leading: Container(
                                 width: 40,
                                 height: 40,

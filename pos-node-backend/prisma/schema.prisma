@@ -146,11 +146,12 @@ model Product {
   deleted_at                      DateTime?
 
   // Relations
-  categories      ProductCategoryProduct[]
-  variations      ProductVariation[]       @relation("ConfigurableProduct")
-  variationOf     ProductVariation?        @relation("VariationProduct")
-  orderProducts   OrderProduct[]
-  taxProducts     TaxProduct[]
+  categories       ProductCategoryProduct[]
+  variations       ProductVariation[]       @relation("ConfigurableProduct")
+  variationOf      ProductVariation?        @relation("VariationProduct")
+  orderProducts    OrderProduct[]
+  taxProducts      TaxProduct[]
+  discountProducts DiscountProduct[]
 
   @@index([barcode])
   @@index([sku])
@@ -432,6 +433,7 @@ model Customer {
   deleted_at            DateTime?
 
   orders                Order[]
+  discountCustomers     DiscountCustomer[]
 
   @@index([email])
   @@index([phone])
@@ -561,4 +563,124 @@ model PosDeviceConfig {
   user        User      @relation(fields: [user_id], references: [id])
 
   @@map("pos_device_configs")
+}
+
+// ============================================
+// DISCOUNTS / COUPONS
+// ============================================
+
+model Discount {
+  id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  title                 String?   @db.VarChar(191)
+  code                  String?   @db.VarChar(191)
+  start_date            DateTime?
+  end_date              DateTime?
+  quantity              Int?
+  total_used            Int       @default(0)
+  value                 Decimal?  @db.Decimal(15, 2)
+  type_option           String    @default("percentage") @db.VarChar(191) // 'percentage' or 'amount'
+  target                String    @default("all-orders") @db.VarChar(191)
+  min_order_price       Decimal?  @db.Decimal(15, 2)
+  product_quantity      Int?
+  discount_on           String?   @db.VarChar(20)
+  type                  String    @default("coupon") @db.VarChar(60)
+  can_use_with_promotion Boolean  @default(false)
+  apply_via_url         Boolean   @default(false)
+  display_at_checkout   Boolean   @default(false)
+  store_id              BigInt?   @db.UnsignedBigInt
+  created_at            DateTime?
+  updated_at            DateTime?
+  deleted_at            DateTime?
+
+  // Relations
+  discountCustomers     DiscountCustomer[]
+  discountProducts      DiscountProduct[]
+
+  @@index([code])
+  @@index([type])
+  @@map("ec_discounts")
+}
+
+model DiscountCustomer {
+  discount_id BigInt @db.UnsignedBigInt
+  customer_id BigInt @db.UnsignedBigInt
+
+  discount    Discount @relation(fields: [discount_id], references: [id], onDelete: Cascade)
+  customer    Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@id([discount_id, customer_id])
+  @@map("ec_discount_customers")
+}
+
+model DiscountProduct {
+  discount_id BigInt @db.UnsignedBigInt
+  product_id  BigInt @db.UnsignedBigInt
+
+  discount    Discount @relation(fields: [discount_id], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@id([discount_id, product_id])
+  @@map("ec_discount_products")
+}
+
+// ============================================
+// INVOICES
+// ============================================
+
+model Invoice {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  reference_type  String    @db.VarChar(255) // 'Botble\\Ecommerce\\Models\\Order'
+  reference_id    BigInt    @db.UnsignedBigInt
+  code            String    @db.VarChar(255)
+  customer_name   String?   @db.VarChar(255)
+  customer_email  String?   @db.VarChar(255)
+  customer_phone  String?   @db.VarChar(255)
+  customer_address String?  @db.VarChar(255)
+  customer_tax_id String?   @db.VarChar(255)
+  sub_total       Decimal   @db.Decimal(15, 2)
+  tax_amount      Decimal   @default(0.00) @db.Decimal(15, 2)
+  shipping_amount Decimal   @default(0.00) @db.Decimal(15, 2)
+  discount_amount Decimal   @default(0.00) @db.Decimal(15, 2)
+  shipping_method String?   @db.VarChar(255)
+  shipping_option String?   @db.VarChar(255)
+  coupon_code     String?   @db.VarChar(255)
+  discount_description String? @db.VarChar(255)
+  amount          Decimal   @db.Decimal(15, 2)
+  payment_id      BigInt?   @db.UnsignedBigInt
+  status          String    @default("pending") @db.VarChar(255)
+  paid_at         DateTime?
+  created_at      DateTime?
+  updated_at      DateTime?
+  deleted_at      DateTime?
+  description     String?   @db.Text
+
+  // Relations
+  items           InvoiceItem[]
+
+  @@index([code])
+  @@index([reference_type, reference_id])
+  @@map("ec_invoices")
+}
+
+model InvoiceItem {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  invoice_id      BigInt    @db.UnsignedBigInt
+  reference_type  String?   @db.VarChar(255) // 'Botble\\Ecommerce\\Models\\Product'
+  reference_id    BigInt?   @db.UnsignedBigInt
+  name            String    @db.VarChar(255)
+  description     String?   @db.VarChar(1000)
+  image           String?   @db.VarChar(255)
+  qty             Int
+  sub_total       Decimal   @db.Decimal(15, 2)
+  tax_amount      Decimal   @default(0.00) @db.Decimal(15, 2)
+  discount_amount Decimal   @default(0.00) @db.Decimal(15, 2)
+  amount          Decimal   @db.Decimal(15, 2)
+  options         String?   @db.Text
+  created_at      DateTime?
+  updated_at      DateTime?
+  deleted_at      DateTime?
+
+  invoice         Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@map("ec_invoice_items")
 }

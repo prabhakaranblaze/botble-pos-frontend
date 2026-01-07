@@ -95,4 +95,10 @@ class AppCurrency {
   static String format(double amount) {
     return AppConstants.formatCurrency(amount);
   }
+
+  /// Format amount in compact form for buttons (e.g., 1,000 instead of Rs 1,000.00)
+  static String formatCompact(double amount) {
+    final formatter = NumberFormat('#,###');
+    return formatter.format(amount.toInt());
+  }
 }

@@ -29,6 +29,31 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   double get _change => _cashReceived - widget.cart.total;
 
+  /// Generate dynamic quick cash amounts based on total
+  List<int> get _quickCashAmounts {
+    final total = widget.cart.total;
+    final List<int> amounts = [];
+
+    // Standard denominations to consider
+    const standardDenoms = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+
+    for (final denom in standardDenoms) {
+      if (denom > total) {
+        amounts.add(denom);
+        if (amounts.length >= 4) break; // Max 4 quick amounts
+      }
+    }
+
+    // If total is very high and no standard denoms work, add rounded up amounts
+    if (amounts.isEmpty) {
+      final roundedUp = ((total / 10000).ceil() * 10000).toInt();
+      amounts.add(roundedUp);
+      amounts.add(roundedUp + 10000);
+    }
+
+    return amounts;
+  }
+
   @override
   void dispose() {
     _cashReceivedController.dispose();
@@ -284,25 +309,52 @@ class _PaymentDialogState extends State<PaymentDialog> {
               ),
             ],
 
-            // Quick Cash Buttons
+            // Quick Cash Buttons (Dynamic based on total)
             const SizedBox(height: 16),
+            const Text(
+              'Quick Cash',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [20, 50, 100].map((amount) {
-                return ElevatedButton(
+              children: [
+                // Exact amount button
+                ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      _cashReceivedController.text = amount.toString();
+                      _cashReceivedController.text = widget.cart.total.toStringAsFixed(2);
                     });
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.background,
-                    foregroundColor: AppColors.textPrimary,
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    foregroundColor: AppColors.primary,
+                    elevation: 0,
                   ),
-                  child: Text('\$$amount'),
-                );
-              }).toList(),
+                  child: const Text('Exact'),
+                ),
+                // Dynamic amounts
+                ..._quickCashAmounts.map((amount) {
+                  return ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _cashReceivedController.text = amount.toString();
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.background,
+                      foregroundColor: AppColors.textPrimary,
+                      elevation: 0,
+                    ),
+                    child: Text(AppCurrency.formatCompact(amount.toDouble())),
+                  );
+                }),
+              ],
             ),
 
             // Denomination Counter (Optional)

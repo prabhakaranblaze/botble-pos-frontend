@@ -5,6 +5,9 @@ import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
 import '../sales/cart_item_widget.dart';
 import '../sales/payment_dialog.dart';
+import '../sales/apply_coupon_dialog.dart';
+import '../sales/apply_discount_dialog.dart';
+import '../sales/update_shipping_dialog.dart';
 import '../auth/auth_provider.dart';
 import '../../core/models/product.dart';
 import '../../core/services/auto_print_service.dart';
@@ -1419,6 +1422,61 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
               ),
 
+              // Discount/Coupon/Shipping Actions
+              if (cart.items.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      // Apply Coupon
+                      _buildActionRow(
+                        icon: Icons.local_offer_outlined,
+                        label: sales.hasCouponDiscount
+                            ? 'Coupon: ${sales.couponCode}'
+                            : 'Apply Coupon',
+                        value: sales.hasCouponDiscount
+                            ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
+                            : null,
+                        valueColor: AppColors.success,
+                        onTap: () => _showApplyCouponDialog(),
+                        onClear: sales.hasCouponDiscount
+                            ? () => sales.clearCouponDiscount()
+                            : null,
+                      ),
+                      // Apply Discount (only if no coupon)
+                      if (!sales.hasCouponDiscount)
+                        _buildActionRow(
+                          icon: Icons.discount_outlined,
+                          label: sales.hasManualDiscount
+                              ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
+                              : 'Apply Discount',
+                          value: sales.hasManualDiscount
+                              ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
+                              : null,
+                          valueColor: AppColors.success,
+                          onTap: () => _showApplyDiscountDialog(),
+                          onClear: sales.hasManualDiscount
+                              ? () => sales.clearManualDiscount()
+                              : null,
+                        ),
+                      // Shipping
+                      _buildActionRow(
+                        icon: Icons.local_shipping_outlined,
+                        label: sales.shippingAmount > 0
+                            ? 'Shipping'
+                            : 'Add Shipping',
+                        value: sales.shippingAmount > 0
+                            ? AppCurrency.format(sales.shippingAmount)
+                            : null,
+                        onTap: () => _showUpdateShippingDialog(),
+                        onClear: sales.shippingAmount > 0
+                            ? () => sales.clearShippingAmount()
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+
               // Spacer to push summary to bottom
               const Spacer(),
 
@@ -1460,6 +1518,8 @@ class _SalesScreenState extends State<SalesScreen> {
                           color: AppColors.success,
                         ),
                       _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                      if (cart.shipping > 0)
+                        _buildSummaryRow('Shipping', cart.shipping),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         l10n?.total ?? 'Total',
@@ -1777,6 +1837,61 @@ class _SalesScreenState extends State<SalesScreen> {
                       ),
               ),
 
+              // Discount/Coupon/Shipping Actions
+              if (cart.items.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    children: [
+                      // Apply Coupon
+                      _buildActionRow(
+                        icon: Icons.local_offer_outlined,
+                        label: sales.hasCouponDiscount
+                            ? 'Coupon: ${sales.couponCode}'
+                            : 'Apply Coupon',
+                        value: sales.hasCouponDiscount
+                            ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
+                            : null,
+                        valueColor: AppColors.success,
+                        onTap: () => _showApplyCouponDialog(),
+                        onClear: sales.hasCouponDiscount
+                            ? () => sales.clearCouponDiscount()
+                            : null,
+                      ),
+                      // Apply Discount (only if no coupon)
+                      if (!sales.hasCouponDiscount)
+                        _buildActionRow(
+                          icon: Icons.discount_outlined,
+                          label: sales.hasManualDiscount
+                              ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
+                              : 'Apply Discount',
+                          value: sales.hasManualDiscount
+                              ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
+                              : null,
+                          valueColor: AppColors.success,
+                          onTap: () => _showApplyDiscountDialog(),
+                          onClear: sales.hasManualDiscount
+                              ? () => sales.clearManualDiscount()
+                              : null,
+                        ),
+                      // Shipping
+                      _buildActionRow(
+                        icon: Icons.local_shipping_outlined,
+                        label: sales.shippingAmount > 0
+                            ? 'Shipping'
+                            : 'Add Shipping',
+                        value: sales.shippingAmount > 0
+                            ? AppCurrency.format(sales.shippingAmount)
+                            : null,
+                        onTap: () => _showUpdateShippingDialog(),
+                        onClear: sales.shippingAmount > 0
+                            ? () => sales.clearShippingAmount()
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+
               // Cart Summary & Checkout
               if (cart.items.isNotEmpty)
                 Container(
@@ -1795,6 +1910,8 @@ class _SalesScreenState extends State<SalesScreen> {
                           color: AppColors.success,
                         ),
                       _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                      if (cart.shipping > 0)
+                        _buildSummaryRow('Shipping', cart.shipping),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         l10n?.total ?? 'Total',
@@ -1894,5 +2011,125 @@ class _SalesScreenState extends State<SalesScreen> {
         ],
       ),
     );
+  }
+
+  /// Action row for discount/coupon/shipping
+  Widget _buildActionRow({
+    required IconData icon,
+    required String label,
+    String? value,
+    Color? valueColor,
+    required VoidCallback onTap,
+    VoidCallback? onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: value != null ? AppColors.textPrimary : AppColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (value != null) ...[
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: valueColor ?? AppColors.textPrimary,
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onClear,
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: AppColors.error,
+                  ),
+                ),
+              ],
+            ] else
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show Apply Coupon Dialog
+  Future<void> _showApplyCouponDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const ApplyCouponDialog(),
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Coupon applied successfully!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Show Apply Discount Dialog
+  Future<void> _showApplyDiscountDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const ApplyDiscountDialog(),
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Discount applied successfully!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Show Update Shipping Dialog
+  Future<void> _showUpdateShippingDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const UpdateShippingDialog(),
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Shipping updated!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }

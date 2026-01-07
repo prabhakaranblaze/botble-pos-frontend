@@ -500,10 +500,25 @@ class ApiService {
     required String paymentMethod,
     String? paymentDetails,
     int? customerId,
+    // Discount parameters
+    int? discountId,
+    String? couponCode,
+    double discountAmount = 0,
+    String? discountDescription,
+    // Shipping
+    double shippingAmount = 0,
+    // Tax
+    double? taxAmount,
+    // Customer info for invoice
+    String? customerName,
+    String? customerEmail,
+    String? customerPhone,
   }) async {
     debugPrint('💳 API SERVICE: checkoutDirect called');
     debugPrint('💳 API SERVICE: Items: ${items.length}');
     debugPrint('💳 API SERVICE: Payment method: $paymentMethod');
+    debugPrint('💳 API SERVICE: Discount: $discountAmount (coupon: $couponCode)');
+    debugPrint('💳 API SERVICE: Shipping: $shippingAmount');
 
     try {
       if (!_isOnline) {
@@ -516,6 +531,19 @@ class ApiService {
         'payment_method': paymentMethod,
         if (paymentDetails != null) 'payment_details': paymentDetails,
         if (customerId != null) 'customer_id': customerId,
+        // Discount
+        if (discountId != null) 'discount_id': discountId,
+        if (couponCode != null) 'coupon_code': couponCode,
+        if (discountAmount > 0) 'discount_amount': discountAmount,
+        if (discountDescription != null) 'discount_description': discountDescription,
+        // Shipping
+        if (shippingAmount > 0) 'shipping_amount': shippingAmount,
+        // Tax
+        if (taxAmount != null) 'tax_amount': taxAmount,
+        // Customer info for invoice
+        if (customerName != null) 'customer_name': customerName,
+        if (customerEmail != null) 'customer_email': customerEmail,
+        if (customerPhone != null) 'customer_phone': customerPhone,
       });
 
       if (response.data['error'] == false) {
@@ -785,6 +813,72 @@ class ApiService {
       return null;
     } catch (e) {
       debugPrint('❌ API SERVICE: getSettings error: $e');
+      return null;
+    }
+  }
+
+  // Discount APIs
+  /// Validate a coupon code
+  Future<Map<String, dynamic>?> validateCoupon({
+    required String code,
+    required double subtotal,
+    required List<Map<String, dynamic>> items,
+    int? customerId,
+  }) async {
+    debugPrint('🎟️ API SERVICE: validateCoupon called - Code: "$code"');
+    debugPrint('🎟️ API SERVICE: Subtotal: $subtotal');
+    debugPrint('🎟️ API SERVICE: Items: ${items.length}');
+
+    try {
+      final response = await _dio.post('/discounts/validate', data: {
+        'code': code,
+        'subtotal': subtotal,
+        'items': items,
+        if (customerId != null) 'customer_id': customerId,
+      });
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Coupon validated successfully');
+        return response.data['data'] as Map<String, dynamic>;
+      } else {
+        debugPrint('❌ API SERVICE: Coupon validation failed - ${response.data['message']}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('❌ API SERVICE: validateCoupon error: $e');
+      if (e is DioException && e.response != null) {
+        final errorData = e.response!.data;
+        if (errorData is Map && errorData['message'] != null) {
+          throw Exception(errorData['message']);
+        }
+      }
+      return null;
+    }
+  }
+
+  /// Calculate manual discount
+  Future<Map<String, dynamic>?> calculateDiscount({
+    required String type,
+    required double value,
+    required double subtotal,
+  }) async {
+    debugPrint('💰 API SERVICE: calculateDiscount called - Type: $type, Value: $value');
+
+    try {
+      final response = await _dio.post('/discounts/calculate', data: {
+        'type': type,
+        'value': value,
+        'subtotal': subtotal,
+      });
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Discount calculated successfully');
+        return response.data['data'] as Map<String, dynamic>;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: calculateDiscount error: $e');
       return null;
     }
   }

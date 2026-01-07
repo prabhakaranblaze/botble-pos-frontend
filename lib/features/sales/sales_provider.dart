@@ -23,6 +23,9 @@ class SalesProvider with ChangeNotifier {
   Customer? _selectedCustomer;
   String _paymentMethod = 'pos_cash'; // Laravel-style payment method
 
+  // ✅ Default tax rate from settings (percentage, e.g., 15 for 15%)
+  double _defaultTaxRate = 0.0;
+
   // ✅ Saved carts
   List<SavedCart> _savedCarts = [];
 
@@ -45,6 +48,7 @@ class SalesProvider with ChangeNotifier {
   String get searchQuery => _searchQuery;
   AudioService get audioService => _audioService;
   bool get isOnline => _apiService.isOnline;
+  double get defaultTaxRate => _defaultTaxRate;
 
   // ✅ Build cart from local items
   Cart get cart {
@@ -74,6 +78,26 @@ class SalesProvider with ChangeNotifier {
       customer: _selectedCustomer,
       paymentMethod: _paymentMethod,
     );
+  }
+
+  // Load settings (including default tax rate)
+  Future<void> loadSettings() async {
+    try {
+      debugPrint('⚙️ SALES: Loading settings...');
+      final settings = await _apiService.getSettings();
+      if (settings != null) {
+        // Extract default tax from settings
+        final defaultTax = settings['default_tax'];
+        if (defaultTax != null && defaultTax is Map<String, dynamic>) {
+          _defaultTaxRate = (defaultTax['percentage'] as num?)?.toDouble() ?? 0.0;
+          debugPrint('✅ SALES: Default tax rate loaded: $_defaultTaxRate%');
+        } else {
+          debugPrint('⚠️ SALES: No default tax in settings');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ SALES: Error loading settings: $e');
+    }
   }
 
   // Load products
@@ -234,8 +258,9 @@ class SalesProvider with ChangeNotifier {
         );
         debugPrint('✅ Updated qty: ${_cartItems[existingIndex].quantity}');
       } else {
-        // Get tax rate from product (percentage value, e.g., 10 for 10%)
-        final taxRate = product.tax?.percentage ?? 0.0;
+        // Get tax rate: product tax first, then default tax from settings
+        final productTax = product.tax?.percentage ?? 0.0;
+        final taxRate = productTax > 0 ? productTax : _defaultTaxRate;
 
         _cartItems.add(SavedCartItem(
           productId: product.id,
@@ -245,7 +270,7 @@ class SalesProvider with ChangeNotifier {
           image: product.image,
           taxRate: taxRate,
         ));
-        debugPrint('✅ Added new item with tax rate: $taxRate%');
+        debugPrint('✅ Added new item with tax rate: $taxRate% (product: $productTax%, default: $_defaultTaxRate%)');
       }
 
       await _audioService.playBeep();

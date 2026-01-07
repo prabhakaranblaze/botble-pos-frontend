@@ -56,6 +56,11 @@ class _SalesScreenState extends State<SalesScreen> {
     final salesProvider = context.read<SalesProvider>();
 
     try {
+      // Load settings first (for default tax rate)
+      debugPrint('🔵 SALES SCREEN: Loading settings...');
+      await salesProvider.loadSettings();
+      debugPrint('✅ SALES SCREEN: Settings loaded (default tax: ${salesProvider.defaultTaxRate}%)');
+
       debugPrint('🔵 SALES SCREEN: Loading categories...');
       await salesProvider.loadCategories();
       debugPrint('✅ SALES SCREEN: Categories loaded');

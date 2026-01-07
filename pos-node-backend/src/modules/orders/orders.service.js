@@ -23,7 +23,8 @@ class OrdersService {
   }
 
   /**
-   * Create order from cart (checkout)
+   * Create order from cart (checkout) - uses server-side cart
+   * @deprecated Use checkoutDirect instead
    */
   async checkout(userId, paymentDetails = null) {
     const cart = cartService.getCartData(userId);
@@ -88,6 +89,98 @@ class OrdersService {
 
     // Return formatted order
     return this.formatOrder(order, cart.items, paymentMethod, paymentDetails);
+  }
+
+  /**
+   * Create order directly from client cart items
+   * No server-side cart sync needed - items sent directly from Flutter
+   */
+  async checkoutDirect(userId, { items, paymentMethod = 'cash', paymentDetails = null, customerId = null }) {
+    if (!items || items.length === 0) {
+      throw new Error('Cart is empty');
+    }
+
+    // Calculate totals from items
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const taxRate = 0.15; // 15% tax
+    const tax = subtotal * taxRate;
+    const total = subtotal + tax;
+
+    // Create order
+    const order = await prisma.order.create({
+      data: {
+        code: this.generateOrderCode(),
+        user_id: customerId ? BigInt(customerId) : null,
+        status: 'completed', // POS orders are completed immediately
+        amount: total,
+        tax_amount: tax,
+        shipping_amount: 0,
+        discount_amount: 0,
+        sub_total: subtotal,
+        is_confirmed: true,
+        is_finished: true,
+        completed_at: new Date(),
+        token: this.generateToken(),
+        description: `POS Order - ${paymentMethod.toUpperCase()}`,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+
+    // Create order products
+    for (const item of items) {
+      await prisma.orderProduct.create({
+        data: {
+          order_id: order.id,
+          product_id: BigInt(item.product_id),
+          product_name: item.name,
+          product_image: item.image || null,
+          qty: item.quantity,
+          price: item.price,
+          tax_amount: (item.price * item.quantity * taxRate),
+          options: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      // Update product stock (optional - skip if product doesn't exist)
+      try {
+        await prisma.product.update({
+          where: { id: BigInt(item.product_id) },
+          data: {
+            quantity: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      } catch (e) {
+        // Product might not exist - that's okay for POS
+        console.log(`Note: Could not update stock for product ${item.product_id}`);
+      }
+    }
+
+    // Format items for response
+    const formattedItems = items.map(item => ({
+      id: item.product_id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      sku: item.sku || null,
+    }));
+
+    return {
+      id: Number(order.id),
+      code: order.code,
+      amount: total,
+      sub_total: subtotal,
+      tax_amount: tax,
+      payment_method: paymentMethod,
+      status: order.status,
+      created_at: order.created_at.toISOString(),
+      payment_details: paymentDetails,
+      items: formattedItems,
+    };
   }
 
   /**

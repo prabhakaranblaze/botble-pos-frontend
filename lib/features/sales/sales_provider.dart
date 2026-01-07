@@ -268,7 +268,7 @@ class SalesProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ CHECKOUT: Create order
+  // ✅ CHECKOUT: Create order - sends cart items directly to backend
   Future<Order?> checkout({String? paymentDetails}) async {
     _isLoading = true;
     _error = null;
@@ -277,31 +277,34 @@ class SalesProvider with ChangeNotifier {
     try {
       debugPrint('💳 CHECKOUT: Starting...');
       debugPrint('💳 CHECKOUT: Items: ${_cartItems.length}');
+      debugPrint('💳 CHECKOUT: Payment method: $_paymentMethod');
 
-      // Build cart for API
-      final cartData = {
-        'items': _cartItems
-            .map((item) => {
-                  'product_id': item.productId,
-                  'name': item.name,
-                  'quantity': item.quantity,
-                  'price': item.price,
-                })
-            .toList(),
-        'payment_method': _paymentMethod,
-        if (paymentDetails != null) 'payment_details': paymentDetails,
-        if (_selectedCustomer != null) 'customer_id': _selectedCustomer!.id,
-      };
-
-      // First sync cart to backend
-      await _apiService.clearCart();
-      for (var item in _cartItems) {
-        await _apiService.addToCart(item.productId, quantity: item.quantity);
+      if (_cartItems.isEmpty) {
+        throw Exception('Cart is empty');
       }
 
-      // Then checkout
-      final order = await _apiService.checkout(paymentDetails: paymentDetails);
+      // Build items for direct checkout
+      final items = _cartItems
+          .map((item) => {
+                'product_id': item.productId,
+                'name': item.name,
+                'quantity': item.quantity,
+                'price': item.price,
+                'image': item.image,
+              })
+          .toList();
 
+      debugPrint('💳 CHECKOUT: Sending ${items.length} items to server...');
+
+      // Direct checkout - no server cart sync needed
+      final order = await _apiService.checkoutDirect(
+        items: items,
+        paymentMethod: _paymentMethod,
+        paymentDetails: paymentDetails,
+        customerId: _selectedCustomer?.id,
+      );
+
+      // Clear local cart
       _cartItems.clear();
       _selectedCustomer = null;
       _paymentMethod = 'cash';

@@ -1,26 +1,49 @@
 const ordersService = require('./orders.service');
 const { z } = require('zod');
 
+// Schema for direct checkout (items sent from client)
 const checkoutSchema = z.object({
-  payment_details: z.string().optional(),
+  items: z.array(z.object({
+    product_id: z.number().int().positive(),
+    name: z.string(),
+    quantity: z.number().int().positive(),
+    price: z.number().positive(),
+    image: z.string().optional().nullable(),
+    sku: z.string().optional().nullable(),
+  })).min(1, 'Cart is empty'),
+  payment_method: z.enum(['cash', 'card']).default('cash'),
+  payment_details: z.string().optional().nullable(),
+  customer_id: z.number().int().positive().optional().nullable(),
 });
 
 class OrdersController {
   /**
    * POST /orders (checkout)
+   * Accepts cart items directly from client - no server-side cart sync needed
    */
   async checkout(req, res, next) {
     try {
-      const { payment_details } = checkoutSchema.parse(req.body);
+      const data = checkoutSchema.parse(req.body);
       const userId = req.user.id;
 
-      const order = await ordersService.checkout(userId, payment_details);
+      const order = await ordersService.checkoutDirect(userId, {
+        items: data.items,
+        paymentMethod: data.payment_method,
+        paymentDetails: data.payment_details,
+        customerId: data.customer_id,
+      });
 
       res.json({
         error: false,
         data: { order },
       });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: true,
+          message: error.errors[0]?.message || 'Invalid request data',
+        });
+      }
       if (error.message === 'Cart is empty') {
         return res.status(400).json({
           error: true,

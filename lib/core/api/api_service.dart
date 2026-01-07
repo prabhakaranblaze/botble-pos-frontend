@@ -460,9 +460,16 @@ class ApiService {
   }
 
   // Order APIs
-  Future<Order> checkout({String? paymentDetails}) async {
-    debugPrint('💳 API SERVICE: checkout called');
-    debugPrint('💳 API SERVICE: Payment details: $paymentDetails');
+  /// Checkout with cart items sent directly (no server-side cart sync)
+  Future<Order> checkoutDirect({
+    required List<Map<String, dynamic>> items,
+    required String paymentMethod,
+    String? paymentDetails,
+    int? customerId,
+  }) async {
+    debugPrint('💳 API SERVICE: checkoutDirect called');
+    debugPrint('💳 API SERVICE: Items: ${items.length}');
+    debugPrint('💳 API SERVICE: Payment method: $paymentMethod');
 
     try {
       if (!_isOnline) {
@@ -471,7 +478,10 @@ class ApiService {
       }
 
       final response = await _dio.post('/orders', data: {
+        'items': items,
+        'payment_method': paymentMethod,
         if (paymentDetails != null) 'payment_details': paymentDetails,
+        if (customerId != null) 'customer_id': customerId,
       });
 
       if (response.data['error'] == false) {
@@ -485,9 +495,15 @@ class ApiService {
         throw Exception(response.data['message']);
       }
     } catch (e) {
-      debugPrint('❌ API SERVICE: checkout exception: $e');
+      debugPrint('❌ API SERVICE: checkoutDirect exception: $e');
       throw Exception('Checkout failed: ${e.toString()}');
     }
+  }
+
+  /// @deprecated Use checkoutDirect instead
+  Future<Order> checkout({String? paymentDetails}) async {
+    debugPrint('💳 API SERVICE: checkout called (deprecated)');
+    throw Exception('Use checkoutDirect instead');
   }
 
   Future<String> getReceipt(int orderId) async {

@@ -212,8 +212,50 @@ model ProductVariationItem {
   variation_id BigInt @db.UnsignedBigInt
 
   variation    ProductVariation @relation(fields: [variation_id], references: [id], onDelete: Cascade)
+  attribute    ProductAttribute @relation(fields: [attribute_id], references: [id], onDelete: Cascade)
 
   @@map("ec_product_variation_items")
+}
+
+// Product Attribute Sets (e.g., "Color", "Size")
+model ProductAttributeSet {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  title       String    @db.VarChar(191)
+  slug        String?   @db.VarChar(191)
+  display_layout String? @default("dropdown") @db.VarChar(191)
+  is_searchable Int     @default(1) @db.TinyInt
+  is_comparable Int     @default(1) @db.TinyInt
+  is_use_in_product_listing Int @default(0) @db.TinyInt
+  status      String    @default("published") @db.VarChar(60)
+  order       Int       @default(0) @db.UnsignedInt
+  created_at  DateTime?
+  updated_at  DateTime?
+  use_image_from_product_variation Int @default(0) @db.TinyInt
+  deleted_at  DateTime?
+
+  attributes  ProductAttribute[]
+
+  @@map("ec_product_attribute_sets")
+}
+
+// Product Attributes (e.g., "Blue", "Red", "Small", "Large")
+model ProductAttribute {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  attribute_set_id BigInt   @db.UnsignedBigInt
+  title           String    @db.VarChar(191)
+  slug            String?   @db.VarChar(191)
+  color           String?   @db.VarChar(50)
+  image           String?   @db.VarChar(191)
+  is_default      Int       @default(0) @db.TinyInt
+  order           Int       @default(0) @db.UnsignedInt
+  created_at      DateTime?
+  updated_at      DateTime?
+  deleted_at      DateTime?
+
+  attributeSet    ProductAttributeSet @relation(fields: [attribute_set_id], references: [id], onDelete: Cascade)
+  variationItems  ProductVariationItem[]
+
+  @@map("ec_product_attributes")
 }
 
 // ============================================

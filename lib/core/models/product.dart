@@ -192,11 +192,15 @@ class ProductVariant {
 class VariantOption {
   final int id;
   final String name;
+  final String? color; // Hex color code (e.g., "#FF0000")
+  final String? image; // Image URL for this option
   final double? priceModifier; // Additional cost (+ or -)
 
   VariantOption({
     required this.id,
     required this.name,
+    this.color,
+    this.image,
     this.priceModifier,
   });
 
@@ -204,6 +208,8 @@ class VariantOption {
     return VariantOption(
       id: json['id'] as int,
       name: json['name'] as String,
+      color: json['color'] as String?,
+      image: json['image'] as String?,
       priceModifier: json['price_modifier'] != null
           ? double.parse(json['price_modifier'].toString())
           : null,
@@ -214,6 +220,8 @@ class VariantOption {
     return {
       'id': id,
       'name': name,
+      'color': color,
+      'image': image,
       'price_modifier': priceModifier,
     };
   }

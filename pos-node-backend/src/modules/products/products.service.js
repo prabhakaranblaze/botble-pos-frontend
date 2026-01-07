@@ -51,7 +51,15 @@ class ProductsService {
           variations: {
             include: {
               product: true,
-              variationItems: true,
+              variationItems: {
+                include: {
+                  attribute: {
+                    include: {
+                      attributeSet: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -88,7 +96,15 @@ class ProductsService {
         variations: {
           include: {
             product: true,
-            variationItems: true,
+            variationItems: {
+              include: {
+                attribute: {
+                  include: {
+                    attributeSet: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -152,7 +168,15 @@ class ProductsService {
         variations: {
           include: {
             product: true,
-            variationItems: true,
+            variationItems: {
+              include: {
+                attribute: {
+                  include: {
+                    attributeSet: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -210,16 +234,63 @@ class ProductsService {
 
   /**
    * Format variations for API response
+   * Groups attributes by attribute set (e.g., "Color", "Size")
    */
   formatVariations(variations) {
     if (!variations || variations.length === 0) return [];
 
-    // Group by attribute type
-    // Note: This is simplified - full implementation would need ec_product_attributes
-    return variations.map((v) => ({
-      id: Number(v.id),
-      product_id: v.product_id ? Number(v.product_id) : null,
-      is_default: v.is_default === 1,
+    // Collect all attributes from all variations
+    const attributeSetMap = new Map();
+
+    for (const variation of variations) {
+      if (!variation.variationItems) continue;
+
+      for (const item of variation.variationItems) {
+        if (!item.attribute || !item.attribute.attributeSet) continue;
+
+        const attr = item.attribute;
+        const attrSet = attr.attributeSet;
+        const setId = Number(attrSet.id);
+
+        // Initialize attribute set if not exists
+        if (!attributeSetMap.has(setId)) {
+          attributeSetMap.set(setId, {
+            id: setId,
+            name: attrSet.title,
+            type: attrSet.slug || attrSet.title,
+            options: new Map(),
+          });
+        }
+
+        // Add option if not exists
+        const set = attributeSetMap.get(setId);
+        const optionId = Number(attr.id);
+        if (!set.options.has(optionId)) {
+          // Get price modifier from variation product if available
+          let priceModifier = 0;
+          if (variation.product) {
+            const variantPrice = variation.product.price || 0;
+            // Note: price_modifier could be calculated relative to parent price
+            priceModifier = variantPrice;
+          }
+
+          set.options.set(optionId, {
+            id: optionId,
+            name: attr.title,
+            color: attr.color,
+            image: attr.image,
+            price_modifier: priceModifier,
+          });
+        }
+      }
+    }
+
+    // Convert to array format
+    return Array.from(attributeSetMap.values()).map((set) => ({
+      id: set.id,
+      name: set.name,
+      type: set.type,
+      options: Array.from(set.options.values()),
     }));
   }
 }

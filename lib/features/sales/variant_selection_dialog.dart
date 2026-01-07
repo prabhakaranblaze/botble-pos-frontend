@@ -324,6 +324,8 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
   Widget _buildVariantSelector(ProductVariant variant) {
     final selectedOptionId = _selectedVariantOptions[variant.id];
+    // Check if this is a color-type variant (has color values)
+    final isColorVariant = (variant.options ?? []).any((o) => o.color != null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,6 +344,12 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
           children: (variant.options ?? []).map((option) {
             final isSelected = option.id == selectedOptionId;
 
+            // For color variants, show color swatch
+            if (isColorVariant && option.color != null) {
+              return _buildColorSwatch(option, isSelected);
+            }
+
+            // Default: text-based option
             return InkWell(
               onTap: () {
                 setState(() {
@@ -397,5 +405,74 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
         ),
       ],
     );
+  }
+
+  /// Build a color swatch button for color-type variants
+  Widget _buildColorSwatch(VariantOption option, bool isSelected) {
+    // Parse hex color string to Color
+    Color swatchColor = Colors.grey;
+    if (option.color != null) {
+      try {
+        String hex = option.color!.replaceFirst('#', '');
+        if (hex.length == 6) {
+          swatchColor = Color(int.parse('FF$hex', radix: 16));
+        }
+      } catch (e) {
+        // Fallback to grey if parsing fails
+      }
+    }
+
+    return Tooltip(
+      message: option.name,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            // Find the variant ID for this option
+            for (var variant in widget.product.variants ?? []) {
+              if (variant.options?.any((o) => o.id == option.id) ?? false) {
+                _selectedVariantOptions[variant.id] = option.id;
+                break;
+              }
+            }
+          });
+        },
+        borderRadius: BorderRadius.circular(25),
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: swatchColor,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+              width: isSelected ? 3 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    )
+                  ]
+                : null,
+          ),
+          child: isSelected
+              ? Icon(
+                  Icons.check,
+                  color: _getContrastColor(swatchColor),
+                  size: 24,
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  /// Get contrasting color for check icon on color swatch
+  Color _getContrastColor(Color color) {
+    // Calculate luminance and return black or white for contrast
+    final luminance = color.computeLuminance();
+    return luminance > 0.5 ? Colors.black : Colors.white;
   }
 }

@@ -16,7 +16,7 @@ class ThermalPrintService {
 
   Printer? _selectedPrinter;
   List<Printer> _availablePrinters = [];
-  StreamSubscription? _printerSubscription;
+  StreamSubscription<List<Printer>>? _printerSubscription;
 
   Printer? get selectedPrinter => _selectedPrinter;
   List<Printer> get availablePrinters => _availablePrinters;
@@ -37,18 +37,33 @@ class ThermalPrintService {
     _printerSubscription?.cancel();
     _availablePrinters = [];
 
-    _printerSubscription = _flutterThermalPrinterPlugin
-        .getPrinters(connectionTypes: connectionTypes)
-        .listen((printers) {
-      _availablePrinters = printers;
-      debugPrint('Found ${printers.length} printers');
-    });
+    try {
+      // Get printers stream
+      final printersStream = _flutterThermalPrinterPlugin.devicesStream;
+
+      _printerSubscription = printersStream.listen((printers) {
+        _availablePrinters = printers;
+        debugPrint('Found ${printers.length} printers');
+      });
+
+      // Start discovery for each connection type
+      for (final type in connectionTypes) {
+        await _flutterThermalPrinterPlugin.startScan(connectionType: type);
+      }
+    } catch (e) {
+      debugPrint('Error scanning for printers: $e');
+    }
   }
 
   /// Stop scanning for printers
   void stopScan() {
-    _printerSubscription?.cancel();
-    _printerSubscription = null;
+    try {
+      _flutterThermalPrinterPlugin.stopScan();
+      _printerSubscription?.cancel();
+      _printerSubscription = null;
+    } catch (e) {
+      debugPrint('Error stopping scan: $e');
+    }
   }
 
   /// Select a printer for printing
@@ -65,9 +80,9 @@ class ThermalPrintService {
     }
 
     try {
-      final connected = await _flutterThermalPrinterPlugin.connect(_selectedPrinter!);
-      debugPrint('Printer connected: $connected');
-      return connected;
+      await _flutterThermalPrinterPlugin.connect(_selectedPrinter!);
+      debugPrint('Printer connected');
+      return true;
     } catch (e) {
       debugPrint('Failed to connect to printer: $e');
       return false;
@@ -77,7 +92,11 @@ class ThermalPrintService {
   /// Disconnect from the printer
   Future<void> disconnect() async {
     if (_selectedPrinter != null) {
-      await _flutterThermalPrinterPlugin.disconnect(_selectedPrinter!);
+      try {
+        await _flutterThermalPrinterPlugin.disconnect(_selectedPrinter!);
+      } catch (e) {
+        debugPrint('Error disconnecting: $e');
+      }
     }
   }
 
@@ -94,14 +113,14 @@ class ThermalPrintService {
 
       final receiptData = _buildReceiptCommands(order, autoCut: autoCut);
 
-      final result = await _flutterThermalPrinterPlugin.printData(
+      await _flutterThermalPrinterPlugin.printData(
         _selectedPrinter!,
         receiptData,
         longData: true,
       );
 
-      debugPrint('Print result: $result');
-      return result;
+      debugPrint('Print completed');
+      return true;
     } catch (e) {
       debugPrint('Print failed: $e');
       return false;

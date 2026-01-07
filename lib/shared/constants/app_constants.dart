@@ -70,3 +70,10 @@ class AppColors {
   static const textSecondary = Color(0xFF6B7280);
   static const border = Color(0xFFE5E7EB);
 }
+
+/// Currency formatting helper
+class AppCurrency {
+  static String format(double amount) {
+    return AppConstants.formatCurrency(amount);
+  }
+}

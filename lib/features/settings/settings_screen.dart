@@ -243,7 +243,7 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
         setState(() {
-          _availablePrinters = _printService.availablePrinters;
+          _availablePrinters = _filterVirtualPrinters(_printService.availablePrinters);
         });
       }
     });
@@ -252,11 +252,25 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() {
-          _availablePrinters = _printService.availablePrinters;
+          _availablePrinters = _filterVirtualPrinters(_printService.availablePrinters);
           _isScanning = false;
         });
       }
     });
+  }
+
+  /// Filter out virtual printers (PDF, OneNote, Fax, etc.)
+  List<Printer> _filterVirtualPrinters(List<Printer> printers) {
+    final virtualKeywords = [
+      'pdf', 'onenote', 'fax', 'xps', 'microsoft', 'virtual',
+      'adobe', 'print to', 'document', 'send to'
+    ];
+
+    return printers.where((printer) {
+      final name = (printer.name ?? '').toLowerCase();
+      // Keep printer if it doesn't contain any virtual printer keywords
+      return !virtualKeywords.any((keyword) => name.contains(keyword));
+    }).toList();
   }
 
   Future<void> _testPrint() async {
@@ -492,6 +506,29 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
 
             const SizedBox(height: 16),
 
+            // Note about thermal printers
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Requires ESC/POS thermal receipt printer (Epson, Star, HOIN, etc.)\nVirtual printers (PDF, OneNote) are not supported.',
+                      style: TextStyle(fontSize: 12, color: Colors.amber[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Printer List
             if (_availablePrinters.isEmpty && !_isScanning)
               Container(
@@ -510,12 +547,12 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'No printers found',
+                        'No thermal printers found',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Click Scan to search for printers',
+                        'Connect a USB thermal printer and click Scan',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],

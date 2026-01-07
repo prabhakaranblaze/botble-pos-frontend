@@ -52,41 +52,32 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _initWindowManager() async {
     try {
-      await windowManager.ensureInitialized();
+      // Window manager is already initialized in main.dart
       _windowManagerReady = true;
-      // Check if maximized (more reliable than fullscreen check)
-      _isFullScreen = await windowManager.isMaximized();
+      _isFullScreen = await windowManager.isFullScreen();
       if (mounted) setState(() {});
-      debugPrint('🖥️ Window manager initialized, maximized: $_isFullScreen');
+      debugPrint('🖥️ Window ready, fullscreen: $_isFullScreen');
     } catch (e) {
-      debugPrint('🖥️ Window manager init error: $e');
+      debugPrint('🖥️ Window manager check error: $e');
       _windowManagerReady = false;
     }
   }
 
   Future<void> _toggleFullScreen() async {
-    if (!_windowManagerReady) {
-      debugPrint('🖥️ Window manager not ready');
-      return;
-    }
-
     try {
-      // Use maximize/restore instead of fullscreen (more reliable on Windows)
-      final isMaximized = await windowManager.isMaximized();
-      debugPrint('🖥️ Current maximized state: $isMaximized');
+      _isFullScreen = !_isFullScreen;
+      debugPrint('🖥️ Setting fullscreen to: $_isFullScreen');
 
-      if (isMaximized) {
-        await windowManager.restore();
-        _isFullScreen = false;
-        debugPrint('🖥️ Window restored');
-      } else {
-        await windowManager.maximize();
-        _isFullScreen = true;
-        debugPrint('🖥️ Window maximized');
-      }
+      // setFullScreen hides Windows taskbar and title bar (true kiosk mode)
+      await windowManager.setFullScreen(_isFullScreen);
+
       setState(() {});
+      debugPrint('🖥️ Fullscreen: $_isFullScreen');
     } catch (e) {
       debugPrint('🖥️ Toggle fullscreen error: $e');
+      // Revert state on error
+      _isFullScreen = !_isFullScreen;
+      setState(() {});
     }
   }
 

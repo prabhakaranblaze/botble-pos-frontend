@@ -99,6 +99,8 @@ class SalesProvider with ChangeNotifier {
                 price: item.price,
                 quantity: item.quantity,
                 image: item.image,
+                sku: item.sku,
+                options: item.options,
               ))
           .toList(),
       subtotal: subtotal,

@@ -13,6 +13,7 @@ import 'core/services/connectivity_provider.dart';
 import 'core/providers/locale_provider.dart';
 import 'core/providers/inactivity_provider.dart';
 import 'core/providers/currency_provider.dart';
+import 'core/providers/pos_mode_provider.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
@@ -60,6 +61,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => CurrencyProvider()),
+        ChangeNotifierProvider(create: (_) => PosModeProvider()),
         ChangeNotifierProvider.value(value: inactivityProvider),
         Provider.value(value: apiService),
         ChangeNotifierProvider(

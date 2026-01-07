@@ -11,6 +11,7 @@ import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/services/connectivity_provider.dart';
 import '../../core/providers/locale_provider.dart';
+import '../../core/providers/pos_mode_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/saved_carts_screen.dart';
@@ -252,6 +253,58 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ),
                         ),
                         const Spacer(),
+
+                        // POS Mode Toggle
+                        Consumer<PosModeProvider>(
+                          builder: (context, modeProvider, _) {
+                            return Tooltip(
+                              message: 'Switch to ${modeProvider.isQuickSelect ? 'Kiosk' : 'Quick Select'} mode',
+                              child: InkWell(
+                                onTap: () => modeProvider.toggleMode(),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: modeProvider.isKiosk
+                                        ? AppColors.primary.withOpacity(0.1)
+                                        : AppColors.background,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: modeProvider.isKiosk
+                                          ? AppColors.primary
+                                          : AppColors.border,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        modeProvider.modeIcon,
+                                        size: 18,
+                                        color: modeProvider.isKiosk
+                                            ? AppColors.primary
+                                            : AppColors.textSecondary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        modeProvider.modeName,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: modeProvider.isKiosk
+                                              ? AppColors.primary
+                                              : AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 12),
 
                         // Clock
                         Container(

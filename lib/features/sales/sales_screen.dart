@@ -119,15 +119,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
     debugPrint('🔍 SEARCH: Found ${results.length} results');
 
-    // ✅ Check count BEFORE setting dropdown state
-    if (results.length == 1) {
-      debugPrint('🔍 SEARCH: Exactly 1 result found, auto-adding...');
-      await _addProductToCart(results.first);
-      _clearSearch();
-      return; // ✅ Exit early, don't show dropdown
-    }
-
-    // ✅ Only show dropdown for multiple results
+    // ✅ Always show dropdown for text search (user can select from list)
     setState(() {
       _searchResults = results;
       _showSearchDropdown = results.isNotEmpty;
@@ -417,9 +409,8 @@ class _SalesScreenState extends State<SalesScreen> {
                               },
                               onChanged: (value) {
                                 setState(() {});
-                                if (value.isEmpty) {
-                                  _handleSearch('');
-                                }
+                                // ✅ Show autocomplete as user types
+                                _handleSearch(value);
                               },
                             ),
 
@@ -456,15 +447,48 @@ class _SalesScreenState extends State<SalesScreen> {
                                               borderRadius:
                                                   BorderRadius.circular(6),
                                             ),
-                                            child: Icon(
-                                              Icons.inventory_2_outlined,
-                                              color: AppColors.primary,
-                                            ),
+                                            child: product.image != null
+                                                ? ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(6),
+                                                    child: Image.network(
+                                                      product.image!,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (_, __, ___) =>
+                                                          Icon(
+                                                        Icons.inventory_2_outlined,
+                                                        color: AppColors.primary,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : Icon(
+                                                    Icons.inventory_2_outlined,
+                                                    color: AppColors.primary,
+                                                  ),
                                           ),
                                           title: Text(product.name),
                                           subtitle: Text(
                                             '${product.sku ?? ''} - ${AppCurrency.format(product.finalPrice)}',
                                           ),
+                                          trailing: product.hasVariants
+                                              ? Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    'Options',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                )
+                                              : null,
                                           onTap: () async {
                                             debugPrint(
                                                 '🖱️ UI: Search result tapped - ${product.name}');

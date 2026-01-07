@@ -253,6 +253,10 @@ class OrdersService {
       take: limit,
       include: {
         orderProducts: true,
+        payments: {
+          take: 1,
+          orderBy: { created_at: 'desc' },
+        },
       },
     });
 
@@ -318,6 +322,10 @@ class OrdersService {
    * Format order from database
    */
   formatOrderFromDb(order) {
+    // Get payment method from payments if available
+    const payment = order.payments?.[0];
+    const paymentMethod = payment?.payment_channel || 'pos_cash';
+
     return {
       id: Number(order.id),
       code: order.code,
@@ -325,6 +333,7 @@ class OrdersService {
       tax_amount: Number(order.tax_amount || 0),
       discount_amount: Number(order.discount_amount || 0),
       sub_total: Number(order.sub_total),
+      payment_method: paymentMethod,
       status: order.status,
       created_at: order.created_at?.toISOString(),
       customer: order.customer

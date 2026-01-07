@@ -195,7 +195,7 @@ class Order {
     this.subTotal = 0,
     this.taxAmount = 0,
     this.discountAmount = 0,
-    required this.paymentMethod,
+    this.paymentMethod = 'pos_cash',
     required this.status,
     required this.createdAt,
     this.customer,
@@ -218,7 +218,7 @@ class Order {
         subTotal: (json['sub_total'] as num?)?.toDouble() ?? 0,
         taxAmount: (json['tax_amount'] as num?)?.toDouble() ?? 0,
         discountAmount: (json['discount_amount'] as num?)?.toDouble() ?? 0,
-        paymentMethod: json['payment_method'] as String,
+        paymentMethod: json['payment_method'] as String? ?? 'pos_cash',
         status: json['status'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
         items: itemsList

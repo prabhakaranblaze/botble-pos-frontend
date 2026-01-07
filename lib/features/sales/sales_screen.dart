@@ -90,7 +90,7 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
-  // ⭐ UNIFIED SEARCH LOGIC
+  // ⭐ UNIFIED SEARCH LOGIC (local filtering for autocomplete)
   Future<void> _handleSearch(String query) async {
     debugPrint('🔍 SEARCH: _handleSearch called with query: "$query"');
 
@@ -100,15 +100,13 @@ class _SalesScreenState extends State<SalesScreen> {
         _searchResults = [];
         _showSearchDropdown = false;
       });
-      await context.read<SalesProvider>().searchProducts('');
       return;
     }
 
     debugPrint('🔍 SEARCH: Searching for: "$query"');
     final salesProvider = context.read<SalesProvider>();
-    salesProvider.searchProducts(query);
 
-    // Filter current products
+    // ✅ Only filter locally - don't call API (to prevent clearing products)
     final results = salesProvider.products.where((p) {
       final searchLower = query.toLowerCase();
       final matchName = p.name.toLowerCase().contains(searchLower);
@@ -132,11 +130,11 @@ class _SalesScreenState extends State<SalesScreen> {
     // ✅ Only show dropdown for multiple results
     setState(() {
       _searchResults = results;
-      _showSearchDropdown = true;
+      _showSearchDropdown = results.isNotEmpty;
     });
 
     debugPrint(
-        '🔍 SEARCH: Multiple results (${results.length}), showing dropdown');
+        '🔍 SEARCH: ${results.length} results, showing dropdown: ${results.isNotEmpty}');
   }
 
   Future<void> _handleRefresh() async {
@@ -166,7 +164,6 @@ class _SalesScreenState extends State<SalesScreen> {
       _searchResults = [];
       _showSearchDropdown = false;
     });
-    context.read<SalesProvider>().searchProducts('');
     _searchFocusNode.requestFocus();
   }
 

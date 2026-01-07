@@ -31,6 +31,12 @@ class EnvConfig {
     }
   }
 
+  // Image CDN Base URL
+  static const String imageBaseUrl = String.fromEnvironment(
+    'IMAGE_BASE_URL',
+    defaultValue: 'https://pub-1664f164de65435e943bd597c050e247.r2.dev',
+  );
+
   // API Key (same for both environments)
   static const String apiKey = String.fromEnvironment(
     'API_KEY',
@@ -47,4 +53,22 @@ class EnvConfig {
   // Display info
   static String get environmentName => isDev ? 'Development' : 'Production';
   static String get environmentBadge => isDev ? '[DEV]' : '';
+
+  /// Get full image URL from relative path
+  /// Handles both relative paths and already-full URLs
+  static String getImageUrl(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) {
+      return '';
+    }
+
+    // Already a full URL
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+
+    // Remove leading slash if present
+    final cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+
+    return '$imageBaseUrl/$cleanPath';
+  }
 }

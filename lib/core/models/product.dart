@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../config/env_config.dart';
 
 class Product {
   final int id;
@@ -30,6 +31,12 @@ class Product {
   });
 
   double get finalPrice => salePrice ?? price;
+
+  /// Get full image URL with base URL prefix
+  String? get fullImageUrl {
+    if (image == null || image!.isEmpty) return null;
+    return EnvConfig.getImageUrl(image);
+  }
 
   // ⭐ FROM API JSON
   factory Product.fromJson(Map<String, dynamic> json) {

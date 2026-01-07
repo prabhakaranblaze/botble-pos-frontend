@@ -808,10 +808,9 @@ class _SalesScreenState extends State<SalesScreen> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // TextField
-          KeyboardListener(
-            focusNode: FocusNode(),
-            onKeyEvent: (event) {
+          // TextField with keyboard handling
+          Focus(
+            onKeyEvent: (node, event) {
               if (event is KeyDownEvent) {
                 if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
                     _showSearchDropdown &&
@@ -819,16 +818,20 @@ class _SalesScreenState extends State<SalesScreen> {
                   setState(() {
                     _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
                   });
+                  return KeyEventResult.handled;
                 } else if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
                     _showSearchDropdown &&
                     _searchResults.isNotEmpty) {
                   setState(() {
                     _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
                   });
+                  return KeyEventResult.handled;
                 } else if (event.logicalKey == LogicalKeyboardKey.escape) {
                   _clearSearch();
+                  return KeyEventResult.handled;
                 }
               }
+              return KeyEventResult.ignored;
             },
             child: TextField(
               controller: _searchController,
@@ -938,11 +941,11 @@ class _SalesScreenState extends State<SalesScreen> {
                                   color: AppColors.background,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: product.image != null
+                                child: product.fullImageUrl != null
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(6),
                                         child: Image.network(
-                                          product.image!,
+                                          product.fullImageUrl!,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) => Icon(
                                             Icons.inventory_2_outlined,
@@ -1113,11 +1116,11 @@ class _SalesScreenState extends State<SalesScreen> {
                                   color: AppColors.background,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: product.image != null
+                                child: product.fullImageUrl != null
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(6),
                                         child: Image.network(
-                                          product.image!,
+                                          product.fullImageUrl!,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) => Icon(
                                             Icons.inventory_2_outlined,
@@ -1208,11 +1211,11 @@ class _SalesScreenState extends State<SalesScreen> {
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: item.image != null && item.image!.isNotEmpty
+              child: item.fullImageUrl != null && item.fullImageUrl!.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
-                        item.image!,
+                        item.fullImageUrl!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Icon(
                           Icons.inventory_2_outlined,
@@ -1510,7 +1513,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
   Widget _buildProductCard(Product product) {
     debugPrint(
-        '🎨 BUILD: Product card - ${product.name}, Image: ${product.image}');
+        '🎨 BUILD: Product card - ${product.name}, Image: ${product.fullImageUrl}');
 
     return Card(
       child: InkWell(
@@ -1532,17 +1535,17 @@ class _SalesScreenState extends State<SalesScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
-                    child: product.image != null && product.image!.isNotEmpty
+                    child: product.fullImageUrl != null && product.fullImageUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(
-                              product.image!,
+                              product.fullImageUrl!,
                               fit: BoxFit.cover,
                               width: double.infinity,
                               height: double.infinity,
                               errorBuilder: (context, error, stackTrace) {
                                 debugPrint(
-                                    '⚠️ IMAGE: Failed to load ${product.image}');
+                                    '⚠️ IMAGE: Failed to load ${product.fullImageUrl}');
                                 return Icon(
                                   Icons.inventory_2_outlined,
                                   size: 48,

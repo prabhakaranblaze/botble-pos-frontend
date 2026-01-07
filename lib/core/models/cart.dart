@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'product.dart';
 import 'customer.dart';
+import '../config/env_config.dart';
 
 class CartItem {
   final int productId;
@@ -25,6 +26,12 @@ class CartItem {
 
   double get total => price * quantity;
   double get lineTotal => total; // Alias for total
+
+  /// Get full image URL with base URL prefix
+  String? get fullImageUrl {
+    if (image == null || image!.isEmpty) return null;
+    return EnvConfig.getImageUrl(image);
+  }
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
     debugPrint('🛒 CART ITEM: Parsing from JSON');

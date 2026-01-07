@@ -127,10 +127,26 @@ class SalesProvider with ChangeNotifier {
     }
   }
 
-  // Search products
+  // Search products (updates main list)
   Future<void> searchProducts(String query) async {
     _searchQuery = query;
     await loadProducts(refresh: true);
+  }
+
+  /// Search products online without modifying the main products list
+  /// Used for autocomplete when local cache is empty
+  Future<List<Product>> searchProductsOnline(String query) async {
+    if (query.isEmpty) return [];
+
+    debugPrint('🔍 ONLINE SEARCH: Searching for "$query"');
+    try {
+      final results = await _apiService.getProducts(search: query);
+      debugPrint('🔍 ONLINE SEARCH: Found ${results.length} results');
+      return results;
+    } catch (e) {
+      debugPrint('❌ ONLINE SEARCH: Error - $e');
+      return [];
+    }
   }
 
   // Scan barcode - just return the product, don't add to cart

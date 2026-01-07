@@ -104,7 +104,7 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
-  // ⭐ UNIFIED SEARCH LOGIC (local filtering for autocomplete)
+  // ⭐ UNIFIED SEARCH LOGIC (local + API fallback)
   Future<void> _handleSearch(String query) async {
     debugPrint('🔍 SEARCH: _handleSearch called with query: "$query"');
 
@@ -121,8 +121,8 @@ class _SalesScreenState extends State<SalesScreen> {
     debugPrint('🔍 SEARCH: Searching for: "$query"');
     final salesProvider = context.read<SalesProvider>();
 
-    // ✅ Only filter locally - don't call API (to prevent clearing products)
-    final results = salesProvider.products.where((p) {
+    // First try local search
+    var results = salesProvider.products.where((p) {
       final searchLower = query.toLowerCase();
       final matchName = p.name.toLowerCase().contains(searchLower);
       final matchSku = p.sku?.toLowerCase().contains(searchLower) ?? false;
@@ -132,13 +132,20 @@ class _SalesScreenState extends State<SalesScreen> {
       return matchName || matchSku || matchBarcode;
     }).toList();
 
-    debugPrint('🔍 SEARCH: Found ${results.length} results');
+    debugPrint('🔍 SEARCH: Local found ${results.length} results');
 
-    // ✅ Always show dropdown for text search (user can select from list)
+    // If local search is empty and query is long enough, search API
+    if (results.isEmpty && query.length >= 2) {
+      debugPrint('🔍 SEARCH: Local empty, trying API search...');
+      results = await salesProvider.searchProductsOnline(query);
+      debugPrint('🔍 SEARCH: API found ${results.length} results');
+    }
+
+    // Update state with results
     setState(() {
       _searchResults = results;
       _showSearchDropdown = results.isNotEmpty;
-      _selectedIndex = results.isNotEmpty ? 0 : -1; // Select first item by default
+      _selectedIndex = results.isNotEmpty ? 0 : -1;
     });
 
     debugPrint(

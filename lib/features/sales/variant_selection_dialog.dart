@@ -34,10 +34,15 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
       if (variant.options == null || variant.options!.isEmpty) continue;
       final selectedOptionId = _selectedVariantOptions[variant.id];
       if (selectedOptionId != null) {
-        final option = variant.options!.firstWhere(
-          (o) => o.id == selectedOptionId,
-          orElse: () => variant.options!.first,
-        );
+        // Find selected option or use first as fallback
+        VariantOption? option;
+        for (var o in variant.options!) {
+          if (o.id == selectedOptionId) {
+            option = o;
+            break;
+          }
+        }
+        option ??= variant.options!.first;
         modifiersTotal += option.priceModifier ?? 0;
       }
     }

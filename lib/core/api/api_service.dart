@@ -8,6 +8,7 @@ import '../models/user.dart';
 import '../models/product.dart';
 import '../models/cart.dart';
 import '../models/customer.dart';
+import '../models/customer_address.dart';
 import '../models/session.dart';
 import '../database/database_service.dart';
 import '../services/storage_service.dart';
@@ -493,6 +494,43 @@ class ApiService {
     }
   }
 
+  Future<List<CustomerAddress>> getCustomerAddresses(int customerId) async {
+    debugPrint('📍 API SERVICE: getCustomerAddresses for customer $customerId');
+    try {
+      final response = await _dio.get('/customers/$customerId/addresses');
+      if (response.data['error'] == false) {
+        final addresses = (response.data['data']['addresses'] as List)
+            .map((json) => CustomerAddress.fromJson(json))
+            .toList();
+        debugPrint('✅ API SERVICE: Found ${addresses.length} addresses');
+        return addresses;
+      } else {
+        debugPrint('❌ API SERVICE: Error getting addresses');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getCustomerAddresses error: $e');
+      return [];
+    }
+  }
+
+  Future<CustomerAddress> createCustomerAddress(int customerId, Map<String, dynamic> data) async {
+    debugPrint('📍 API SERVICE: createCustomerAddress for customer $customerId');
+    try {
+      final response = await _dio.post('/customers/$customerId/addresses', data: data);
+      if (response.data['error'] == false) {
+        final address = CustomerAddress.fromJson(response.data['data']['address']);
+        debugPrint('✅ API SERVICE: Created address ${address.id}');
+        return address;
+      } else {
+        throw Exception(response.data['message']);
+      }
+    } catch (e) {
+      debugPrint('❌ API SERVICE: createCustomerAddress error: $e');
+      throw Exception('Failed to create address: ${e.toString()}');
+    }
+  }
+
   // Order APIs
   /// Checkout with cart items sent directly (no server-side cart sync)
   Future<Order> checkoutDirect({
@@ -507,12 +545,16 @@ class ApiService {
     String? discountDescription,
     // Shipping
     double shippingAmount = 0,
+    String deliveryType = 'pickup', // 'pickup' or 'ship'
     // Tax
     double? taxAmount,
     // Customer info for invoice
     String? customerName,
     String? customerEmail,
     String? customerPhone,
+    // Address info (for delivery_type = 'ship')
+    int? addressId,
+    String? customerAddress,
   }) async {
     debugPrint('💳 API SERVICE: ========== CHECKOUT DIRECT ==========');
     debugPrint('💳 API SERVICE: Items: ${items.length}');
@@ -520,7 +562,9 @@ class ApiService {
     debugPrint('💳 API SERVICE: Tax amount: $taxAmount');
     debugPrint('💳 API SERVICE: Discount amount: $discountAmount (coupon: $couponCode)');
     debugPrint('💳 API SERVICE: Shipping amount: $shippingAmount');
+    debugPrint('💳 API SERVICE: Delivery type: $deliveryType');
     debugPrint('💳 API SERVICE: Customer ID: $customerId');
+    debugPrint('💳 API SERVICE: Address ID: $addressId');
 
     try {
       if (!_isOnline) {
@@ -536,6 +580,7 @@ class ApiService {
         'tax_amount': taxAmount ?? 0,
         'discount_amount': discountAmount,
         'shipping_amount': shippingAmount,
+        'delivery_type': deliveryType,
       };
 
       // Add optional fields
@@ -547,6 +592,8 @@ class ApiService {
       if (customerName != null) requestData['customer_name'] = customerName;
       if (customerEmail != null) requestData['customer_email'] = customerEmail;
       if (customerPhone != null) requestData['customer_phone'] = customerPhone;
+      if (addressId != null) requestData['address_id'] = addressId;
+      if (customerAddress != null) requestData['customer_address'] = customerAddress;
 
       debugPrint('💳 API SERVICE: Request data: $requestData');
       debugPrint('💳 API SERVICE: Request data (tax_amount): ${requestData['tax_amount']}');

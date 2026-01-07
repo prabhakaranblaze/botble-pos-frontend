@@ -137,10 +137,14 @@ class OrdersService {
     discountAmount = 0,         // Calculated discount amount
     discountDescription = null, // Description (for manual discount)
     shippingAmount = 0,         // Shipping amount
+    deliveryType = 'pickup',    // 'pickup' or 'ship'
     taxAmount = null,           // Client-calculated tax (if provided)
     customerName = null,        // For invoice
     customerEmail = null,
     customerPhone = null,
+    // Address info
+    addressId = null,           // Customer address ID (for shipping)
+    customerAddress = null,     // Full formatted address for invoice
   }) {
     console.log('========== CHECKOUT DIRECT ==========');
     console.log('checkoutDirect received params:');
@@ -297,6 +301,8 @@ class OrdersService {
       customerName,
       customerEmail,
       customerPhone,
+      customerAddress,
+      deliveryType,
       subtotal,
       taxAmount: tax,
       shippingAmount,
@@ -350,6 +356,8 @@ class OrdersService {
     customerName,
     customerEmail,
     customerPhone,
+    customerAddress,
+    deliveryType = 'pickup',
     subtotal,
     taxAmount,
     shippingAmount,
@@ -366,7 +374,10 @@ class OrdersService {
     const finalCustomerName = customerName || 'Guest';
     const finalCustomerEmail = customerEmail || 'guest@example.com';
     const finalCustomerPhone = customerPhone || 'N/A';
-    const finalCustomerAddress = 'Pickup at Store'; // POS orders are always pickup
+    // Address: use provided address for shipping, or 'Pickup at Store' for pickup
+    const finalCustomerAddress = deliveryType === 'ship' && customerAddress
+      ? customerAddress
+      : 'Pickup at Store';
 
     // Create invoice
     const invoice = await prisma.invoice.create({

@@ -434,10 +434,33 @@ model Customer {
 
   orders                Order[]
   discountCustomers     DiscountCustomer[]
+  addresses             CustomerAddress[]
 
   @@index([email])
   @@index([phone])
   @@map("ec_customers")
+}
+
+model CustomerAddress {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name        String    @db.VarChar(191)
+  email       String?   @db.VarChar(60)
+  phone       String?   @db.VarChar(20)
+  country     String?   @db.VarChar(120)
+  state       String?   @db.VarChar(120)
+  city        String?   @db.VarChar(120)
+  address     String?   @db.VarChar(191)
+  customer_id BigInt    @db.UnsignedBigInt
+  is_default  Int       @default(0) @db.UnsignedTinyInt
+  created_at  DateTime?
+  updated_at  DateTime?
+  zip_code    String?   @db.VarChar(20)
+  deleted_at  DateTime?
+
+  customer    Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_id])
+  @@map("ec_customer_addresses")
 }
 
 // ============================================

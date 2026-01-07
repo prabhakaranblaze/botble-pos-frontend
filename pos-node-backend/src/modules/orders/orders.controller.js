@@ -24,12 +24,16 @@ const checkoutSchema = z.object({
   discount_description: z.string().optional().nullable(),
   // Shipping
   shipping_amount: z.number().optional().default(0),
+  delivery_type: z.enum(['pickup', 'ship']).optional().default('pickup'),
   // Tax
   tax_amount: z.number().optional().nullable(),
   // Customer info for invoice
   customer_name: z.string().optional().nullable(),
   customer_email: z.string().optional().nullable(),
   customer_phone: z.string().optional().nullable(),
+  // Address info (for delivery_type = 'ship')
+  address_id: z.number().int().positive().optional().nullable(),
+  customer_address: z.string().optional().nullable(), // Full formatted address for invoice
 });
 
 class OrdersController {
@@ -83,12 +87,16 @@ class OrdersController {
         discountDescription: data.discount_description,
         // Shipping
         shippingAmount: data.shipping_amount,
+        deliveryType: data.delivery_type,
         // Tax
         taxAmount: data.tax_amount,
         // Customer info for invoice
         customerName: data.customer_name,
         customerEmail: data.customer_email,
         customerPhone: data.customer_phone,
+        // Address info
+        addressId: data.address_id,
+        customerAddress: data.customer_address,
       });
 
       res.json({

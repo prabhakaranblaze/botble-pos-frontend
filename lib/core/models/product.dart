@@ -32,6 +32,12 @@ class Product {
 
   double get finalPrice => salePrice ?? price;
 
+  /// Check if product has selectable variant options (not just variant flag)
+  bool get hasSelectableVariants {
+    if (!hasVariants || variants == null) return false;
+    return variants!.any((v) => v.options != null && v.options!.isNotEmpty);
+  }
+
   /// Get full image URL with base URL prefix
   String? get fullImageUrl {
     if (image == null || image!.isEmpty) return null;
@@ -138,34 +144,47 @@ class Product {
 
 class ProductVariant {
   final int id;
-  final String type; // "Size", "Color", etc.
-  final String name;
-  final List<VariantOption> options;
+  final int? productId; // The actual product ID for this variant
+  final bool isDefault;
+  final String? type; // "Size", "Color", etc. - may be null in simple variants
+  final String? name;
+  final List<VariantOption>? options;
 
   ProductVariant({
     required this.id,
-    required this.type,
-    required this.name,
-    required this.options,
+    this.productId,
+    this.isDefault = false,
+    this.type,
+    this.name,
+    this.options,
   });
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
+    List<VariantOption>? optionsList;
+    if (json['options'] != null) {
+      optionsList = (json['options'] as List)
+          .map((o) => VariantOption.fromJson(o))
+          .toList();
+    }
+
     return ProductVariant(
       id: json['id'] as int,
-      type: json['type'] as String,
-      name: json['name'] as String,
-      options: (json['options'] as List)
-          .map((o) => VariantOption.fromJson(o))
-          .toList(),
+      productId: json['product_id'] as int?,
+      isDefault: json['is_default'] ?? false,
+      type: json['type'] as String?,
+      name: json['name'] as String?,
+      options: optionsList,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'product_id': productId,
+      'is_default': isDefault,
       'type': type,
       'name': name,
-      'options': options.map((o) => o.toJson()).toList(),
+      'options': options?.map((o) => o.toJson()).toList(),
     };
   }
 }

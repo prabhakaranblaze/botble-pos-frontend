@@ -219,11 +219,14 @@ class _SalesScreenState extends State<SalesScreen> {
     debugPrint('➕ ADD TO CART: Product ID: ${product.id}');
     debugPrint('➕ ADD TO CART: Product Name: ${product.name}');
     debugPrint('➕ ADD TO CART: Has Variants: ${product.hasVariants}');
+    debugPrint(
+        '➕ ADD TO CART: Has Selectable Variants: ${product.hasSelectableVariants}');
 
     final salesProvider = context.read<SalesProvider>();
 
     try {
-      if (product.hasVariants) {
+      // Only show variant dialog if product has actual options to select
+      if (product.hasSelectableVariants) {
         debugPrint('➕ ADD TO CART: Product has variants, showing dialog...');
 
         // Show variant selection dialog

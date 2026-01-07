@@ -18,17 +18,25 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
   final Map<int, int> _selectedVariantOptions = {}; // variantId -> optionId
   int _quantity = 1;
 
+  // Check if product has actual variant options to select
+  bool get _hasSelectableVariants {
+    if (widget.product.variants == null) return false;
+    return widget.product.variants!
+        .any((v) => v.options != null && v.options!.isNotEmpty);
+  }
+
   double get _calculatedPrice {
     double basePrice = widget.product.finalPrice;
     double modifiersTotal = 0;
 
     // Add price modifiers from selected variants
     for (var variant in widget.product.variants ?? []) {
+      if (variant.options == null || variant.options!.isEmpty) continue;
       final selectedOptionId = _selectedVariantOptions[variant.id];
       if (selectedOptionId != null) {
-        final option = variant.options.firstWhere(
+        final option = variant.options!.firstWhere(
           (o) => o.id == selectedOptionId,
-          orElse: () => variant.options.first,
+          orElse: () => variant.options!.first,
         );
         modifiersTotal += option.priceModifier ?? 0;
       }
@@ -38,12 +46,15 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
   }
 
   bool get _isValid {
-    // Check if all variants have a selection
-    if (widget.product.variants == null) return true;
+    // If no selectable variants, always valid
+    if (!_hasSelectableVariants) return true;
 
-    for (var variant in widget.product.variants!) {
-      if (!_selectedVariantOptions.containsKey(variant.id)) {
-        return false;
+    // Check if all variants with options have a selection
+    for (var variant in widget.product.variants ?? []) {
+      if (variant.options != null && variant.options!.isNotEmpty) {
+        if (!_selectedVariantOptions.containsKey(variant.id)) {
+          return false;
+        }
       }
     }
     return true;
@@ -52,10 +63,10 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
   @override
   void initState() {
     super.initState();
-    // Pre-select first option for each variant
+    // Pre-select first option for each variant that has options
     for (var variant in widget.product.variants ?? []) {
-      if (variant.options.isNotEmpty) {
-        _selectedVariantOptions[variant.id] = variant.options.first.id;
+      if (variant.options != null && variant.options!.isNotEmpty) {
+        _selectedVariantOptions[variant.id] = variant.options!.first.id;
       }
     }
   }
@@ -181,8 +192,11 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
                     const SizedBox(height: 16),
 
-                    // Variant Options
-                    ...widget.product.variants?.map((variant) {
+                    // Variant Options (only show variants that have options)
+                    ...widget.product.variants
+                            ?.where((v) =>
+                                v.options != null && v.options!.isNotEmpty)
+                            .map((variant) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 24),
                             child: _buildVariantSelector(variant),
@@ -315,7 +329,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          variant.name,
+          variant.name ?? variant.type ?? 'Option',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -325,7 +339,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: variant.options.map((option) {
+          children: (variant.options ?? []).map((option) {
             final isSelected = option.id == selectedOptionId;
 
             return InkWell(

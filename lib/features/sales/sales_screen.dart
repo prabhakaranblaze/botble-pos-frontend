@@ -238,9 +238,16 @@ class _SalesScreenState extends State<SalesScreen> {
           debugPrint('➕ ADD TO CART: Adding with variants...');
           debugPrint('➕ ADD TO CART: Quantity: ${result['quantity']}');
           debugPrint('➕ ADD TO CART: Variants: ${result['variants']}');
+          debugPrint('➕ ADD TO CART: Total Price: ${result['price']}');
+
+          // Calculate unit price from total (dialog returns total = unit * qty)
+          final int qty = result['quantity'] as int;
+          final double totalPrice = result['price'] as double;
+          final double unitPrice = totalPrice / qty;
+          debugPrint('➕ ADD TO CART: Unit Price: $unitPrice');
 
           await salesProvider.addProductToCart(product,
-              quantity: result['quantity']);
+              quantity: qty, priceOverride: unitPrice);
 
           debugPrint('✅ ADD TO CART: Product added with variants');
         } else {

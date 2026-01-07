@@ -191,15 +191,20 @@ class SalesProvider with ChangeNotifier {
   }
 
   // ✅ CLIENT-SIDE: Add to cart with full Product object (for API search results)
-  Future<void> addProductToCart(Product product, {int quantity = 1}) async {
+  // priceOverride: Use this for variant products where price comes from variant selection
+  Future<void> addProductToCart(Product product,
+      {int quantity = 1, double? priceOverride}) async {
     try {
-      debugPrint('🛒 CLIENT CART: Adding "${product.name}" (qty: $quantity)');
+      final unitPrice = priceOverride ?? product.finalPrice;
+      debugPrint(
+          '🛒 CLIENT CART: Adding "${product.name}" (qty: $quantity, price: $unitPrice)');
 
       // Validate price - API rejects items with price <= 0
-      if (product.finalPrice <= 0) {
-        debugPrint('❌ CLIENT CART: Invalid price ${product.finalPrice}');
+      if (unitPrice <= 0) {
+        debugPrint('❌ CLIENT CART: Invalid price $unitPrice');
         await _audioService.playError();
-        throw Exception('Cannot add "${product.name}" - price must be greater than 0');
+        throw Exception(
+            'Cannot add "${product.name}" - price must be greater than 0');
       }
 
       final existingIndex =
@@ -215,7 +220,7 @@ class SalesProvider with ChangeNotifier {
         _cartItems.add(SavedCartItem(
           productId: product.id,
           name: product.name,
-          price: product.finalPrice,
+          price: unitPrice,
           quantity: quantity,
           image: product.image,
           taxRate: 0.0,

@@ -296,8 +296,8 @@ class SalesProvider with ChangeNotifier {
         final productTax = product.tax?.percentage ?? 0.0;
         final taxRate = productTax > 0 ? productTax : _defaultTaxRate;
 
-        // Build options string: use provided options or "Default" for simple products
-        final optionsDisplay = options ?? (product.hasVariants ? null : 'Default');
+        // Build options string: use provided options or "Default" as fallback
+        final optionsDisplay = options ?? 'Default';
 
         _cartItems.add(SavedCartItem(
           productId: product.id,

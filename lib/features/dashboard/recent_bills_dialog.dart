@@ -401,7 +401,7 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
               if (order.discountAmount > 0)
                 _buildDetailRow(l10n?.discount ?? 'Discount', '-${AppCurrency.format(order.discountAmount)}'),
               if (order.shippingAmount > 0)
-                _buildDetailRow(l10n?.shipping ?? 'Shipping', AppCurrency.format(order.shippingAmount)),
+                _buildDetailRow('Shipping', AppCurrency.format(order.shippingAmount)),
               const Divider(height: 16),
               _buildDetailRow(
                 l10n?.total ?? 'Total',

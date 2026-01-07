@@ -539,6 +539,10 @@ class SalesProvider with ChangeNotifier {
       debugPrint('💳 CHECKOUT: Payment method: $_paymentMethod');
       debugPrint('💳 CHECKOUT: Discount: $totalDiscountAmount (coupon: $_couponCode)');
       debugPrint('💳 CHECKOUT: Shipping: $_shippingAmount');
+      debugPrint('💳 CHECKOUT: Cart tax: ${cart.tax}');
+      for (var item in _cartItems) {
+        debugPrint('💳 CHECKOUT: Item "${item.name}" taxRate: ${item.taxRate}%');
+      }
 
       if (_cartItems.isEmpty) {
         throw Exception('Cart is empty');

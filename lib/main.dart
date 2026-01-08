@@ -14,6 +14,7 @@ import 'core/providers/locale_provider.dart';
 import 'core/providers/inactivity_provider.dart';
 import 'core/providers/currency_provider.dart';
 import 'core/providers/pos_mode_provider.dart';
+import 'core/providers/update_provider.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
@@ -58,11 +59,17 @@ void main() async {
   // Create AuthProvider first so we can connect the 401 handler
   final authProvider = AuthProvider(apiService, storageService);
 
+  // Create UpdateProvider for app updates
+  final updateProvider = UpdateProvider(apiService);
+
   // Connect API 401 handler to trigger automatic logout
   apiService.onUnauthorized = () {
     debugPrint('🔐 AUTO-LOGOUT: 401 detected, logging out user');
     authProvider.logout();
   };
+
+  // Check for updates on startup (non-blocking)
+  updateProvider.checkForUpdate();
 
   runApp(
     MultiProvider(
@@ -72,6 +79,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CurrencyProvider()),
         ChangeNotifierProvider(create: (_) => PosModeProvider()),
         ChangeNotifierProvider.value(value: inactivityProvider),
+        ChangeNotifierProvider.value(value: updateProvider),
         Provider.value(value: apiService),
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(

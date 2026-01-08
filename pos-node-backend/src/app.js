@@ -24,6 +24,7 @@ const printerRoutes = require('./modules/printer/printer.routes');
 const settingsRoutes = require('./modules/settings/settings.routes');
 const discountsRoutes = require('./modules/discounts/discounts.routes');
 const reportsRoutes = require('./modules/reports/reports.routes');
+const updatesRoutes = require('./modules/updates/updates.routes');
 
 // Initialize Express
 const app = express();
@@ -87,6 +88,7 @@ apiRouter.use('/printer', printerRoutes);
 apiRouter.use('/settings', settingsRoutes);
 apiRouter.use('/discounts', discountsRoutes);
 apiRouter.use('/reports', reportsRoutes);
+apiRouter.use('/updates', updatesRoutes);
 
 // Mount API router
 app.use('/api/v1/pos', apiRouter);

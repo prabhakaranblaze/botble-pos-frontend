@@ -12,6 +12,7 @@ import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/services/connectivity_provider.dart';
 import '../../core/providers/locale_provider.dart';
+import '../../core/providers/update_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import 'recent_bills_dialog.dart';
@@ -561,6 +562,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (context, child) {
         final isSelected = _tabController.index == index;
 
+        // Check for update badge on Settings (index 2)
+        final showBadge = index == 2;
+
         return Tooltip(
           message: label,
           child: InkWell(
@@ -577,11 +581,45 @@ class _DashboardScreenState extends State<DashboardScreen>
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 28,
-              ),
+              child: showBadge
+                  ? Consumer<UpdateProvider>(
+                      builder: (context, updateProvider, _) {
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Center(
+                              child: Icon(
+                                icon,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                            if (updateProvider.hasUpdate)
+                              Positioned(
+                                right: 12,
+                                top: -4,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    )
+                  : Icon(
+                      icon,
+                      color: Colors.white,
+                      size: 28,
+                    ),
             ),
           ),
         );

@@ -52,7 +52,7 @@ void main() async {
   await audioService.preload(); // preload beep sound for instant playback
 
   final inactivityProvider = InactivityProvider(
-    lockTimeout: const Duration(minutes: 1), // Change to 30 for production
+    lockTimeout: const Duration(minutes: 60),
   );
 
   // Create AuthProvider first so we can connect the 401 handler

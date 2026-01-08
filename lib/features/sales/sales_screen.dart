@@ -1470,59 +1470,63 @@ class _SalesScreenState extends State<SalesScreen> {
                           },
                         ),
 
-                      // Discount/Coupon/Shipping Actions (compact tabs)
-                      if (cart.items.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
-                            children: [
-                              // Coupon tab
-                              Expanded(
-                                child: _buildActionTab(
-                                  icon: Icons.confirmation_number_outlined,
-                                  label: 'Coupon',
-                                  isActive: sales.hasCouponDiscount,
-                                  onTap: () => _showApplyCouponDialog(),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Discount tab (only if no coupon)
-                              if (!sales.hasCouponDiscount)
-                                Expanded(
-                                  child: _buildActionTab(
-                                    icon: Icons.percent_outlined,
-                                    label: 'Discount',
-                                    isActive: sales.hasManualDiscount,
-                                    onTap: () => _showApplyDiscountDialog(),
-                                  ),
-                                ),
-                              if (!sales.hasCouponDiscount)
-                                const SizedBox(width: 8),
-                              // Shipping tab
-                              Expanded(
-                                child: _buildActionTab(
-                                  icon: Icons.local_shipping_outlined,
-                                  label: 'Shipping',
-                                  isActive: sales.shippingAmount > 0,
-                                  onTap: () => _showUpdateShippingDialog(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                     ],
                   ),
                 ),
               ),
 
-              // Order Summary (fixed at bottom)
+              // Fixed bottom section: Action tabs + Order Summary
               if (cart.items.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.background,
                     border: Border(top: BorderSide(color: AppColors.border)),
                   ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Action tabs (Coupon | Discount | Shipping)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        child: Row(
+                          children: [
+                            // Coupon tab
+                            Expanded(
+                              child: _buildActionTab(
+                                icon: Icons.confirmation_number_outlined,
+                                label: 'Coupon',
+                                isActive: sales.hasCouponDiscount,
+                                onTap: () => _showApplyCouponDialog(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Discount tab (only if no coupon)
+                            if (!sales.hasCouponDiscount)
+                              Expanded(
+                                child: _buildActionTab(
+                                  icon: Icons.percent_outlined,
+                                  label: 'Discount',
+                                  isActive: sales.hasManualDiscount,
+                                  onTap: () => _showApplyDiscountDialog(),
+                                ),
+                              ),
+                            if (!sales.hasCouponDiscount)
+                              const SizedBox(width: 8),
+                            // Shipping tab
+                            Expanded(
+                              child: _buildActionTab(
+                                icon: Icons.local_shipping_outlined,
+                                label: 'Shipping',
+                                isActive: sales.shippingAmount > 0,
+                                onTap: () => _showUpdateShippingDialog(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Order Summary
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Column(
                     children: [
                       // Items count

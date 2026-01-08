@@ -1565,38 +1565,42 @@ class _SalesScreenState extends State<SalesScreen> {
                               isTotal: true,
                             ),
                             const SizedBox(height: 16),
-                            // Hold Button (Quick Save)
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: _handleQuickHold,
-                                icon: const Icon(Icons.pause_circle_outline),
-                                label: const Text('Hold'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  side: BorderSide(color: AppColors.primary),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            // Checkout Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: _handleCheckout,
-                                icon: const Icon(Icons.payment),
-                                label: Text(
-                                  '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                            // Hold + Checkout Row
+                            Row(
+                              children: [
+                                // Hold icon button
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: AppColors.primary),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    onPressed: _handleQuickHold,
+                                    icon: Icon(Icons.pause_circle_outline, color: AppColors.primary),
+                                    tooltip: 'Hold',
+                                    padding: const EdgeInsets.all(14),
                                   ),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
-                                  backgroundColor: AppColors.success,
+                                const SizedBox(width: 12),
+                                // Checkout Button
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _handleCheckout,
+                                    icon: const Icon(Icons.payment),
+                                    label: Text(
+                                      '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 18),
+                                      backgroundColor: AppColors.success,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),

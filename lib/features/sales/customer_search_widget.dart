@@ -82,22 +82,31 @@ class _CustomerSearchWidgetState extends State<CustomerSearchWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header with Add button
             Row(
               children: [
-                Icon(Icons.person_outline, color: AppColors.primary),
+                Icon(Icons.person_outline, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 const Text(
                   'Customer',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
+                ),
+                const Spacer(),
+                // Add New Customer icon button
+                IconButton(
+                  onPressed: widget.onAddNewCustomer,
+                  icon: Icon(Icons.person_add_outlined, color: AppColors.primary, size: 20),
+                  tooltip: 'Add New Customer',
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: EdgeInsets.zero,
                 ),
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // Search Input
             if (widget.selectedCustomer == null)
@@ -248,20 +257,6 @@ class _CustomerSearchWidgetState extends State<CustomerSearchWidget> {
                 ),
               ),
 
-            const SizedBox(height: 12),
-
-            // Add New Customer Button
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: widget.onAddNewCustomer,
-                icon: const Icon(Icons.add),
-                label: const Text('Add New Customer'),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppColors.primary),
-                ),
-              ),
-            ),
           ],
         ),
       ),

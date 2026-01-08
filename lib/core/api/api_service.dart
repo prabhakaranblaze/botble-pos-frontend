@@ -638,14 +638,24 @@ class ApiService {
   }
 
   /// Get recent orders for reprinting
-  Future<List<Order>> getRecentOrders({int limit = 20, String? search}) async {
+  Future<List<Order>> getRecentOrders({
+    int limit = 100,
+    String? search,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     debugPrint('📋 API SERVICE: getRecentOrders called - Limit: $limit, Search: $search');
+    debugPrint('📋 API SERVICE: Date range: $fromDate to $toDate');
 
     try {
-      final response = await _dio.get('/orders', queryParameters: {
+      final queryParams = <String, dynamic>{
         'limit': limit,
         if (search != null && search.isNotEmpty) 'search': search,
-      });
+        if (fromDate != null) 'from_date': fromDate.toIso8601String().split('T')[0],
+        if (toDate != null) 'to_date': toDate.toIso8601String().split('T')[0],
+      };
+
+      final response = await _dio.get('/orders', queryParameters: queryParams);
 
       if (response.data['error'] == false) {
         final ordersData = response.data['data']['orders'] as List;
@@ -909,6 +919,82 @@ class ApiService {
         }
       }
       return null;
+    }
+  }
+
+  // Reports APIs
+
+  /// Get orders report with date filtering
+  /// Backend endpoint: GET /reports/orders?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
+  Future<Map<String, dynamic>> getOrdersReport({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    debugPrint('📊 API SERVICE: getOrdersReport called');
+    debugPrint('📊 API SERVICE: Date range: $fromDate to $toDate');
+
+    try {
+      final queryParams = <String, dynamic>{
+        if (fromDate != null) 'from_date': fromDate.toIso8601String().split('T')[0],
+        if (toDate != null) 'to_date': toDate.toIso8601String().split('T')[0],
+      };
+
+      final response = await _dio.get('/reports/orders', queryParameters: queryParams);
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Orders report loaded');
+        return response.data['data'] as Map<String, dynamic>;
+      }
+
+      return {
+        'orders': <Map<String, dynamic>>[],
+        'summary': <String, dynamic>{},
+      };
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getOrdersReport error: $e');
+      return {
+        'orders': <Map<String, dynamic>>[],
+        'summary': <String, dynamic>{},
+      };
+    }
+  }
+
+  /// Get products sold report with date filtering
+  /// Backend endpoint: GET /reports/products?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&sort_by=quantity&sort_order=desc
+  Future<Map<String, dynamic>> getProductsReport({
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? sortBy, // 'quantity', 'revenue', 'name'
+    String? sortOrder, // 'asc', 'desc'
+  }) async {
+    debugPrint('📊 API SERVICE: getProductsReport called');
+    debugPrint('📊 API SERVICE: Date range: $fromDate to $toDate');
+
+    try {
+      final queryParams = <String, dynamic>{
+        if (fromDate != null) 'from_date': fromDate.toIso8601String().split('T')[0],
+        if (toDate != null) 'to_date': toDate.toIso8601String().split('T')[0],
+        if (sortBy != null) 'sort_by': sortBy,
+        if (sortOrder != null) 'sort_order': sortOrder,
+      };
+
+      final response = await _dio.get('/reports/products', queryParameters: queryParams);
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Products report loaded');
+        return response.data['data'] as Map<String, dynamic>;
+      }
+
+      return {
+        'products': <Map<String, dynamic>>[],
+        'summary': <String, dynamic>{},
+      };
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getProductsReport error: $e');
+      return {
+        'products': <Map<String, dynamic>>[],
+        'summary': <String, dynamic>{},
+      };
     }
   }
 

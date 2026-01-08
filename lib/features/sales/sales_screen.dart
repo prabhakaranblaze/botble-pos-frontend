@@ -15,7 +15,6 @@ import '../sales/add_address_dialog.dart';
 import '../auth/auth_provider.dart';
 import '../../core/models/product.dart';
 import '../../core/services/auto_print_service.dart';
-import '../../core/providers/pos_mode_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/save_cart_dialog.dart';
@@ -530,16 +529,7 @@ class _SalesScreenState extends State<SalesScreen> {
   @override
   Widget build(BuildContext context) {
     debugPrint('🎨 BUILD: SalesScreen build called');
-
-    return Consumer<PosModeProvider>(
-      builder: (context, modeProvider, _) {
-        if (modeProvider.isKiosk) {
-          return _buildKioskLayout();
-        } else {
-          return _buildQuickSelectLayout();
-        }
-      },
-    );
+    return _buildKioskLayout();
   }
 
   /// Quick Select Mode - Product grid on left, cart on right
@@ -817,92 +807,113 @@ class _SalesScreenState extends State<SalesScreen> {
 
   /// Kiosk search field only (dropdown rendered separately in overlay)
   Widget _buildKioskSearchField() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppColors.surface,
-      child: Focus(
-        onKeyEvent: (node, event) {
-          if (event is KeyDownEvent) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
-                _showSearchDropdown &&
-                _searchResults.isNotEmpty) {
-              setState(() {
-                _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
-              });
-              return KeyEventResult.handled;
-            } else if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-                _showSearchDropdown &&
-                _searchResults.isNotEmpty) {
-              setState(() {
-                _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
-              });
-              return KeyEventResult.handled;
-            } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-              _clearSearch();
-              return KeyEventResult.handled;
-            }
-          }
-          return KeyEventResult.ignored;
-        },
-        child: TextField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
-          decoration: InputDecoration(
-            hintText: 'Scan barcode, SKU, or search products...',
-            prefixIcon: Icon(
-              Icons.qr_code_scanner_rounded,
-              color: AppColors.primary,
-            ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: _clearSearch,
-                  )
-                : null,
+    return Consumer<SalesProvider>(
+      builder: (context, sales, _) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          color: AppColors.surface,
+          child: Row(
+            children: [
+              // Search field
+              Expanded(
+                child: Focus(
+                  onKeyEvent: (node, event) {
+                    if (event is KeyDownEvent) {
+                      if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
+                          _showSearchDropdown &&
+                          _searchResults.isNotEmpty) {
+                        setState(() {
+                          _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
+                        });
+                        return KeyEventResult.handled;
+                      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+                          _showSearchDropdown &&
+                          _searchResults.isNotEmpty) {
+                        setState(() {
+                          _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
+                        });
+                        return KeyEventResult.handled;
+                      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+                        _clearSearch();
+                        return KeyEventResult.handled;
+                      }
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Scan barcode, SKU, or search products...',
+                      prefixIcon: Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: AppColors.primary,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: _clearSearch,
+                            )
+                          : null,
+                    ),
+                    onSubmitted: (value) async {
+                      debugPrint('⏎ ENTER: Submitted with value: "$value"');
+
+                      // If user has selected an item via keyboard, use that
+                      if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
+                        debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
+                        await _addProductToCart(_searchResults[_selectedIndex]);
+                        _clearSearch();
+                        return;
+                      }
+
+                      if (value.isEmpty) return;
+
+                      // Always try barcode/SKU API first
+                      debugPrint('⏎ ENTER: Trying barcode/SKU API...');
+                      final product = await context.read<SalesProvider>().scanBarcode(value);
+
+                      if (product != null) {
+                        debugPrint('⏎ ENTER: Product found via API: ${product.name}');
+                        await _addProductToCart(product);
+                        _clearSearch();
+                      } else if (_searchResults.length == 1) {
+                        debugPrint('⏎ ENTER: Not found via API, using local result');
+                        await _addProductToCart(_searchResults.first);
+                        _clearSearch();
+                      } else if (_searchResults.isNotEmpty) {
+                        debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
+                        if (_selectedIndex < 0) {
+                          setState(() => _selectedIndex = 0);
+                        }
+                      } else {
+                        debugPrint('⏎ ENTER: Product not found');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Product not found')),
+                        );
+                      }
+                    },
+                    onChanged: (value) {
+                      setState(() {});
+                      _handleSearch(value);
+                    },
+                  ),
+                ),
+              ),
+              // Delete cart icon (only show if cart has items)
+              if (sales.cart.items.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: AppColors.error),
+                  onPressed: () => _showClearCartDialog(),
+                  tooltip: 'Clear cart',
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
+              ],
+            ],
           ),
-          onSubmitted: (value) async {
-            debugPrint('⏎ ENTER: Submitted with value: "$value"');
-
-            // If user has selected an item via keyboard, use that
-            if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
-              debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
-              await _addProductToCart(_searchResults[_selectedIndex]);
-              _clearSearch();
-              return;
-            }
-
-            if (value.isEmpty) return;
-
-            // Always try barcode/SKU API first
-            debugPrint('⏎ ENTER: Trying barcode/SKU API...');
-            final product = await context.read<SalesProvider>().scanBarcode(value);
-
-            if (product != null) {
-              debugPrint('⏎ ENTER: Product found via API: ${product.name}');
-              await _addProductToCart(product);
-              _clearSearch();
-            } else if (_searchResults.length == 1) {
-              debugPrint('⏎ ENTER: Not found via API, using local result');
-              await _addProductToCart(_searchResults.first);
-              _clearSearch();
-            } else if (_searchResults.isNotEmpty) {
-              debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
-              if (_selectedIndex < 0) {
-                setState(() => _selectedIndex = 0);
-              }
-            } else {
-              debugPrint('⏎ ENTER: Product not found');
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Product not found')),
-              );
-            }
-          },
-          onChanged: (value) {
-            setState(() {});
-            _handleSearch(value);
-          },
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1405,211 +1416,183 @@ class _SalesScreenState extends State<SalesScreen> {
           color: AppColors.surface,
           child: Column(
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.receipt_long, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      l10n?.checkout ?? 'Checkout',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (cart.items.isNotEmpty)
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, color: AppColors.error),
-                        onPressed: () => _showClearCartDialog(),
-                        tooltip: 'Clear cart',
-                      ),
-                  ],
-                ),
-              ),
-
-              // Customer Selection
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: CustomerSearchWidget(
-                  selectedCustomer: sales.selectedCustomer,
-                  onCustomerSelected: (customer) {
-                    sales.selectCustomer(customer);
-                  },
-                  onCustomerRemoved: () {
-                    sales.clearCustomer();
-                  },
-                  onAddNewCustomer: () {
-                    _showAddCustomerDialog(sales);
-                  },
-                  onSearch: (query) async {
-                    return await context.read<SalesProvider>().searchCustomers(query);
-                  },
-                ),
-              ),
-
-              // Delivery & Address (only show when customer is selected)
-              if (sales.selectedCustomer != null)
-                DeliveryAddressWidget(
-                  customer: sales.selectedCustomer!,
-                  deliveryType: sales.deliveryType,
-                  selectedAddress: sales.selectedAddress,
-                  addresses: sales.customerAddresses,
-                  isLoadingAddresses: sales.isLoadingAddresses,
-                  onDeliveryTypeChanged: (type) {
-                    sales.setDeliveryType(type);
-                  },
-                  onAddressSelected: (address) {
-                    sales.selectAddress(address);
-                  },
-                  onAddNewAddress: () {
-                    _showAddAddressDialog(sales);
-                  },
-                ),
-
-              // Discount/Coupon/Shipping Actions
-              if (cart.items.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              // Scrollable top section (Customer, Delivery, Actions)
+              Expanded(
+                child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      // Apply Coupon
-                      _buildActionRow(
-                        icon: Icons.local_offer_outlined,
-                        label: sales.hasCouponDiscount
-                            ? 'Coupon: ${sales.couponCode}'
-                            : 'Apply Coupon',
-                        value: sales.hasCouponDiscount
-                            ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
-                            : null,
-                        valueColor: AppColors.success,
-                        onTap: () => _showApplyCouponDialog(),
-                        onClear: sales.hasCouponDiscount
-                            ? () => sales.clearCouponDiscount()
-                            : null,
-                      ),
-                      // Apply Discount (only if no coupon)
-                      if (!sales.hasCouponDiscount)
-                        _buildActionRow(
-                          icon: Icons.discount_outlined,
-                          label: sales.hasManualDiscount
-                              ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
-                              : 'Apply Discount',
-                          value: sales.hasManualDiscount
-                              ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
-                              : null,
-                          valueColor: AppColors.success,
-                          onTap: () => _showApplyDiscountDialog(),
-                          onClear: sales.hasManualDiscount
-                              ? () => sales.clearManualDiscount()
-                              : null,
+                      // Customer Selection
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: CustomerSearchWidget(
+                          selectedCustomer: sales.selectedCustomer,
+                          onCustomerSelected: (customer) {
+                            sales.selectCustomer(customer);
+                          },
+                          onCustomerRemoved: () {
+                            sales.clearCustomer();
+                          },
+                          onAddNewCustomer: () {
+                            _showAddCustomerDialog(sales);
+                          },
+                          onSearch: (query) async {
+                            return await context.read<SalesProvider>().searchCustomers(query);
+                          },
                         ),
-                      // Shipping
-                      _buildActionRow(
-                        icon: Icons.local_shipping_outlined,
-                        label: sales.shippingAmount > 0
-                            ? 'Shipping'
-                            : 'Add Shipping',
-                        value: sales.shippingAmount > 0
-                            ? AppCurrency.format(sales.shippingAmount)
-                            : null,
-                        onTap: () => _showUpdateShippingDialog(),
-                        onClear: sales.shippingAmount > 0
-                            ? () => sales.clearShippingAmount()
-                            : null,
                       ),
+
+                      // Delivery & Address (only show when customer is selected)
+                      if (sales.selectedCustomer != null)
+                        DeliveryAddressWidget(
+                          customer: sales.selectedCustomer!,
+                          deliveryType: sales.deliveryType,
+                          selectedAddress: sales.selectedAddress,
+                          addresses: sales.customerAddresses,
+                          isLoadingAddresses: sales.isLoadingAddresses,
+                          onDeliveryTypeChanged: (type) {
+                            sales.setDeliveryType(type);
+                          },
+                          onAddressSelected: (address) {
+                            sales.selectAddress(address);
+                          },
+                          onAddNewAddress: () {
+                            _showAddAddressDialog(sales);
+                          },
+                        ),
+
                     ],
                   ),
                 ),
+              ),
 
-              // Spacer to push summary to bottom
-              const Spacer(),
-
-              // Order Summary
+              // Fixed bottom section: Action tabs + Order Summary
               if (cart.items.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.background,
                     border: Border(top: BorderSide(color: AppColors.border)),
                   ),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Items count
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${cart.items.length} ${cart.items.length == 1 ? 'item' : 'items'}',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
+                      // Action tabs (Coupon | Discount | Shipping)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        child: Row(
+                          children: [
+                            // Coupon tab
+                            Expanded(
+                              child: _buildActionTab(
+                                icon: Icons.confirmation_number_outlined,
+                                label: 'Coupon',
+                                isActive: sales.hasCouponDiscount,
+                                onTap: () => _showApplyCouponDialog(),
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${cart.totalQuantity} units',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
+                            const SizedBox(width: 8),
+                            // Discount tab (only if no coupon)
+                            if (!sales.hasCouponDiscount)
+                              Expanded(
+                                child: _buildActionTab(
+                                  icon: Icons.percent_outlined,
+                                  label: 'Discount',
+                                  isActive: sales.hasManualDiscount,
+                                  onTap: () => _showApplyDiscountDialog(),
+                                ),
+                              ),
+                            if (!sales.hasCouponDiscount)
+                              const SizedBox(width: 8),
+                            // Shipping tab
+                            Expanded(
+                              child: _buildActionTab(
+                                icon: Icons.local_shipping_outlined,
+                                label: 'Shipping',
+                                isActive: sales.shippingAmount > 0,
+                                onTap: () => _showUpdateShippingDialog(),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
-                      if (cart.discount > 0)
-                        _buildSummaryRow(
-                          l10n?.discount ?? 'Discount',
-                          -cart.discount,
-                          color: AppColors.success,
-                        ),
-                      _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
-                      if (cart.shipping > 0)
-                        _buildSummaryRow('Shipping', cart.shipping),
-                      const Divider(height: 24),
-                      _buildSummaryRow(
-                        l10n?.total ?? 'Total',
-                        cart.total,
-                        isTotal: true,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Hold Button (Quick Save)
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _handleQuickHold,
-                          icon: const Icon(Icons.pause_circle_outline),
-                          label: const Text('Hold'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(color: AppColors.primary),
-                          ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-
-                      // Checkout Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _handleCheckout,
-                          icon: const Icon(Icons.payment),
-                          label: Text(
-                            '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      // Order Summary
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Column(
+                          children: [
+                            // Items count
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${cart.items.length} ${cart.items.length == 1 ? 'item' : 'items'}',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  '${cart.totalQuantity} units',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            backgroundColor: AppColors.success,
-                          ),
+                            const SizedBox(height: 12),
+                            _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
+                            if (cart.discount > 0)
+                              _buildSummaryRow(
+                                l10n?.discount ?? 'Discount',
+                                -cart.discount,
+                                color: AppColors.success,
+                              ),
+                            _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                            if (cart.shipping > 0)
+                              _buildSummaryRow('Shipping', cart.shipping),
+                            const Divider(height: 24),
+                            _buildSummaryRow(
+                              l10n?.total ?? 'Total',
+                              cart.total,
+                              isTotal: true,
+                            ),
+                            const SizedBox(height: 16),
+                            // Hold + Checkout Row
+                            Row(
+                              children: [
+                                // Hold icon button
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: AppColors.primary),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    onPressed: _handleQuickHold,
+                                    icon: Icon(Icons.pause_circle_outline, color: AppColors.primary),
+                                    tooltip: 'Hold',
+                                    padding: const EdgeInsets.all(14),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Checkout Button
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _handleCheckout,
+                                    icon: const Icon(Icons.payment),
+                                    label: Text(
+                                      '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 18),
+                                      backgroundColor: AppColors.success,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -2088,7 +2071,53 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
-  /// Action row for discount/coupon/shipping
+  /// Compact action tab for discount/coupon/shipping
+  Widget _buildActionTab({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  color: isActive ? AppColors.primary : AppColors.textSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Action row for discount/coupon/shipping (legacy - kept for cart panel)
   Widget _buildActionRow({
     required IconData icon,
     required String label,

@@ -37,7 +37,7 @@ class ProductsService {
       where.store_id = BigInt(storeId);
     }
 
-    const [products, total, siteSettings] = await Promise.all([
+    const [products, total, siteSettings, mediaBaseUrl] = await Promise.all([
       prisma.product.findMany({
         where,
         skip,
@@ -72,10 +72,11 @@ class ProductsService {
       }),
       prisma.product.count({ where }),
       settingsService.getSettings(),
+      settingsService.getMediaBaseUrl(),
     ]);
 
     return {
-      products: products.map((p) => this.formatProduct(p, siteSettings.default_tax)),
+      products: products.map((p) => this.formatProduct(p, siteSettings.default_tax, mediaBaseUrl)),
       pagination: {
         current_page: page,
         per_page: perPage,
@@ -89,7 +90,7 @@ class ProductsService {
    * Get product by barcode
    */
   async getProductByBarcode(barcode) {
-    const [product, siteSettings] = await Promise.all([
+    const [product, siteSettings, mediaBaseUrl] = await Promise.all([
       prisma.product.findFirst({
         where: {
           barcode,
@@ -123,9 +124,10 @@ class ProductsService {
         },
       }),
       settingsService.getSettings(),
+      settingsService.getMediaBaseUrl(),
     ]);
 
-    return product ? this.formatProduct(product, siteSettings.default_tax) : null;
+    return product ? this.formatProduct(product, siteSettings.default_tax, mediaBaseUrl) : null;
   }
 
   /**
@@ -171,7 +173,7 @@ class ProductsService {
    * Get single product by ID
    */
   async getProductById(id) {
-    const [product, siteSettings] = await Promise.all([
+    const [product, siteSettings, mediaBaseUrl] = await Promise.all([
       prisma.product.findFirst({
         where: {
           id: BigInt(id),
@@ -203,32 +205,45 @@ class ProductsService {
         },
       }),
       settingsService.getSettings(),
+      settingsService.getMediaBaseUrl(),
     ]);
 
-    return product ? this.formatProduct(product, siteSettings.default_tax) : null;
+    return product ? this.formatProduct(product, siteSettings.default_tax, mediaBaseUrl) : null;
   }
 
   /**
    * Format product for API response
    * @param {Object} product - Product from database
    * @param {Object} defaultTax - Site-wide default tax object {id, title, percentage}
+   * @param {string} mediaBaseUrl - Base URL for media/images
    */
-  formatProduct(product, defaultTax = null) {
+  formatProduct(product, defaultTax = null, mediaBaseUrl = '') {
     const hasVariations = product.variations_count > 0 || product.variations?.length > 0;
 
-    // Build image URL
+    // Build image URL using dynamic media base URL
     let imageUrl = null;
-    if (product.image) {
-      imageUrl = product.image.startsWith('http')
-        ? product.image
-        : `${config.storageUrl}/${product.image}`;
+    const imagePath = product.image || null;
+
+    if (imagePath) {
+      // If already a full URL, use as-is
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        imageUrl = imagePath;
+      } else if (mediaBaseUrl) {
+        // Build URL from base + relative path
+        const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+        imageUrl = `${mediaBaseUrl}/${cleanPath}`;
+      }
     } else if (product.images) {
       try {
         const images = JSON.parse(product.images);
         if (images.length > 0) {
-          imageUrl = images[0].startsWith('http')
-            ? images[0]
-            : `${config.storageUrl}/${images[0]}`;
+          const firstImage = images[0];
+          if (firstImage.startsWith('http://') || firstImage.startsWith('https://')) {
+            imageUrl = firstImage;
+          } else if (mediaBaseUrl) {
+            const cleanPath = firstImage.startsWith('/') ? firstImage.substring(1) : firstImage;
+            imageUrl = `${mediaBaseUrl}/${cleanPath}`;
+          }
         }
       } catch (e) {
         // Ignore parse errors

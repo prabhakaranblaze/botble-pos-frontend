@@ -1,16 +1,18 @@
+import 'customer_address.dart';
+
 class Customer {
   final int id;
   final String name;
   final String? email;
   final String? phone;
-  final String? address;
+  final List<CustomerAddress> addresses;
 
   Customer({
     required this.id,
     required this.name,
     this.email,
     this.phone,
-    this.address,
+    this.addresses = const [],
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
@@ -19,7 +21,11 @@ class Customer {
       name: json['name'] as String,
       email: json['email'] as String?,
       phone: json['phone'] as String?,
-      address: json['address'] as String?,
+      addresses: json['addresses'] != null
+          ? (json['addresses'] as List)
+              .map((a) => CustomerAddress.fromJson(a))
+              .toList()
+          : [],
     );
   }
 
@@ -29,7 +35,17 @@ class Customer {
       'name': name,
       'email': email,
       'phone': phone,
-      'address': address,
+      'addresses': addresses.map((a) => a.toJson()).toList(),
     };
+  }
+
+  /// Get default address if exists
+  CustomerAddress? get defaultAddress {
+    if (addresses.isEmpty) return null;
+    try {
+      return addresses.firstWhere((a) => a.isDefault);
+    } catch (_) {
+      return addresses.first;
+    }
   }
 }

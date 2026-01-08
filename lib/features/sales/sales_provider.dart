@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 import '../../core/models/product.dart';
 import '../../core/models/cart.dart';
 import '../../core/models/customer.dart';
+import '../../core/models/customer_address.dart';
 import '../../core/models/saved_cart.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/database/saved_cart_database.dart';
+import 'delivery_address_widget.dart';
 
 class SalesProvider with ChangeNotifier {
   final ApiService _apiService;
@@ -25,6 +27,24 @@ class SalesProvider with ChangeNotifier {
 
   // ✅ Default tax rate from settings (percentage, e.g., 15 for 15%)
   double _defaultTaxRate = 0.0;
+
+  // ✅ Discount state
+  int? _couponDiscountId;            // ID for usage tracking
+  String? _couponCode;               // Applied coupon code
+  double _couponDiscountAmount = 0;  // Coupon discount amount
+  String? _manualDiscountType;       // 'percentage' or 'amount'
+  double _manualDiscountValue = 0;   // The value entered
+  double _manualDiscountAmount = 0;  // Calculated amount
+  String? _discountDescription;      // Description for manual discount
+
+  // ✅ Shipping state
+  double _shippingAmount = 0;
+
+  // ✅ Delivery & Address state
+  DeliveryType _deliveryType = DeliveryType.pickup;
+  List<CustomerAddress> _customerAddresses = [];
+  CustomerAddress? _selectedAddress;
+  bool _isLoadingAddresses = false;
 
   // ✅ Saved carts
   List<SavedCart> _savedCarts = [];
@@ -50,6 +70,28 @@ class SalesProvider with ChangeNotifier {
   bool get isOnline => _apiService.isOnline;
   double get defaultTaxRate => _defaultTaxRate;
 
+  // Discount getters
+  int? get couponDiscountId => _couponDiscountId;
+  String? get couponCode => _couponCode;
+  double get couponDiscountAmount => _couponDiscountAmount;
+  String? get manualDiscountType => _manualDiscountType;
+  double get manualDiscountValue => _manualDiscountValue;
+  double get manualDiscountAmount => _manualDiscountAmount;
+  String? get discountDescription => _discountDescription;
+  double get totalDiscountAmount => _couponDiscountAmount > 0 ? _couponDiscountAmount : _manualDiscountAmount;
+  bool get hasCouponDiscount => _couponCode != null && _couponDiscountAmount > 0;
+  bool get hasManualDiscount => _manualDiscountAmount > 0;
+  bool get hasDiscount => hasCouponDiscount || hasManualDiscount;
+
+  // Shipping getter
+  double get shippingAmount => _shippingAmount;
+
+  // Delivery & Address getters
+  DeliveryType get deliveryType => _deliveryType;
+  List<CustomerAddress> get customerAddresses => _customerAddresses;
+  CustomerAddress? get selectedAddress => _selectedAddress;
+  bool get isLoadingAddresses => _isLoadingAddresses;
+
   // ✅ Build cart from local items
   Cart get cart {
     if (_cartItems.isEmpty) return Cart.empty();
@@ -58,7 +100,10 @@ class SalesProvider with ChangeNotifier {
         _cartItems.fold<double>(0, (sum, item) => sum + item.total);
     final tax = _cartItems.fold<double>(
         0, (sum, item) => sum + (item.total * (item.taxRate / 100)));
-    final total = subtotal + tax;
+
+    // Calculate total: subtotal + tax - discount + shipping
+    final discount = totalDiscountAmount;
+    final total = subtotal + tax - discount + _shippingAmount;
 
     return Cart(
       items: _cartItems
@@ -68,11 +113,13 @@ class SalesProvider with ChangeNotifier {
                 price: item.price,
                 quantity: item.quantity,
                 image: item.image,
+                sku: item.sku,
+                options: item.options,
               ))
           .toList(),
       subtotal: subtotal,
-      discount: 0,
-      shipping: 0,
+      discount: discount,
+      shipping: _shippingAmount,
       tax: tax,
       total: total,
       customer: _selectedCustomer,
@@ -233,8 +280,9 @@ class SalesProvider with ChangeNotifier {
 
   // ✅ CLIENT-SIDE: Add to cart with full Product object (for API search results)
   // priceOverride: Use this for variant products where price comes from variant selection
+  // options: Display string for selected options (e.g., "Size: Large • Color: Red")
   Future<void> addProductToCart(Product product,
-      {int quantity = 1, double? priceOverride}) async {
+      {int quantity = 1, double? priceOverride, String? options}) async {
     try {
       final unitPrice = priceOverride ?? product.finalPrice;
       debugPrint(
@@ -262,12 +310,17 @@ class SalesProvider with ChangeNotifier {
         final productTax = product.tax?.percentage ?? 0.0;
         final taxRate = productTax > 0 ? productTax : _defaultTaxRate;
 
+        // Options string: only show if variants were selected (no "Default" fallback)
+        final optionsDisplay = (options != null && options.isNotEmpty) ? options : null;
+
         _cartItems.add(SavedCartItem(
           productId: product.id,
           name: product.name,
           price: unitPrice,
           quantity: quantity,
           image: product.image,
+          sku: product.sku,
+          options: optionsDisplay,
           taxRate: taxRate,
         ));
         debugPrint('✅ Added new item with tax rate: $taxRate% (product: $productTax%, default: $_defaultTaxRate%)');
@@ -330,6 +383,17 @@ class SalesProvider with ChangeNotifier {
       _cartItems.clear();
       _selectedCustomer = null;
       _paymentMethod = 'pos_cash';
+
+      // Clear discount and shipping
+      _couponDiscountId = null;
+      _couponCode = null;
+      _couponDiscountAmount = 0;
+      _manualDiscountType = null;
+      _manualDiscountValue = 0;
+      _manualDiscountAmount = 0;
+      _discountDescription = null;
+      _shippingAmount = 0;
+
       debugPrint('✅ CLIENT CART: Cleared successfully');
       notifyListeners();
     } catch (e) {
@@ -342,17 +406,226 @@ class SalesProvider with ChangeNotifier {
   // Customer operations
   void selectCustomer(Customer customer) {
     _selectedCustomer = customer;
+    // Use addresses from customer object (already loaded with customer)
+    _customerAddresses = customer.addresses;
+    _selectedAddress = customer.defaultAddress;
+    _deliveryType = DeliveryType.pickup;
     notifyListeners();
   }
 
   void clearCustomer() {
     _selectedCustomer = null;
+    _customerAddresses = [];
+    _selectedAddress = null;
+    _deliveryType = DeliveryType.pickup;
     notifyListeners();
+  }
+
+  // ========== DELIVERY & ADDRESS OPERATIONS ==========
+
+  void setDeliveryType(DeliveryType type) {
+    _deliveryType = type;
+    // Clear address when switching to pickup
+    if (type == DeliveryType.pickup) {
+      _selectedAddress = null;
+    } else if (_customerAddresses.isNotEmpty && _selectedAddress == null) {
+      // Auto-select default address when switching to ship
+      _selectedAddress = _customerAddresses.firstWhere(
+        (a) => a.isDefault,
+        orElse: () => _customerAddresses.first,
+      );
+    }
+    notifyListeners();
+  }
+
+  void selectAddress(CustomerAddress? address) {
+    _selectedAddress = address;
+    notifyListeners();
+  }
+
+  Future<void> loadCustomerAddresses(int customerId) async {
+    _isLoadingAddresses = true;
+    notifyListeners();
+
+    try {
+      _customerAddresses = await _apiService.getCustomerAddresses(customerId);
+      // Auto-select default address if available
+      if (_customerAddresses.isNotEmpty) {
+        _selectedAddress = _customerAddresses.firstWhere(
+          (a) => a.isDefault,
+          orElse: () => _customerAddresses.first,
+        );
+      }
+      debugPrint('✅ Loaded ${_customerAddresses.length} addresses');
+    } catch (e) {
+      debugPrint('❌ Error loading addresses: $e');
+      _customerAddresses = [];
+    } finally {
+      _isLoadingAddresses = false;
+      notifyListeners();
+    }
+  }
+
+  Future<CustomerAddress> createCustomerAddress(Map<String, dynamic> data) async {
+    if (_selectedCustomer == null) {
+      throw Exception('No customer selected');
+    }
+
+    final address = await _apiService.createCustomerAddress(_selectedCustomer!.id, data);
+    _customerAddresses.add(address);
+
+    // Auto-select the new address
+    _selectedAddress = address;
+    notifyListeners();
+
+    return address;
+  }
+
+  Future<Customer> createCustomer(String name, String phone, String? email) async {
+    final customer = await _apiService.createCustomer({
+      'name': name,
+      'phone': phone,
+      'email': email,
+    });
+
+    // Auto-select the new customer
+    selectCustomer(customer);
+
+    return customer;
+  }
+
+  Future<List<Customer>> searchCustomers(String query) async {
+    if (query.isEmpty || query.length < 2) {
+      return [];
+    }
+    return await _apiService.searchCustomers(query);
   }
 
   void updatePaymentMethod(String method) {
     _paymentMethod = method;
     notifyListeners();
+  }
+
+  // ========== DISCOUNT OPERATIONS ==========
+
+  /// Apply a validated coupon discount
+  void applyCouponDiscount({
+    required int discountId,
+    required String code,
+    required double discountAmount,
+  }) {
+    debugPrint('🎟️ DISCOUNT: Applying coupon "$code" with amount: $discountAmount');
+
+    // Clear any manual discount first
+    _manualDiscountType = null;
+    _manualDiscountValue = 0;
+    _manualDiscountAmount = 0;
+    _discountDescription = null;
+
+    // Apply coupon
+    _couponDiscountId = discountId;
+    _couponCode = code;
+    _couponDiscountAmount = discountAmount;
+
+    notifyListeners();
+  }
+
+  /// Clear coupon discount
+  void clearCouponDiscount() {
+    debugPrint('🎟️ DISCOUNT: Clearing coupon discount');
+    _couponDiscountId = null;
+    _couponCode = null;
+    _couponDiscountAmount = 0;
+    notifyListeners();
+  }
+
+  /// Apply a manual discount
+  void applyManualDiscount({
+    required String type, // 'percentage' or 'amount'
+    required double value,
+    required double discountAmount,
+    String? description,
+  }) {
+    debugPrint('💰 DISCOUNT: Applying manual $type discount: $value (amount: $discountAmount)');
+
+    // Clear any coupon discount first
+    _couponDiscountId = null;
+    _couponCode = null;
+    _couponDiscountAmount = 0;
+
+    // Apply manual discount
+    _manualDiscountType = type;
+    _manualDiscountValue = value;
+    _manualDiscountAmount = discountAmount;
+    _discountDescription = description;
+
+    notifyListeners();
+  }
+
+  /// Clear manual discount
+  void clearManualDiscount() {
+    debugPrint('💰 DISCOUNT: Clearing manual discount');
+    _manualDiscountType = null;
+    _manualDiscountValue = 0;
+    _manualDiscountAmount = 0;
+    _discountDescription = null;
+    notifyListeners();
+  }
+
+  /// Clear all discounts
+  void clearAllDiscounts() {
+    debugPrint('🗑️ DISCOUNT: Clearing all discounts');
+    _couponDiscountId = null;
+    _couponCode = null;
+    _couponDiscountAmount = 0;
+    _manualDiscountType = null;
+    _manualDiscountValue = 0;
+    _manualDiscountAmount = 0;
+    _discountDescription = null;
+    notifyListeners();
+  }
+
+  // ========== SHIPPING OPERATIONS ==========
+
+  /// Set shipping amount
+  void setShippingAmount(double amount) {
+    debugPrint('🚚 SHIPPING: Setting shipping amount: $amount');
+    _shippingAmount = amount;
+    notifyListeners();
+  }
+
+  /// Clear shipping amount
+  void clearShippingAmount() {
+    debugPrint('🚚 SHIPPING: Clearing shipping amount');
+    _shippingAmount = 0;
+    notifyListeners();
+  }
+
+  /// Validate a coupon code with the API
+  Future<Map<String, dynamic>?> validateCoupon(String code) async {
+    try {
+      debugPrint('🎟️ COUPON: Validating code "$code"');
+
+      final subtotal = cart.subtotal;
+      final items = _cartItems.map((item) => {
+        'product_id': item.productId,
+        'quantity': item.quantity,
+        'price': item.price,
+      }).toList();
+
+      final result = await _apiService.validateCoupon(
+        code: code,
+        subtotal: subtotal,
+        items: items,
+        customerId: _selectedCustomer?.id,
+      );
+
+      debugPrint('🎟️ COUPON: Validation result: $result');
+      return result;
+    } catch (e) {
+      debugPrint('❌ COUPON: Validation error: $e');
+      return null;
+    }
   }
 
   // ✅ CHECKOUT: Create order - sends cart items directly to backend
@@ -365,12 +638,18 @@ class SalesProvider with ChangeNotifier {
       debugPrint('💳 CHECKOUT: Starting...');
       debugPrint('💳 CHECKOUT: Items: ${_cartItems.length}');
       debugPrint('💳 CHECKOUT: Payment method: $_paymentMethod');
+      debugPrint('💳 CHECKOUT: Discount: $totalDiscountAmount (coupon: $_couponCode)');
+      debugPrint('💳 CHECKOUT: Shipping: $_shippingAmount');
+      debugPrint('💳 CHECKOUT: Cart tax: ${cart.tax}');
+      for (var item in _cartItems) {
+        debugPrint('💳 CHECKOUT: Item "${item.name}" taxRate: ${item.taxRate}%');
+      }
 
       if (_cartItems.isEmpty) {
         throw Exception('Cart is empty');
       }
 
-      // Build items for direct checkout
+      // Build items for direct checkout (include tax_rate, sku, and options)
       final items = _cartItems
           .map((item) => {
                 'product_id': item.productId,
@@ -378,23 +657,60 @@ class SalesProvider with ChangeNotifier {
                 'quantity': item.quantity,
                 'price': item.price,
                 'image': item.image,
+                'sku': item.sku,
+                'options': item.options,
+                'tax_rate': item.taxRate,
               })
           .toList();
 
       debugPrint('💳 CHECKOUT: Sending ${items.length} items to server...');
 
-      // Direct checkout - no server cart sync needed
+      // Build customer address string for invoice
+      String? customerAddressStr;
+      if (_deliveryType == DeliveryType.ship && _selectedAddress != null) {
+        customerAddressStr = _selectedAddress!.displayText;
+      }
+
+      // Direct checkout with discount, shipping, and address
       final order = await _apiService.checkoutDirect(
         items: items,
         paymentMethod: _paymentMethod,
         paymentDetails: paymentDetails,
         customerId: _selectedCustomer?.id,
+        // Discount parameters
+        discountId: _couponDiscountId,
+        couponCode: _couponCode,
+        discountAmount: totalDiscountAmount,
+        discountDescription: _discountDescription,
+        // Shipping & Delivery
+        shippingAmount: _shippingAmount,
+        deliveryType: _deliveryType == DeliveryType.ship ? 'ship' : 'pickup',
+        // Tax (calculated from cart)
+        taxAmount: cart.tax,
+        // Customer info for invoice
+        customerName: _selectedCustomer?.name,
+        customerEmail: _selectedCustomer?.email,
+        customerPhone: _selectedCustomer?.phone,
+        // Address info (for delivery)
+        addressId: _selectedAddress?.id,
+        customerAddress: customerAddressStr,
       );
 
-      // Clear local cart
+      // Clear local cart and all state
       _cartItems.clear();
       _selectedCustomer = null;
       _paymentMethod = 'pos_cash';
+      _couponDiscountId = null;
+      _couponCode = null;
+      _couponDiscountAmount = 0;
+      _manualDiscountType = null;
+      _manualDiscountValue = 0;
+      _manualDiscountAmount = 0;
+      _discountDescription = null;
+      _shippingAmount = 0;
+      _deliveryType = DeliveryType.pickup;
+      _customerAddresses = [];
+      _selectedAddress = null;
 
       await _audioService.playSuccess();
 

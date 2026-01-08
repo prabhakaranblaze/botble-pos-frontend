@@ -8,6 +8,7 @@ import '../models/user.dart';
 import '../models/product.dart';
 import '../models/cart.dart';
 import '../models/customer.dart';
+import '../models/customer_address.dart';
 import '../models/session.dart';
 import '../database/database_service.dart';
 import '../services/storage_service.dart';
@@ -493,6 +494,43 @@ class ApiService {
     }
   }
 
+  Future<List<CustomerAddress>> getCustomerAddresses(int customerId) async {
+    debugPrint('📍 API SERVICE: getCustomerAddresses for customer $customerId');
+    try {
+      final response = await _dio.get('/customers/$customerId/addresses');
+      if (response.data['error'] == false) {
+        final addresses = (response.data['data']['addresses'] as List)
+            .map((json) => CustomerAddress.fromJson(json))
+            .toList();
+        debugPrint('✅ API SERVICE: Found ${addresses.length} addresses');
+        return addresses;
+      } else {
+        debugPrint('❌ API SERVICE: Error getting addresses');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('❌ API SERVICE: getCustomerAddresses error: $e');
+      return [];
+    }
+  }
+
+  Future<CustomerAddress> createCustomerAddress(int customerId, Map<String, dynamic> data) async {
+    debugPrint('📍 API SERVICE: createCustomerAddress for customer $customerId');
+    try {
+      final response = await _dio.post('/customers/$customerId/addresses', data: data);
+      if (response.data['error'] == false) {
+        final address = CustomerAddress.fromJson(response.data['data']['address']);
+        debugPrint('✅ API SERVICE: Created address ${address.id}');
+        return address;
+      } else {
+        throw Exception(response.data['message']);
+      }
+    } catch (e) {
+      debugPrint('❌ API SERVICE: createCustomerAddress error: $e');
+      throw Exception('Failed to create address: ${e.toString()}');
+    }
+  }
+
   // Order APIs
   /// Checkout with cart items sent directly (no server-side cart sync)
   Future<Order> checkoutDirect({
@@ -500,10 +538,33 @@ class ApiService {
     required String paymentMethod,
     String? paymentDetails,
     int? customerId,
+    // Discount parameters
+    int? discountId,
+    String? couponCode,
+    double discountAmount = 0,
+    String? discountDescription,
+    // Shipping
+    double shippingAmount = 0,
+    String deliveryType = 'pickup', // 'pickup' or 'ship'
+    // Tax
+    double? taxAmount,
+    // Customer info for invoice
+    String? customerName,
+    String? customerEmail,
+    String? customerPhone,
+    // Address info (for delivery_type = 'ship')
+    int? addressId,
+    String? customerAddress,
   }) async {
-    debugPrint('💳 API SERVICE: checkoutDirect called');
+    debugPrint('💳 API SERVICE: ========== CHECKOUT DIRECT ==========');
     debugPrint('💳 API SERVICE: Items: ${items.length}');
     debugPrint('💳 API SERVICE: Payment method: $paymentMethod');
+    debugPrint('💳 API SERVICE: Tax amount: $taxAmount');
+    debugPrint('💳 API SERVICE: Discount amount: $discountAmount (coupon: $couponCode)');
+    debugPrint('💳 API SERVICE: Shipping amount: $shippingAmount');
+    debugPrint('💳 API SERVICE: Delivery type: $deliveryType');
+    debugPrint('💳 API SERVICE: Customer ID: $customerId');
+    debugPrint('💳 API SERVICE: Address ID: $addressId');
 
     try {
       if (!_isOnline) {
@@ -511,12 +572,35 @@ class ApiService {
         throw Exception('Cannot checkout while offline');
       }
 
-      final response = await _dio.post('/orders', data: {
+      // Build request data explicitly to debug what's being sent
+      final requestData = {
         'items': items,
         'payment_method': paymentMethod,
-        if (paymentDetails != null) 'payment_details': paymentDetails,
-        if (customerId != null) 'customer_id': customerId,
-      });
+        // Always send tax, discount, shipping (even if 0) so backend gets explicit values
+        'tax_amount': taxAmount ?? 0,
+        'discount_amount': discountAmount,
+        'shipping_amount': shippingAmount,
+        'delivery_type': deliveryType,
+      };
+
+      // Add optional fields
+      if (paymentDetails != null) requestData['payment_details'] = paymentDetails;
+      if (customerId != null) requestData['customer_id'] = customerId;
+      if (discountId != null) requestData['discount_id'] = discountId;
+      if (couponCode != null) requestData['coupon_code'] = couponCode;
+      if (discountDescription != null) requestData['discount_description'] = discountDescription;
+      if (customerName != null) requestData['customer_name'] = customerName;
+      if (customerEmail != null) requestData['customer_email'] = customerEmail;
+      if (customerPhone != null) requestData['customer_phone'] = customerPhone;
+      if (addressId != null) requestData['address_id'] = addressId;
+      if (customerAddress != null) requestData['customer_address'] = customerAddress;
+
+      debugPrint('💳 API SERVICE: Request data: $requestData');
+      debugPrint('💳 API SERVICE: Request data (tax_amount): ${requestData['tax_amount']}');
+      debugPrint('💳 API SERVICE: Request data (discount_amount): ${requestData['discount_amount']}');
+      debugPrint('💳 API SERVICE: Request data (shipping_amount): ${requestData['shipping_amount']}');
+
+      final response = await _dio.post('/orders', data: requestData);
 
       if (response.data['error'] == false) {
         final order = Order.fromJson(response.data['data']['order']);
@@ -785,6 +869,72 @@ class ApiService {
       return null;
     } catch (e) {
       debugPrint('❌ API SERVICE: getSettings error: $e');
+      return null;
+    }
+  }
+
+  // Discount APIs
+  /// Validate a coupon code
+  Future<Map<String, dynamic>?> validateCoupon({
+    required String code,
+    required double subtotal,
+    required List<Map<String, dynamic>> items,
+    int? customerId,
+  }) async {
+    debugPrint('🎟️ API SERVICE: validateCoupon called - Code: "$code"');
+    debugPrint('🎟️ API SERVICE: Subtotal: $subtotal');
+    debugPrint('🎟️ API SERVICE: Items: ${items.length}');
+
+    try {
+      final response = await _dio.post('/discounts/validate', data: {
+        'code': code,
+        'subtotal': subtotal,
+        'items': items,
+        if (customerId != null) 'customer_id': customerId,
+      });
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Coupon validated successfully');
+        return response.data['data'] as Map<String, dynamic>;
+      } else {
+        debugPrint('❌ API SERVICE: Coupon validation failed - ${response.data['message']}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('❌ API SERVICE: validateCoupon error: $e');
+      if (e is DioException && e.response != null) {
+        final errorData = e.response!.data;
+        if (errorData is Map && errorData['message'] != null) {
+          throw Exception(errorData['message']);
+        }
+      }
+      return null;
+    }
+  }
+
+  /// Calculate manual discount
+  Future<Map<String, dynamic>?> calculateDiscount({
+    required String type,
+    required double value,
+    required double subtotal,
+  }) async {
+    debugPrint('💰 API SERVICE: calculateDiscount called - Type: $type, Value: $value');
+
+    try {
+      final response = await _dio.post('/discounts/calculate', data: {
+        'type': type,
+        'value': value,
+        'subtotal': subtotal,
+      });
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Discount calculated successfully');
+        return response.data['data'] as Map<String, dynamic>;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: calculateDiscount error: $e');
       return null;
     }
   }

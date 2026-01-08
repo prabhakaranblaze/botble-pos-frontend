@@ -20,146 +20,154 @@ class CartItemWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
+        child: Row(
           children: [
-            // Row 1: Image, Name, Delete
-            Row(
-              children: [
-                // Product Image
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                    image: item.image != null
-                        ? DecorationImage(
-                            image: NetworkImage(item.image!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: item.image == null
-                      ? Icon(
+            // Product Image
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: item.image != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        item.image!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(
                           Icons.inventory_2_outlined,
                           color: AppColors.primary,
                           size: 24,
-                        )
-                      : null,
-                ),
-
-                const SizedBox(width: 12),
-
-                // Product Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      if (item.options != null && item.options!.isNotEmpty)
-                        Text(
-                          item.options!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-
-                // Delete Button
-                IconButton(
-                  icon: Icon(Icons.delete_outline, color: AppColors.error),
-                  onPressed: onRemove,
-                  iconSize: 20,
-                ),
-              ],
+                    )
+                  : Icon(
+                      Icons.inventory_2_outlined,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(width: 12),
 
-            // Row 2: Quantity Controls, Price, Total
-            Row(
-              children: [
-                // Quantity Controls
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove, size: 16),
-                        onPressed: () => onQuantityChanged(item.quantity - 1),
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        child: Text(
-                          '${item.quantity}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add, size: 16),
-                        onPressed: () => onQuantityChanged(item.quantity + 1),
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Price and Total
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
+            // Product Info (3 lines: SKU, Name, Options)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Line 1: SKU
+                  if (item.sku != null && item.sku!.isNotEmpty)
                     Text(
-                      '${AppCurrency.format(item.price)} ×',
+                      'SKU: ${item.sku}',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 10,
                         color: AppColors.textSecondary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  // Line 2: Product Name
+                  Text(
+                    item.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // Line 3: Options/Variations
+                  if (item.options != null && item.options!.isNotEmpty)
                     Text(
-                      AppCurrency.format(item.total),
+                      item.options!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Unit Price
+            Text(
+              AppCurrency.format(item.price),
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Quantity Controls
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      item.quantity == 1 ? Icons.delete_outline : Icons.remove,
+                      size: 16,
+                      color: item.quantity == 1
+                          ? AppColors.error
+                          : AppColors.textPrimary,
+                    ),
+                    onPressed: () => onQuantityChanged(item.quantity - 1),
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      '${item.quantity}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 13,
                       ),
                     ),
-                  ],
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.add, size: 16, color: AppColors.primary),
+                    onPressed: () => onQuantityChanged(item.quantity + 1),
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Line Total
+            SizedBox(
+              width: 70,
+              child: Text(
+                AppCurrency.format(item.total),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.primary,
                 ),
-              ],
+                textAlign: TextAlign.right,
+              ),
             ),
           ],
         ),

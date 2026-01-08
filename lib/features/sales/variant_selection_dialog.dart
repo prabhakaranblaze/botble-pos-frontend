@@ -71,6 +71,30 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
     }
   }
 
+  /// Build options display string from selected variants (e.g., "Color: Black • Size: S")
+  String _buildOptionsString() {
+    final parts = <String>[];
+    for (var variant in widget.product.variants ?? []) {
+      if (variant.options == null || variant.options!.isEmpty) continue;
+      final selectedOptionId = _selectedVariantOptions[variant.id];
+      if (selectedOptionId != null) {
+        // Find the selected option
+        final options = variant.options!;
+        VariantOption selectedOption = options.first; // Default to first
+        for (var opt in options) {
+          if (opt.id == selectedOptionId) {
+            selectedOption = opt;
+            break;
+          }
+        }
+
+        final variantName = variant.name ?? variant.type ?? 'Option';
+        parts.add('$variantName: ${selectedOption.name}');
+      }
+    }
+    return parts.join(' • ');
+  }
+
   void _handleAddToCart() {
     if (!_isValid) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,12 +103,13 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
       return;
     }
 
-    // Return selected variant data
+    // Return selected variant data with options display string
     Navigator.pop(context, {
       'product_id': widget.product.id,
       'quantity': _quantity,
       'variants': _selectedVariantOptions,
       'price': _calculatedPrice,
+      'options': _buildOptionsString(), // Display string for cart
     });
   }
 

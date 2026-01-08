@@ -27,5 +27,6 @@ module.exports = {
     port: parseInt(process.env.PRINTER_PORT) || 9100,
   },
 
-  storageUrl: process.env.STORAGE_URL || 'https://stampsmart.test/storage',
+  // Storage URL for 'public' media driver (from env, no hardcoded fallback)
+  storageUrl: process.env.STORAGE_URL || '',
 };

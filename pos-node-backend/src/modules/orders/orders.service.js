@@ -1,5 +1,6 @@
 const { prisma } = require('../../config/database');
 const cartService = require('../cart/cart.service');
+const discountsService = require('../discounts/discounts.service');
 const crypto = require('crypto');
 
 class OrdersService {
@@ -107,20 +108,81 @@ class OrdersService {
   }
 
   /**
+   * Generate invoice code (INV-YYYYMMDD-XXXXX)
+   */
+  async generateInvoiceCode() {
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const lastInvoice = await prisma.invoice.findFirst({
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+    const nextId = lastInvoice ? Number(lastInvoice.id) + 1 : 1;
+    return `INV-${dateStr}-${String(nextId).padStart(5, '0')}`;
+  }
+
+  /**
    * Create order directly from client cart items
    * No server-side cart sync needed - items sent directly from Flutter
-   * Creates payment record and links to order (Laravel style)
+   * Creates payment record, order, and invoice (Laravel style)
    */
-  async checkoutDirect(userId, { items, paymentMethod = 'pos_cash', paymentDetails = null, customerId = null }) {
+  async checkoutDirect(userId, {
+    items,
+    paymentMethod = 'pos_cash',
+    paymentDetails = null,
+    customerId = null,
+    // New discount/shipping parameters
+    discountId = null,          // Coupon discount ID (for usage tracking)
+    couponCode = null,          // Coupon code
+    discountAmount = 0,         // Calculated discount amount
+    discountDescription = null, // Description (for manual discount)
+    shippingAmount = 0,         // Shipping amount
+    deliveryType = 'pickup',    // 'pickup' or 'ship'
+    taxAmount = null,           // Client-calculated tax (if provided)
+    customerName = null,        // For invoice
+    customerEmail = null,
+    customerPhone = null,
+    // Address info
+    addressId = null,           // Customer address ID (for shipping)
+    customerAddress = null,     // Full formatted address for invoice
+  }) {
+    console.log('========== CHECKOUT DIRECT ==========');
+    console.log('checkoutDirect received params:');
+    console.log('  - userId:', userId);
+    console.log('  - items count:', items?.length);
+    console.log('  - paymentMethod:', paymentMethod);
+    console.log('  - taxAmount (from client):', taxAmount, '(type:', typeof taxAmount, ')');
+    console.log('  - discountAmount:', discountAmount, '(type:', typeof discountAmount, ')');
+    console.log('  - shippingAmount:', shippingAmount, '(type:', typeof shippingAmount, ')');
+    console.log('  - couponCode:', couponCode);
+    console.log('  - customerId:', customerId);
+
     if (!items || items.length === 0) {
       throw new Error('Cart is empty');
     }
 
     // Calculate totals from items
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const taxRate = 0.15; // 15% tax
-    const tax = subtotal * taxRate;
-    const total = subtotal + tax;
+    console.log('  - subtotal (calculated):', subtotal);
+
+    // Calculate tax: use client-provided tax or calculate per-item tax
+    let tax = 0;
+    if (taxAmount !== null && taxAmount !== undefined) {
+      tax = taxAmount;
+      console.log('  - Using client-provided tax:', tax);
+    } else {
+      // Calculate from item tax rates (fallback to 0 if not provided)
+      tax = items.reduce((sum, item) => {
+        const itemTaxRate = item.tax_rate || 0;
+        return sum + (item.price * item.quantity * itemTaxRate / 100);
+      }, 0);
+      console.log('  - Tax calculated from item rates:', tax);
+    }
+
+    // Calculate total: subtotal + tax - discount + shipping
+    const total = subtotal + tax - discountAmount + shippingAmount;
+    console.log('  - total (calculated):', total);
+    console.log('  - Final values for order: tax=', tax, ', discount=', discountAmount, ', shipping=', shippingAmount);
 
     // Map payment method to Laravel's format (pos_cash, pos_card)
     const paymentChannel = paymentMethod === 'card' ? 'pos_card' :
@@ -149,6 +211,13 @@ class OrdersService {
     const orderCode = await this.generateOrderCode();
 
     // Create order with payment_id linked
+    console.log('Creating order with data:');
+    console.log('  - tax_amount:', tax);
+    console.log('  - discount_amount:', discountAmount);
+    console.log('  - shipping_amount:', shippingAmount);
+    console.log('  - sub_total:', subtotal);
+    console.log('  - amount (total):', total);
+
     const order = await prisma.order.create({
       data: {
         code: orderCode,
@@ -156,8 +225,10 @@ class OrdersService {
         status: 'completed', // POS orders are completed immediately
         amount: total,
         tax_amount: tax,
-        shipping_amount: 0,
-        discount_amount: 0,
+        shipping_amount: shippingAmount,
+        discount_amount: discountAmount,
+        coupon_code: couponCode,
+        discount_description: discountDescription,
         sub_total: subtotal,
         is_confirmed: true,
         is_finished: true,
@@ -170,6 +241,11 @@ class OrdersService {
       },
     });
 
+    console.log('Order created:', order.id, order.code);
+    console.log('  - Saved tax_amount:', order.tax_amount);
+    console.log('  - Saved discount_amount:', order.discount_amount);
+    console.log('  - Saved shipping_amount:', order.shipping_amount);
+
     // Update payment with order_id
     await prisma.payment.update({
       where: { id: payment.id },
@@ -178,6 +254,9 @@ class OrdersService {
 
     // Create order products
     for (const item of items) {
+      const itemTaxRate = item.tax_rate || 0;
+      const itemTaxAmount = item.price * item.quantity * itemTaxRate / 100;
+
       await prisma.orderProduct.create({
         data: {
           order_id: order.id,
@@ -186,7 +265,7 @@ class OrdersService {
           product_image: item.image || null,
           qty: item.quantity,
           price: item.price,
-          tax_amount: (item.price * item.quantity * taxRate),
+          tax_amount: itemTaxAmount,
           options: null,
           created_at: new Date(),
           updated_at: new Date(),
@@ -209,6 +288,32 @@ class OrdersService {
       }
     }
 
+    // Increment coupon usage if coupon was used
+    if (discountId) {
+      await discountsService.incrementUsage(discountId);
+    }
+
+    // Create invoice
+    const invoice = await this.createInvoice({
+      orderId: order.id,
+      orderCode,
+      customerId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      customerAddress,
+      deliveryType,
+      subtotal,
+      taxAmount: tax,
+      shippingAmount,
+      discountAmount,
+      couponCode,
+      discountDescription,
+      total,
+      paymentId: payment.id,
+      items,
+    });
+
     // Format items for response
     const formattedItems = items.map(item => ({
       id: item.product_id,
@@ -216,6 +321,7 @@ class OrdersService {
       price: item.price,
       quantity: item.quantity,
       sku: item.sku || null,
+      tax_rate: item.tax_rate || 0,
     }));
 
     return {
@@ -224,13 +330,120 @@ class OrdersService {
       amount: total,
       sub_total: subtotal,
       tax_amount: tax,
+      discount_amount: discountAmount,
+      shipping_amount: shippingAmount,
+      coupon_code: couponCode,
+      discount_description: discountDescription,
       payment_method: paymentChannel,
       payment_id: Number(payment.id),
+      invoice_id: Number(invoice.id),
+      invoice_code: invoice.code,
       status: order.status,
       created_at: order.created_at.toISOString(),
       payment_details: paymentDetails,
       items: formattedItems,
     };
+  }
+
+  /**
+   * Create invoice for an order
+   * Uses Laravel-compatible defaults for guest customers
+   */
+  async createInvoice({
+    orderId,
+    orderCode,
+    customerId,
+    customerName,
+    customerEmail,
+    customerPhone,
+    customerAddress,
+    deliveryType = 'pickup',
+    subtotal,
+    taxAmount,
+    shippingAmount,
+    discountAmount,
+    couponCode,
+    discountDescription,
+    total,
+    paymentId,
+    items,
+  }) {
+    const invoiceCode = await this.generateInvoiceCode();
+
+    // Use Laravel-compatible defaults for guest customers
+    const finalCustomerName = customerName || 'Guest';
+    const finalCustomerEmail = customerEmail || 'guest@example.com';
+    const finalCustomerPhone = customerPhone || 'N/A';
+    // Address: use provided address for shipping, or 'Pickup at Store' for pickup
+    const finalCustomerAddress = deliveryType === 'ship' && customerAddress
+      ? customerAddress
+      : 'Pickup at Store';
+
+    // Create invoice
+    const invoice = await prisma.invoice.create({
+      data: {
+        reference_type: 'Botble\\Ecommerce\\Models\\Order',
+        reference_id: orderId,
+        code: invoiceCode,
+        customer_name: finalCustomerName,
+        customer_email: finalCustomerEmail,
+        customer_phone: finalCustomerPhone,
+        customer_address: finalCustomerAddress,
+        sub_total: subtotal,
+        tax_amount: taxAmount,
+        shipping_amount: shippingAmount,
+        discount_amount: discountAmount,
+        coupon_code: couponCode,
+        discount_description: discountDescription,
+        amount: total,
+        payment_id: paymentId,
+        status: 'completed',
+        paid_at: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+
+    // Create invoice items with Laravel-compatible options JSON
+    for (const item of items) {
+      const itemTaxRate = item.tax_rate || 0;
+      const itemSubtotal = item.price * item.quantity;
+      const itemTax = itemSubtotal * itemTaxRate / 100;
+      const itemTotal = itemSubtotal + itemTax;
+
+      // Build options JSON matching Laravel format
+      // attributes: display string like "Size: Large • Color: Red" or "Default"
+      const itemOptions = {
+        image: item.image || '',
+        attributes: item.options || '',
+        taxRate: itemTaxRate,
+        taxClasses: itemTaxRate > 0 ? { 'VAT': itemTaxRate } : {},
+        options: [],
+        extras: [],
+        sku: item.sku || '',
+        weight: item.weight || 0,
+      };
+
+      await prisma.invoiceItem.create({
+        data: {
+          invoice_id: invoice.id,
+          reference_type: 'Botble\\Ecommerce\\Models\\Product',
+          reference_id: BigInt(item.product_id),
+          name: item.name,
+          image: item.image || null,
+          qty: item.quantity,
+          sub_total: itemSubtotal,
+          tax_amount: itemTax,
+          discount_amount: 0,
+          amount: itemTotal,
+          options: JSON.stringify(itemOptions),
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+    }
+
+    return invoice;
   }
 
   /**
@@ -328,6 +541,9 @@ class OrdersService {
       amount: Number(order.amount),
       tax_amount: Number(order.tax_amount || 0),
       discount_amount: Number(order.discount_amount || 0),
+      shipping_amount: Number(order.shipping_amount || 0),
+      coupon_code: order.coupon_code,
+      discount_description: order.discount_description,
       sub_total: Number(order.sub_total),
       payment_method: paymentMethod,
       status: order.status,
@@ -429,6 +645,12 @@ class OrdersService {
           <tr>
             <td>Discount:</td>
             <td style="text-align:right">-SCR ${order.discount_amount.toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${order.shipping_amount > 0 ? `
+          <tr>
+            <td>Shipping:</td>
+            <td style="text-align:right">SCR ${order.shipping_amount.toFixed(2)}</td>
           </tr>
           ` : ''}
           <tr class="total-row">

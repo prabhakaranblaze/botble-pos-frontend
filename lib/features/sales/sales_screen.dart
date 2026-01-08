@@ -5,6 +5,13 @@ import '../sales/sales_provider.dart';
 import '../sales/variant_selection_dialog.dart';
 import '../sales/cart_item_widget.dart';
 import '../sales/payment_dialog.dart';
+import '../sales/apply_coupon_dialog.dart';
+import '../sales/apply_discount_dialog.dart';
+import '../sales/update_shipping_dialog.dart';
+import '../sales/customer_search_widget.dart';
+import '../sales/add_customer_dialog.dart';
+import '../sales/delivery_address_widget.dart';
+import '../sales/add_address_dialog.dart';
 import '../auth/auth_provider.dart';
 import '../../core/models/product.dart';
 import '../../core/services/auto_print_service.dart';
@@ -270,10 +277,12 @@ class _SalesScreenState extends State<SalesScreen> {
           final int qty = result['quantity'] as int;
           final double totalPrice = result['price'] as double;
           final double unitPrice = totalPrice / qty;
+          final String? optionsStr = result['options'] as String?;
           debugPrint('➕ ADD TO CART: Unit Price: $unitPrice');
+          debugPrint('➕ ADD TO CART: Options: $optionsStr');
 
           await salesProvider.addProductToCart(productForCart,
-              quantity: qty, priceOverride: unitPrice);
+              quantity: qty, priceOverride: unitPrice, options: optionsStr);
 
           debugPrint('✅ ADD TO CART: Product added with variants');
         } else {
@@ -1220,6 +1229,7 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   /// Large cart item card for Kiosk mode
+  /// Layout: [Image] [SKU/Name/Options] [UnitPrice] [QtyControls] [Total]
   Widget _buildKioskCartItem(dynamic item, SalesProvider sales) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1256,31 +1266,60 @@ class _SalesScreenState extends State<SalesScreen> {
             ),
             const SizedBox(width: 16),
 
-            // Product Details
+            // Product Details (3 lines: SKU, Name, Options)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Line 1: SKU
+                  if (item.sku != null && item.sku!.isNotEmpty)
+                    Text(
+                      'SKU: ${item.sku}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  // Line 2: Product Name
                   Text(
                     item.name,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    AppCurrency.format(item.price),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                  // Line 3: Options/Variations
+                  if (item.options != null && item.options!.isNotEmpty)
+                    Text(
+                      item.options!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
                 ],
               ),
             ),
+
+            const SizedBox(width: 12),
+
+            // Unit Price
+            Text(
+              AppCurrency.format(item.price),
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+
+            const SizedBox(width: 12),
 
             // Quantity Controls
             Container(
@@ -1289,6 +1328,7 @@ class _SalesScreenState extends State<SalesScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     icon: Icon(
@@ -1298,6 +1338,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       color: item.quantity == 1
                           ? AppColors.error
                           : AppColors.primary,
+                      size: 20,
                     ),
                     onPressed: () {
                       if (item.quantity == 1) {
@@ -1306,36 +1347,40 @@ class _SalesScreenState extends State<SalesScreen> {
                         sales.updateCartItem(item.productId, item.quantity - 1);
                       }
                     },
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: EdgeInsets.zero,
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
                       '${item.quantity}',
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.add, color: AppColors.primary),
+                    icon: Icon(Icons.add, color: AppColors.primary, size: 20),
                     onPressed: () {
                       sales.updateCartItem(item.productId, item.quantity + 1);
                     },
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: EdgeInsets.zero,
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
 
             // Line Total
             SizedBox(
-              width: 100,
+              width: 90,
               child: Text(
                 AppCurrency.format(item.lineTotal),
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                 ),
@@ -1388,36 +1433,99 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
               ),
 
-              // Customer Selection (placeholder)
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.person_outline,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Walk-in Customer',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.chevron_right,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
+              // Customer Selection
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: CustomerSearchWidget(
+                  selectedCustomer: sales.selectedCustomer,
+                  onCustomerSelected: (customer) {
+                    sales.selectCustomer(customer);
+                  },
+                  onCustomerRemoved: () {
+                    sales.clearCustomer();
+                  },
+                  onAddNewCustomer: () {
+                    _showAddCustomerDialog(sales);
+                  },
+                  onSearch: (query) async {
+                    return await context.read<SalesProvider>().searchCustomers(query);
+                  },
                 ),
               ),
+
+              // Delivery & Address (only show when customer is selected)
+              if (sales.selectedCustomer != null)
+                DeliveryAddressWidget(
+                  customer: sales.selectedCustomer!,
+                  deliveryType: sales.deliveryType,
+                  selectedAddress: sales.selectedAddress,
+                  addresses: sales.customerAddresses,
+                  isLoadingAddresses: sales.isLoadingAddresses,
+                  onDeliveryTypeChanged: (type) {
+                    sales.setDeliveryType(type);
+                  },
+                  onAddressSelected: (address) {
+                    sales.selectAddress(address);
+                  },
+                  onAddNewAddress: () {
+                    _showAddAddressDialog(sales);
+                  },
+                ),
+
+              // Discount/Coupon/Shipping Actions
+              if (cart.items.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      // Apply Coupon
+                      _buildActionRow(
+                        icon: Icons.local_offer_outlined,
+                        label: sales.hasCouponDiscount
+                            ? 'Coupon: ${sales.couponCode}'
+                            : 'Apply Coupon',
+                        value: sales.hasCouponDiscount
+                            ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
+                            : null,
+                        valueColor: AppColors.success,
+                        onTap: () => _showApplyCouponDialog(),
+                        onClear: sales.hasCouponDiscount
+                            ? () => sales.clearCouponDiscount()
+                            : null,
+                      ),
+                      // Apply Discount (only if no coupon)
+                      if (!sales.hasCouponDiscount)
+                        _buildActionRow(
+                          icon: Icons.discount_outlined,
+                          label: sales.hasManualDiscount
+                              ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
+                              : 'Apply Discount',
+                          value: sales.hasManualDiscount
+                              ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
+                              : null,
+                          valueColor: AppColors.success,
+                          onTap: () => _showApplyDiscountDialog(),
+                          onClear: sales.hasManualDiscount
+                              ? () => sales.clearManualDiscount()
+                              : null,
+                        ),
+                      // Shipping
+                      _buildActionRow(
+                        icon: Icons.local_shipping_outlined,
+                        label: sales.shippingAmount > 0
+                            ? 'Shipping'
+                            : 'Add Shipping',
+                        value: sales.shippingAmount > 0
+                            ? AppCurrency.format(sales.shippingAmount)
+                            : null,
+                        onTap: () => _showUpdateShippingDialog(),
+                        onClear: sales.shippingAmount > 0
+                            ? () => sales.clearShippingAmount()
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
 
               // Spacer to push summary to bottom
               const Spacer(),
@@ -1460,6 +1568,8 @@ class _SalesScreenState extends State<SalesScreen> {
                           color: AppColors.success,
                         ),
                       _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                      if (cart.shipping > 0)
+                        _buildSummaryRow('Shipping', cart.shipping),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         l10n?.total ?? 'Total',
@@ -1777,6 +1887,61 @@ class _SalesScreenState extends State<SalesScreen> {
                       ),
               ),
 
+              // Discount/Coupon/Shipping Actions
+              if (cart.items.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    children: [
+                      // Apply Coupon
+                      _buildActionRow(
+                        icon: Icons.local_offer_outlined,
+                        label: sales.hasCouponDiscount
+                            ? 'Coupon: ${sales.couponCode}'
+                            : 'Apply Coupon',
+                        value: sales.hasCouponDiscount
+                            ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
+                            : null,
+                        valueColor: AppColors.success,
+                        onTap: () => _showApplyCouponDialog(),
+                        onClear: sales.hasCouponDiscount
+                            ? () => sales.clearCouponDiscount()
+                            : null,
+                      ),
+                      // Apply Discount (only if no coupon)
+                      if (!sales.hasCouponDiscount)
+                        _buildActionRow(
+                          icon: Icons.discount_outlined,
+                          label: sales.hasManualDiscount
+                              ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
+                              : 'Apply Discount',
+                          value: sales.hasManualDiscount
+                              ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
+                              : null,
+                          valueColor: AppColors.success,
+                          onTap: () => _showApplyDiscountDialog(),
+                          onClear: sales.hasManualDiscount
+                              ? () => sales.clearManualDiscount()
+                              : null,
+                        ),
+                      // Shipping
+                      _buildActionRow(
+                        icon: Icons.local_shipping_outlined,
+                        label: sales.shippingAmount > 0
+                            ? 'Shipping'
+                            : 'Add Shipping',
+                        value: sales.shippingAmount > 0
+                            ? AppCurrency.format(sales.shippingAmount)
+                            : null,
+                        onTap: () => _showUpdateShippingDialog(),
+                        onClear: sales.shippingAmount > 0
+                            ? () => sales.clearShippingAmount()
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+
               // Cart Summary & Checkout
               if (cart.items.isNotEmpty)
                 Container(
@@ -1795,6 +1960,8 @@ class _SalesScreenState extends State<SalesScreen> {
                           color: AppColors.success,
                         ),
                       _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                      if (cart.shipping > 0)
+                        _buildSummaryRow('Shipping', cart.shipping),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         l10n?.total ?? 'Total',
@@ -1894,5 +2061,150 @@ class _SalesScreenState extends State<SalesScreen> {
         ],
       ),
     );
+  }
+
+  void _showAddCustomerDialog(SalesProvider sales) {
+    showDialog(
+      context: context,
+      builder: (context) => AddCustomerDialog(
+        onSave: (name, phone, email) async {
+          await sales.createCustomer(name, phone, email);
+        },
+      ),
+    );
+  }
+
+  void _showAddAddressDialog(SalesProvider sales) {
+    if (sales.selectedCustomer == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AddAddressDialog(
+        customer: sales.selectedCustomer!,
+        onSave: (addressData) async {
+          await sales.createCustomerAddress(addressData);
+        },
+      ),
+    );
+  }
+
+  /// Action row for discount/coupon/shipping
+  Widget _buildActionRow({
+    required IconData icon,
+    required String label,
+    String? value,
+    Color? valueColor,
+    required VoidCallback onTap,
+    VoidCallback? onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: value != null ? AppColors.textPrimary : AppColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (value != null) ...[
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: valueColor ?? AppColors.textPrimary,
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onClear,
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: AppColors.error,
+                  ),
+                ),
+              ],
+            ] else
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show Apply Coupon Dialog
+  Future<void> _showApplyCouponDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const ApplyCouponDialog(),
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Coupon applied successfully!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Show Apply Discount Dialog
+  Future<void> _showApplyDiscountDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const ApplyDiscountDialog(),
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Discount applied successfully!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Show Update Shipping Dialog
+  Future<void> _showUpdateShippingDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const UpdateShippingDialog(),
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Shipping updated!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }

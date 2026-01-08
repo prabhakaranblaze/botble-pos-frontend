@@ -112,23 +112,23 @@ class _ReportsScreenState extends State<ReportsScreen>
 
     switch (_selectedDateFilter) {
       case 'today':
-        return (today, today.add(const Duration(days: 1)));
+        return (today, today);
       case 'yesterday':
         final yesterday = today.subtract(const Duration(days: 1));
-        return (yesterday, today);
+        return (yesterday, yesterday);
       case 'this_week':
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-        return (startOfWeek, today.add(const Duration(days: 1)));
+        return (startOfWeek, today);
       case 'this_month':
         final startOfMonth = DateTime(now.year, now.month, 1);
-        return (startOfMonth, today.add(const Duration(days: 1)));
+        return (startOfMonth, today);
       case 'custom':
         if (_customFromDate != null && _customToDate != null) {
-          return (_customFromDate!, _customToDate!.add(const Duration(days: 1)));
+          return (_customFromDate!, _customToDate!);
         }
-        return (today, today.add(const Duration(days: 1)));
+        return (today, today);
       default:
-        return (today, today.add(const Duration(days: 1)));
+        return (today, today);
     }
   }
 

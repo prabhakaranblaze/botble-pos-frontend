@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const reportsController = require('./reports.controller');
-const { authenticate } = require('../../middleware/auth.middleware');
+const { verifyToken } = require('../../middleware/auth.middleware');
 
 // All report routes require authentication
-router.use(authenticate);
+router.use(verifyToken);
 
 /**
  * GET /reports/orders

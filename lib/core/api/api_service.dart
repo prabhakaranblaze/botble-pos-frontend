@@ -924,7 +924,8 @@ class ApiService {
 
   // Reports APIs
 
-  /// Get orders report with date filtering (uses existing orders endpoint)
+  /// Get orders report with date filtering
+  /// Backend endpoint: GET /reports/orders?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
   Future<Map<String, dynamic>> getOrdersReport({
     DateTime? fromDate,
     DateTime? toDate,
@@ -933,43 +934,21 @@ class ApiService {
     debugPrint('📊 API SERVICE: Date range: $fromDate to $toDate');
 
     try {
-      // Fetch orders with date filtering from backend
-      final orders = await getRecentOrders(
-        limit: 500,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
+      final queryParams = <String, dynamic>{
+        if (fromDate != null) 'from_date': fromDate.toIso8601String().split('T')[0],
+        if (toDate != null) 'to_date': toDate.toIso8601String().split('T')[0],
+      };
 
-      // Calculate summary
-      double totalRevenue = 0;
-      for (final order in orders) {
-        totalRevenue += order.amount;
+      final response = await _dio.get('/reports/orders', queryParameters: queryParams);
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Orders report loaded');
+        return response.data['data'] as Map<String, dynamic>;
       }
 
-      final avgOrder = orders.isNotEmpty ? totalRevenue / orders.length : 0.0;
-
-      // Convert orders to report format
-      final ordersData = orders.map((order) => {
-        'id': order.id,
-        'code': order.code,
-        'created_at': order.createdAt.toIso8601String(),
-        'customer_name': order.customer?.name,
-        'items_count': order.items.length,
-        'sub_total': order.subTotal,
-        'tax_amount': order.taxAmount,
-        'discount_amount': order.discountAmount,
-        'amount': order.amount,
-        'payment_method': order.paymentMethod,
-        'status': order.status,
-      }).toList();
-
       return {
-        'orders': ordersData,
-        'summary': {
-          'total_orders': orders.length,
-          'total_revenue': totalRevenue,
-          'average_order': avgOrder,
-        },
+        'orders': <Map<String, dynamic>>[],
+        'summary': <String, dynamic>{},
       };
     } catch (e) {
       debugPrint('❌ API SERVICE: getOrdersReport error: $e');
@@ -980,7 +959,8 @@ class ApiService {
     }
   }
 
-  /// Get products sold report with date filtering (calculated from orders)
+  /// Get products sold report with date filtering
+  /// Backend endpoint: GET /reports/products?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&sort_by=quantity&sort_order=desc
   Future<Map<String, dynamic>> getProductsReport({
     DateTime? fromDate,
     DateTime? toDate,
@@ -991,77 +971,23 @@ class ApiService {
     debugPrint('📊 API SERVICE: Date range: $fromDate to $toDate');
 
     try {
-      // Fetch orders with date filtering from backend
-      final orders = await getRecentOrders(
-        limit: 500,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
+      final queryParams = <String, dynamic>{
+        if (fromDate != null) 'from_date': fromDate.toIso8601String().split('T')[0],
+        if (toDate != null) 'to_date': toDate.toIso8601String().split('T')[0],
+        if (sortBy != null) 'sort_by': sortBy,
+        if (sortOrder != null) 'sort_order': sortOrder,
+      };
 
-      // Aggregate products from all orders
-      final Map<String, Map<String, dynamic>> productMap = {};
+      final response = await _dio.get('/reports/products', queryParameters: queryParams);
 
-      for (final order in orders) {
-        for (final item in order.items) {
-          // Create unique key including variation (using options field)
-          final key = '${item.productId}_${item.options ?? 'default'}';
-
-          if (productMap.containsKey(key)) {
-            productMap[key]!['quantity'] = (productMap[key]!['quantity'] as int) + item.quantity;
-            productMap[key]!['revenue'] = (productMap[key]!['revenue'] as double) + (item.price * item.quantity);
-          } else {
-            productMap[key] = {
-              'name': item.name,
-              'sku': item.sku ?? '-',
-              'variation': item.options ?? '-',
-              'quantity': item.quantity,
-              'revenue': item.price * item.quantity,
-            };
-          }
-        }
-      }
-
-      // Convert to list and sort
-      var productsList = productMap.values.toList();
-
-      // Sort
-      final ascending = sortOrder == 'asc';
-      switch (sortBy) {
-        case 'quantity':
-          productsList.sort((a, b) => ascending
-              ? (a['quantity'] as int).compareTo(b['quantity'] as int)
-              : (b['quantity'] as int).compareTo(a['quantity'] as int));
-          break;
-        case 'revenue':
-          productsList.sort((a, b) => ascending
-              ? (a['revenue'] as double).compareTo(b['revenue'] as double)
-              : (b['revenue'] as double).compareTo(a['revenue'] as double));
-          break;
-        case 'name':
-          productsList.sort((a, b) => ascending
-              ? (a['name'] as String).compareTo(b['name'] as String)
-              : (b['name'] as String).compareTo(a['name'] as String));
-          break;
-        default:
-          productsList.sort((a, b) =>
-              (b['quantity'] as int).compareTo(a['quantity'] as int));
-      }
-
-      // Calculate summary
-      int totalQuantity = 0;
-      double totalRevenue = 0;
-      for (final product in productsList) {
-        totalQuantity += product['quantity'] as int;
-        totalRevenue += product['revenue'] as double;
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Products report loaded');
+        return response.data['data'] as Map<String, dynamic>;
       }
 
       return {
-        'products': productsList,
-        'summary': {
-          'total_products': productsList.length,
-          'total_quantity': totalQuantity,
-          'total_revenue': totalRevenue,
-        },
+        'products': <Map<String, dynamic>>[],
+        'summary': <String, dynamic>{},
       };
     } catch (e) {
       debugPrint('❌ API SERVICE: getProductsReport error: $e');

@@ -5,7 +5,7 @@
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "StampSmart"
 #define MyAppURL "https://stampsmart.com"
-#define MyAppExeName "stampsmart_pos.exe"
+#define MyAppExeName "pos_desktop.exe"
 
 [Setup]
 ; Unique identifier for this application (generate your own GUID)

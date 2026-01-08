@@ -5,6 +5,7 @@ import '../../core/models/cart.dart';
 import '../session/session_provider.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../shared/widgets/app_toast.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class PaymentDialog extends StatefulWidget {
   final Cart cart;
@@ -63,9 +64,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
   }
 
   void _handleSubmit() {
+    final l10n = AppLocalizations.of(context);
     if (_paymentMethod == 'pos_cash') {
       if (_cashReceived < widget.cart.total) {
-        AppToast.error(context, 'Insufficient cash received');
+        AppToast.error(context, l10n?.insufficientCash ?? 'Insufficient cash received');
         return;
       }
 
@@ -79,7 +81,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
       });
     } else {
       if (_cardDigitsController.text.length != 4) {
-        AppToast.error(context, 'Please enter last 4 digits');
+        AppToast.error(context, l10n?.enterLast4Digits ?? 'Please enter last 4 digits');
         return;
       }
 
@@ -95,6 +97,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 600,
@@ -108,9 +111,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
               children: [
                 Icon(Icons.payment_rounded, color: AppColors.primary, size: 28),
                 const SizedBox(width: 12),
-                const Text(
-                  'Payment',
-                  style: TextStyle(
+                Text(
+                  l10n?.payment ?? 'Payment',
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -134,9 +137,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Total Amount',
-                    style: TextStyle(
+                  Text(
+                    l10n?.totalAmount ?? 'Total Amount',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -159,7 +162,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
               children: [
                 Expanded(
                   child: _buildPaymentMethodButton(
-                    'Cash',
+                    l10n?.cash ?? 'Cash',
                     Icons.money_rounded,
                     'pos_cash',
                   ),
@@ -167,7 +170,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildPaymentMethodButton(
-                    'Card',
+                    l10n?.card ?? 'Card',
                     Icons.credit_card_rounded,
                     'pos_card',
                   ),
@@ -192,9 +195,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 backgroundColor: AppColors.success,
               ),
-              child: const Text(
-                'Complete Payment',
-                style: TextStyle(
+              child: Text(
+                l10n?.completePayment ?? 'Complete Payment',
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),

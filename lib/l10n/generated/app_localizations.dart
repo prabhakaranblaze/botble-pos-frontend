@@ -393,6 +393,9 @@ abstract class AppLocalizations {
   String get searchProductsHint;
   String get refreshProducts;
   String get currentCart;
+  String get completePayment;
+  String get insufficientCash;
+  String get enterLast4Digits;
 }
 
 class _AppLocalizationsDelegate

@@ -667,4 +667,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refreshProducts => 'Refresh products';
   @override
   String get currentCart => 'Current';
+  @override
+  String get completePayment => 'Complete Payment';
+  @override
+  String get insufficientCash => 'Insufficient cash received';
+  @override
+  String get enterLast4Digits => 'Please enter last 4 digits';
 }

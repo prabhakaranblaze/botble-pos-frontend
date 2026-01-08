@@ -338,5 +338,8 @@
   "searchProductsHint": "Scan barcode, SKU, or search products...",
   "useArrowKeys": "Use arrow keys to select product",
   "refreshProducts": "Refresh products",
-  "currentCart": "Current"
+  "currentCart": "Current",
+  "completePayment": "Complete Payment",
+  "insufficientCash": "Insufficient cash received",
+  "enterLast4Digits": "Please enter last 4 digits"
 }

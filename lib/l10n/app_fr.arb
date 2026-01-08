@@ -337,5 +337,8 @@
   "searchProductsHint": "Scanner le code-barres, SKU ou rechercher des produits...",
   "useArrowKeys": "Utilisez les flèches pour sélectionner le produit",
   "refreshProducts": "Actualiser les produits",
-  "currentCart": "Actuel"
+  "currentCart": "Actuel",
+  "completePayment": "Finaliser le paiement",
+  "insufficientCash": "Montant en espèces insuffisant",
+  "enterLast4Digits": "Veuillez entrer les 4 derniers chiffres"
 }

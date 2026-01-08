@@ -73,6 +73,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       // setFullScreen hides Windows taskbar and title bar (true kiosk mode)
       await windowManager.setFullScreen(_isFullScreen);
 
+      // Wait for window to settle, then regain focus (fixes input not working after toggle)
+      await Future.delayed(const Duration(milliseconds: 150));
+      await windowManager.focus();
+
       setState(() {});
       debugPrint('🖥️ Fullscreen: $_isFullScreen');
     } catch (e) {

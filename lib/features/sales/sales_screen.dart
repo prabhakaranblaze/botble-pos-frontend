@@ -1470,56 +1470,42 @@ class _SalesScreenState extends State<SalesScreen> {
                           },
                         ),
 
-                      // Discount/Coupon/Shipping Actions
+                      // Discount/Coupon/Shipping Actions (compact tabs)
                       if (cart.items.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
                             children: [
-                              // Apply Coupon
-                              _buildActionRow(
-                                icon: Icons.local_offer_outlined,
-                                label: sales.hasCouponDiscount
-                                    ? 'Coupon: ${sales.couponCode}'
-                                    : 'Apply Coupon',
-                                value: sales.hasCouponDiscount
-                                    ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
-                                    : null,
-                                valueColor: AppColors.success,
-                                onTap: () => _showApplyCouponDialog(),
-                                onClear: sales.hasCouponDiscount
-                                    ? () => sales.clearCouponDiscount()
-                                    : null,
-                              ),
-                              // Apply Discount (only if no coupon)
-                              if (!sales.hasCouponDiscount)
-                                _buildActionRow(
-                                  icon: Icons.discount_outlined,
-                                  label: sales.hasManualDiscount
-                                      ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
-                                      : 'Apply Discount',
-                                  value: sales.hasManualDiscount
-                                      ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
-                                      : null,
-                                  valueColor: AppColors.success,
-                                  onTap: () => _showApplyDiscountDialog(),
-                                  onClear: sales.hasManualDiscount
-                                      ? () => sales.clearManualDiscount()
-                                      : null,
+                              // Coupon tab
+                              Expanded(
+                                child: _buildActionTab(
+                                  icon: Icons.confirmation_number_outlined,
+                                  label: 'Coupon',
+                                  isActive: sales.hasCouponDiscount,
+                                  onTap: () => _showApplyCouponDialog(),
                                 ),
-                              // Shipping
-                              _buildActionRow(
-                                icon: Icons.local_shipping_outlined,
-                                label: sales.shippingAmount > 0
-                                    ? 'Shipping'
-                                    : 'Add Shipping',
-                                value: sales.shippingAmount > 0
-                                    ? AppCurrency.format(sales.shippingAmount)
-                                    : null,
-                                onTap: () => _showUpdateShippingDialog(),
-                                onClear: sales.shippingAmount > 0
-                                    ? () => sales.clearShippingAmount()
-                                    : null,
+                              ),
+                              const SizedBox(width: 8),
+                              // Discount tab (only if no coupon)
+                              if (!sales.hasCouponDiscount)
+                                Expanded(
+                                  child: _buildActionTab(
+                                    icon: Icons.percent_outlined,
+                                    label: 'Discount',
+                                    isActive: sales.hasManualDiscount,
+                                    onTap: () => _showApplyDiscountDialog(),
+                                  ),
+                                ),
+                              if (!sales.hasCouponDiscount)
+                                const SizedBox(width: 8),
+                              // Shipping tab
+                              Expanded(
+                                child: _buildActionTab(
+                                  icon: Icons.local_shipping_outlined,
+                                  label: 'Shipping',
+                                  isActive: sales.shippingAmount > 0,
+                                  onTap: () => _showUpdateShippingDialog(),
+                                ),
                               ),
                             ],
                           ),
@@ -2087,7 +2073,50 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
-  /// Action row for discount/coupon/shipping
+  /// Compact action tab for discount/coupon/shipping
+  Widget _buildActionTab({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive ? AppColors.primary : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Action row for discount/coupon/shipping (legacy - kept for cart panel)
   Widget _buildActionRow({
     required IconData icon,
     required String label,

@@ -2,7 +2,7 @@
 
 Complete API reference for the StampSmart POS Desktop Application.
 
-**Base URL:** `https://stampsmart.test/api/v1/pos`
+**Base URL:** `https://api.stampsmart.com/api/v1/pos`
 
 ---
 
@@ -15,6 +15,10 @@ Complete API reference for the StampSmart POS Desktop Application.
 - [Orders](#orders)
 - [Sessions](#sessions)
 - [Denominations](#denominations)
+- [Discounts](#discounts)
+- [Settings](#settings)
+- [Printer](#printer)
+- [Reports](#reports)
 
 ---
 
@@ -83,7 +87,8 @@ Authenticate a user and receive an access token.
       "name": "Admin User",
       "email": "admin@example.com",
       "store_id": 1,
-      "store_name": "Main Store"
+      "store_name": "Main Store",
+      "permissions": ["pos.sales", "pos.reports", "pos.settings"]
     }
   }
 }
@@ -109,7 +114,8 @@ Get the currently authenticated user's information.
       "name": "Admin User",
       "email": "admin@example.com",
       "store_id": 1,
-      "store_name": "Main Store"
+      "store_name": "Main Store",
+      "permissions": ["pos.sales", "pos.reports"]
     }
   }
 }
@@ -135,6 +141,31 @@ Logout the current user and invalidate the session.
 
 ---
 
+### POST /auth/verify-password
+
+Verify user's password for sensitive operations.
+
+**Use Case:** Confirm identity before applying discounts or refunds.
+
+**Request Body:**
+```json
+{
+  "password": "12345678"
+}
+```
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "valid": true
+  }
+}
+```
+
+---
+
 ## Products
 
 ### GET /products
@@ -150,10 +181,11 @@ Retrieve a paginated list of products.
 | `page` | integer | 1 | Page number |
 | `per_page` | integer | 20 | Items per page |
 | `search` | string | null | Search by name, SKU, or barcode |
+| `category_id` | integer | null | Filter by category ID |
 
 **Example Request:**
 ```
-GET /products?page=1&per_page=20&search=shirt
+GET /products?page=1&per_page=20&search=coffee
 ```
 
 **Response:**
@@ -164,37 +196,17 @@ GET /products?page=1&per_page=20&search=shirt
     "products": [
       {
         "id": 1,
-        "name": "Blue T-Shirt",
-        "sku": "TSH-BLU-001",
+        "name": "Organic Coffee Beans",
+        "sku": "COF-ORG-001",
         "barcode": "1234567890123",
         "price": 29.99,
         "sale_price": 24.99,
-        "image": "https://example.com/images/tshirt-blue.jpg",
+        "image": "https://example.com/images/coffee.jpg",
         "quantity": 50,
-        "description": "Comfortable cotton t-shirt",
+        "description": "Premium organic coffee",
         "is_available": true,
-        "has_variants": true,
-        "variants": [
-          {
-            "id": 1,
-            "type": "attribute",
-            "name": "Size",
-            "options": [
-              { "id": 1, "name": "Small", "price_modifier": 0 },
-              { "id": 2, "name": "Medium", "price_modifier": 0 },
-              { "id": 3, "name": "Large", "price_modifier": 2.00 }
-            ]
-          },
-          {
-            "id": 2,
-            "type": "attribute",
-            "name": "Color",
-            "options": [
-              { "id": 4, "name": "Blue", "price_modifier": 0 },
-              { "id": 5, "name": "Red", "price_modifier": 0 }
-            ]
-          }
-        ]
+        "tax_rate": 15.0,
+        "has_variants": false
       }
     ],
     "pagination": {
@@ -202,6 +214,42 @@ GET /products?page=1&per_page=20&search=shirt
       "per_page": 20,
       "total": 150,
       "last_page": 8
+    }
+  }
+}
+```
+
+---
+
+### GET /products/:id
+
+Get a single product by ID.
+
+**Use Case:** Fetch full product details including variants.
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "product": {
+      "id": 1,
+      "name": "Organic Coffee Beans",
+      "sku": "COF-ORG-001",
+      "price": 29.99,
+      "sale_price": 24.99,
+      "tax_rate": 15.0,
+      "has_variants": true,
+      "variants": [
+        {
+          "id": 1,
+          "name": "Size",
+          "options": [
+            { "id": 1, "name": "250g", "price_modifier": 0 },
+            { "id": 2, "name": "500g", "price_modifier": 15.00 }
+          ]
+        }
+      ]
     }
   }
 }
@@ -229,15 +277,11 @@ Find a product by scanning its barcode.
   "data": {
     "product": {
       "id": 1,
-      "name": "Blue T-Shirt",
-      "sku": "TSH-BLU-001",
+      "name": "Organic Coffee Beans",
+      "sku": "COF-ORG-001",
       "barcode": "1234567890123",
       "price": 29.99,
-      "sale_price": 24.99,
-      "image": "https://example.com/images/tshirt-blue.jpg",
-      "quantity": 50,
-      "is_available": true,
-      "has_variants": false
+      "is_available": true
     }
   }
 }
@@ -267,8 +311,8 @@ Get all product categories.
   "error": false,
   "data": {
     "categories": [
-      { "id": 1, "name": "Clothing", "product_count": 45 },
-      { "id": 2, "name": "Electronics", "product_count": 30 },
+      { "id": 1, "name": "Beverages", "product_count": 45 },
+      { "id": 2, "name": "Food", "product_count": 30 },
       { "id": 3, "name": "Accessories", "product_count": 25 }
     ]
   }
@@ -278,6 +322,40 @@ Get all product categories.
 ---
 
 ## Cart
+
+### GET /cart
+
+Get the current cart contents.
+
+**Use Case:** Sync cart state with server.
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "name": "Organic Coffee Beans",
+        "sku": "COF-ORG-001",
+        "price": 24.99,
+        "quantity": 2,
+        "image": "https://example.com/images/coffee.jpg"
+      }
+    ],
+    "subtotal": 49.98,
+    "discount": 0,
+    "tax": 7.50,
+    "shipping_amount": 0,
+    "total": 57.48,
+    "payment_method": null,
+    "coupon_code": null
+  }
+}
+```
+
+---
 
 ### POST /cart/add
 
@@ -291,8 +369,7 @@ Add a product to the cart.
   "product_id": 1,
   "quantity": 2,
   "attributes": {
-    "1": 2,
-    "2": 4
+    "1": 2
   }
 }
 ```
@@ -303,39 +380,13 @@ Add a product to the cart.
 | `quantity` | integer | Yes | Quantity to add |
 | `attributes` | object | No | Variant selections (variant_id: option_id) |
 
-**Response:**
-```json
-{
-  "error": false,
-  "data": {
-    "items": [
-      {
-        "id": 1,
-        "name": "Blue T-Shirt (Medium, Blue)",
-        "sku": "TSH-BLU-001-M-BLU",
-        "price": 24.99,
-        "quantity": 2,
-        "image": "https://example.com/images/tshirt-blue.jpg"
-      }
-    ],
-    "subtotal": 49.98,
-    "discount": 0,
-    "tax": 4.50,
-    "shipping_amount": 0,
-    "total": 54.48,
-    "payment_method": null,
-    "coupon_code": null
-  }
-}
-```
+**Response:** Same as `GET /cart`
 
 ---
 
 ### POST /cart/update
 
 Update the quantity of an item in the cart.
-
-**Use Case:** Customer changes quantity of an item.
 
 **Request Body:**
 ```json
@@ -345,15 +396,13 @@ Update the quantity of an item in the cart.
 }
 ```
 
-**Response:** Same as `/cart/add`
+**Response:** Same as `GET /cart`
 
 ---
 
 ### POST /cart/remove
 
 Remove an item from the cart.
-
-**Use Case:** Customer removes an item they don't want.
 
 **Request Body:**
 ```json
@@ -362,17 +411,13 @@ Remove an item from the cart.
 }
 ```
 
-**Response:** Same as `/cart/add` (updated cart)
+**Response:** Same as `GET /cart`
 
 ---
 
 ### POST /cart/clear
 
 Clear all items from the cart.
-
-**Use Case:** Cancel current transaction and start fresh.
-
-**Request Body:** None
 
 **Response:**
 ```json
@@ -388,21 +433,19 @@ Clear all items from the cart.
 
 Set the payment method for the cart.
 
-**Use Case:** Customer selects cash or card payment.
-
 **Request Body:**
 ```json
 {
-  "payment_method": "cash"
+  "payment_method": "pos_cash"
 }
 ```
 
 | Payment Method | Description |
 |----------------|-------------|
-| `cash` | Cash payment |
-| `card` | Card payment |
+| `pos_cash` | Cash payment at POS |
+| `pos_card` | Card payment at POS |
 
-**Response:** Same as `/cart/add` (updated cart)
+**Response:** Same as `GET /cart`
 
 ---
 
@@ -435,10 +478,30 @@ GET /customers/search?keyword=john
         "id": 1,
         "name": "John Doe",
         "email": "john@example.com",
-        "phone": "+1234567890",
-        "address": "123 Main St, City"
+        "phone": "+1234567890"
       }
     ]
+  }
+}
+```
+
+---
+
+### GET /customers/:id
+
+Get a single customer by ID.
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "customer": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "+1234567890"
+    }
   }
 }
 ```
@@ -449,15 +512,12 @@ GET /customers/search?keyword=john
 
 Create a new customer.
 
-**Use Case:** Register a new customer during checkout.
-
 **Request Body:**
 ```json
 {
   "name": "Jane Smith",
   "email": "jane@example.com",
-  "phone": "+1987654321",
-  "address": "456 Oak Ave, Town"
+  "phone": "+1987654321"
 }
 ```
 
@@ -466,7 +526,6 @@ Create a new customer.
 | `name` | string | Yes | Customer name |
 | `email` | string | No | Email address |
 | `phone` | string | No | Phone number |
-| `address` | string | No | Address |
 
 **Response:**
 ```json
@@ -477,8 +536,73 @@ Create a new customer.
       "id": 2,
       "name": "Jane Smith",
       "email": "jane@example.com",
-      "phone": "+1987654321",
-      "address": "456 Oak Ave, Town"
+      "phone": "+1987654321"
+    }
+  }
+}
+```
+
+---
+
+### GET /customers/:id/addresses
+
+Get all addresses for a customer.
+
+**Use Case:** Display delivery address options.
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "addresses": [
+      {
+        "id": 1,
+        "name": "Home",
+        "address": "123 Main St",
+        "city": "Victoria",
+        "state": "Mahe",
+        "country": "Seychelles",
+        "zip_code": "12345",
+        "phone": "+1234567890",
+        "is_default": true
+      }
+    ]
+  }
+}
+```
+
+---
+
+### POST /customers/:id/addresses
+
+Create a new address for a customer.
+
+**Request Body:**
+```json
+{
+  "name": "Office",
+  "address": "456 Business Ave",
+  "city": "Victoria",
+  "state": "Mahe",
+  "country": "Seychelles",
+  "zip_code": "12345",
+  "phone": "+1234567890",
+  "is_default": false
+}
+```
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "address": {
+      "id": 2,
+      "name": "Office",
+      "address": "456 Business Ave",
+      "city": "Victoria",
+      "is_default": false
     }
   }
 }
@@ -488,22 +612,150 @@ Create a new customer.
 
 ## Orders
 
+### GET /orders
+
+Get list of orders with pagination.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number |
+| `per_page` | integer | 20 | Items per page |
+| `from_date` | string | null | Start date (YYYY-MM-DD) |
+| `to_date` | string | null | End date (YYYY-MM-DD) |
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "orders": [
+      {
+        "id": 1001,
+        "code": "ORD-2024-001001",
+        "amount": 54.48,
+        "payment_method": "pos_cash",
+        "status": "completed",
+        "created_at": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "per_page": 20,
+      "total": 100,
+      "last_page": 5
+    }
+  }
+}
+```
+
+---
+
 ### POST /orders
 
-Complete checkout and create an order.
+Complete checkout and create an order (Direct Checkout).
 
 **Use Case:** Finalize the sale after payment is collected.
 
 **Request Body:**
 ```json
 {
-  "payment_details": "Last 4 digits: 1234"
+  "items": [
+    {
+      "product_id": 1,
+      "name": "Organic Coffee Beans",
+      "quantity": 2,
+      "price": 24.99,
+      "sku": "COF-ORG-001",
+      "tax_rate": 15.0
+    }
+  ],
+  "payment_method": "pos_cash",
+  "payment_details": "Cash: $100.00, Change: $42.52",
+  "payment_metadata": {
+    "cash_received": 100.00,
+    "change_given": 42.52
+  },
+  "customer_id": 1,
+  "discount_amount": 5.00,
+  "discount_description": "Loyalty discount",
+  "shipping_amount": 0,
+  "delivery_type": "pickup",
+  "tax_amount": 7.50
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `payment_details` | string | No | Additional payment info (card last 4, etc.) |
+| `items` | array | Yes | Cart items to checkout |
+| `payment_method` | string | Yes | `pos_cash` or `pos_card` |
+| `payment_details` | string | No | Display text for receipt |
+| `payment_metadata` | object | No | Structured payment data |
+| `customer_id` | integer | No | Customer ID |
+| `discount_amount` | number | No | Total discount amount |
+| `shipping_amount` | number | No | Shipping charge |
+| `delivery_type` | string | No | `pickup` or `ship` |
+| `tax_amount` | number | No | Pre-calculated tax |
+
+**Payment Metadata:**
+
+For cash:
+```json
+{
+  "cash_received": 100.00,
+  "change_given": 42.52
+}
+```
+
+For card:
+```json
+{
+  "card_last_four": "4242"
+}
+```
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "id": 1001,
+    "code": "ORD-2024-001001",
+    "amount": 57.48,
+    "sub_total": 49.98,
+    "tax_amount": 7.50,
+    "discount_amount": 0,
+    "shipping_amount": 0,
+    "payment_method": "pos_cash",
+    "payment_id": 501,
+    "invoice_id": 301,
+    "invoice_code": "INV-2024-001001",
+    "status": "completed",
+    "created_at": "2024-01-15T10:30:00Z",
+    "payment_details": "Cash: $100.00, Change: $42.52",
+    "payment_metadata": {
+      "cash_received": 100.00,
+      "change_given": 42.52
+    },
+    "items": [
+      {
+        "id": 1,
+        "name": "Organic Coffee Beans",
+        "price": 24.99,
+        "quantity": 2,
+        "sku": "COF-ORG-001"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### GET /orders/:id
+
+Get a single order by ID.
 
 **Response:**
 ```json
@@ -514,19 +766,10 @@ Complete checkout and create an order.
       "id": 1001,
       "code": "ORD-2024-001001",
       "amount": 54.48,
-      "payment_method": "cash",
+      "payment_method": "pos_cash",
       "status": "completed",
       "created_at": "2024-01-15T10:30:00Z",
-      "payment_details": null,
-      "items": [
-        {
-          "id": 1,
-          "name": "Blue T-Shirt",
-          "price": 24.99,
-          "quantity": 2,
-          "sku": "TSH-BLU-001"
-        }
-      ]
+      "items": [...]
     }
   }
 }
@@ -534,17 +777,11 @@ Complete checkout and create an order.
 
 ---
 
-### GET /orders/{id}/receipt
+### GET /orders/:id/receipt
 
 Get the HTML receipt for an order.
 
 **Use Case:** Display/print receipt after checkout.
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Order ID |
 
 **Response:**
 ```json
@@ -560,43 +797,6 @@ Get the HTML receipt for an order.
 
 ## Sessions
 
-### GET /cash-registers
-
-Get all available cash registers.
-
-**Use Case:** User selects which register to work on.
-
-**Response:**
-```json
-{
-  "error": false,
-  "data": {
-    "cash_registers": [
-      {
-        "id": 1,
-        "name": "Register 1",
-        "code": "REG-001",
-        "store_id": 1,
-        "description": "Main entrance register",
-        "is_active": true,
-        "initial_float": 200.00
-      },
-      {
-        "id": 2,
-        "name": "Register 2",
-        "code": "REG-002",
-        "store_id": 1,
-        "description": "Back counter register",
-        "is_active": true,
-        "initial_float": 200.00
-      }
-    ]
-  }
-}
-```
-
----
-
 ### GET /sessions/active
 
 Check if there's an active session for the current user.
@@ -610,29 +810,56 @@ Check if there's an active session for the current user.
   "data": {
     "session": {
       "id": 101,
-      "cash_register_id": 1,
-      "cash_register_name": "Register 1",
       "user_id": 1,
       "user_name": "Admin User",
       "status": "open",
       "opened_at": "2024-01-15T08:00:00Z",
-      "closed_at": null,
       "opening_cash": 200.00,
-      "closing_cash": null,
-      "opening_denominations": {
-        "100": 1,
-        "50": 2
-      },
-      "closing_denominations": null,
-      "opening_notes": "Starting shift",
-      "closing_notes": null,
-      "difference": null
+      "cash_sales": 350.00,
+      "card_sales": 150.00,
+      "total_sales": 500.00,
+      "order_count": 25
     }
   }
 }
 ```
 
 **Response (No Session):** Returns 404 status
+
+---
+
+### GET /sessions/history
+
+Get session history for the current user.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number |
+| `per_page` | integer | 20 | Items per page |
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "sessions": [
+      {
+        "id": 100,
+        "status": "closed",
+        "opened_at": "2024-01-14T08:00:00Z",
+        "closed_at": "2024-01-14T16:00:00Z",
+        "opening_cash": 200.00,
+        "closing_cash": 550.00,
+        "cash_sales": 350.00,
+        "difference": 0.00
+      }
+    ],
+    "pagination": {...}
+  }
+}
+```
 
 ---
 
@@ -645,26 +872,20 @@ Open a new cash register session.
 **Request Body:**
 ```json
 {
-  "cash_register_id": 1,
   "opening_cash": 200.00,
-  "opening_denominations": {
+  "denominations": {
     "100": 1,
-    "50": 2,
-    "20": 0,
-    "10": 0,
-    "5": 0,
-    "1": 0
+    "50": 2
   },
-  "opening_notes": "Starting morning shift"
+  "notes": "Starting morning shift"
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `cash_register_id` | integer | Yes | Register to open |
 | `opening_cash` | number | Yes | Total opening cash amount |
-| `opening_denominations` | object | No | Count per denomination |
-| `opening_notes` | string | No | Notes about opening |
+| `denominations` | object | No | Count per denomination (denom_id: count) |
+| `notes` | string | No | Notes about opening |
 
 **Response:**
 ```json
@@ -673,18 +894,10 @@ Open a new cash register session.
   "data": {
     "session": {
       "id": 101,
-      "cash_register_id": 1,
-      "cash_register_name": "Register 1",
       "user_id": 1,
-      "user_name": "Admin User",
       "status": "open",
       "opened_at": "2024-01-15T08:00:00Z",
-      "opening_cash": 200.00,
-      "opening_denominations": {
-        "100": 1,
-        "50": 2
-      },
-      "opening_notes": "Starting morning shift"
+      "opening_cash": 200.00
     }
   }
 }
@@ -701,26 +914,22 @@ Close the current session.
 **Request Body:**
 ```json
 {
-  "session_id": 101,
-  "closing_cash": 450.00,
-  "closing_denominations": {
+  "closing_cash": 550.00,
+  "denominations": {
     "100": 3,
-    "50": 2,
+    "50": 4,
     "20": 2,
-    "10": 1,
-    "5": 0,
-    "1": 0
+    "10": 1
   },
-  "closing_notes": "End of morning shift, all transactions complete"
+  "notes": "End of shift"
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `session_id` | integer | Yes | Session to close |
 | `closing_cash` | number | Yes | Total closing cash amount |
-| `closing_denominations` | object | No | Count per denomination |
-| `closing_notes` | string | No | Notes about closing |
+| `denominations` | object | No | Count per denomination |
+| `notes` | string | No | Notes about closing |
 
 **Response:**
 ```json
@@ -729,19 +938,13 @@ Close the current session.
   "data": {
     "session": {
       "id": 101,
-      "cash_register_id": 1,
-      "cash_register_name": "Register 1",
-      "user_id": 1,
-      "user_name": "Admin User",
       "status": "closed",
       "opened_at": "2024-01-15T08:00:00Z",
       "closed_at": "2024-01-15T16:00:00Z",
       "opening_cash": 200.00,
-      "closing_cash": 450.00,
-      "opening_denominations": { "100": 1, "50": 2 },
-      "closing_denominations": { "100": 3, "50": 2, "20": 2, "10": 1 },
-      "opening_notes": "Starting morning shift",
-      "closing_notes": "End of morning shift",
+      "closing_cash": 550.00,
+      "cash_sales": 350.00,
+      "card_sales": 150.00,
       "difference": 0.00
     }
   }
@@ -762,12 +965,7 @@ Get available currency denominations for cash counting.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `currency` | string | USD | Currency code |
-
-**Example Request:**
-```
-GET /denominations?currency=USD
-```
+| `currency` | string | SCR | Currency code |
 
 **Response:**
 ```json
@@ -775,17 +973,280 @@ GET /denominations?currency=USD
   "error": false,
   "data": {
     "denominations": [
-      { "id": 1, "currency": "USD", "value": 100.00, "type": "bill", "display_name": "$100" },
-      { "id": 2, "currency": "USD", "value": 50.00, "type": "bill", "display_name": "$50" },
-      { "id": 3, "currency": "USD", "value": 20.00, "type": "bill", "display_name": "$20" },
-      { "id": 4, "currency": "USD", "value": 10.00, "type": "bill", "display_name": "$10" },
-      { "id": 5, "currency": "USD", "value": 5.00, "type": "bill", "display_name": "$5" },
-      { "id": 6, "currency": "USD", "value": 1.00, "type": "bill", "display_name": "$1" },
-      { "id": 7, "currency": "USD", "value": 0.25, "type": "coin", "display_name": "Quarter" },
-      { "id": 8, "currency": "USD", "value": 0.10, "type": "coin", "display_name": "Dime" },
-      { "id": 9, "currency": "USD", "value": 0.05, "type": "coin", "display_name": "Nickel" },
-      { "id": 10, "currency": "USD", "value": 0.01, "type": "coin", "display_name": "Penny" }
+      { "id": 1, "currency": "SCR", "value": 500.00, "type": "bill", "display_name": "SCR 500" },
+      { "id": 2, "currency": "SCR", "value": 100.00, "type": "bill", "display_name": "SCR 100" },
+      { "id": 3, "currency": "SCR", "value": 50.00, "type": "bill", "display_name": "SCR 50" },
+      { "id": 4, "currency": "SCR", "value": 25.00, "type": "bill", "display_name": "SCR 25" },
+      { "id": 5, "currency": "SCR", "value": 10.00, "type": "coin", "display_name": "SCR 10" },
+      { "id": 6, "currency": "SCR", "value": 5.00, "type": "coin", "display_name": "SCR 5" },
+      { "id": 7, "currency": "SCR", "value": 1.00, "type": "coin", "display_name": "SCR 1" }
     ]
+  }
+}
+```
+
+---
+
+### GET /denominations/currencies
+
+Get list of available currencies.
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "currencies": ["SCR", "USD", "EUR"]
+  }
+}
+```
+
+---
+
+## Discounts
+
+### POST /discounts/validate
+
+Validate a coupon code.
+
+**Use Case:** Check if a coupon is valid before applying.
+
+**Request Body:**
+```json
+{
+  "code": "SAVE10",
+  "subtotal": 100.00,
+  "customer_id": 1
+}
+```
+
+**Response (Valid):**
+```json
+{
+  "error": false,
+  "data": {
+    "valid": true,
+    "discount": {
+      "id": 1,
+      "code": "SAVE10",
+      "type": "percentage",
+      "value": 10,
+      "discount_amount": 10.00,
+      "description": "10% off"
+    }
+  }
+}
+```
+
+**Response (Invalid):**
+```json
+{
+  "error": true,
+  "message": "Coupon has expired"
+}
+```
+
+---
+
+### POST /discounts/calculate
+
+Calculate a manual discount.
+
+**Use Case:** Manager applies a custom discount.
+
+**Request Body:**
+```json
+{
+  "subtotal": 100.00,
+  "discount_type": "percentage",
+  "discount_value": 15,
+  "description": "VIP discount"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `subtotal` | number | Yes | Cart subtotal |
+| `discount_type` | string | Yes | `percentage` or `fixed` |
+| `discount_value` | number | Yes | Percentage (0-100) or fixed amount |
+| `description` | string | No | Reason for discount |
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "discount_amount": 15.00,
+    "description": "VIP discount"
+  }
+}
+```
+
+---
+
+## Settings
+
+### GET /settings
+
+Get POS application settings.
+
+**Use Case:** Load store configuration on app startup.
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "settings": {
+      "store_name": "StampSmart Store",
+      "store_address": "123 Main Street, Victoria",
+      "store_phone": "+248 123 4567",
+      "currency": "SCR",
+      "tax_rate": 15.0,
+      "receipt_footer": "Thank you for shopping!",
+      "auto_print_receipt": true
+    }
+  }
+}
+```
+
+---
+
+## Printer
+
+### POST /printer/print-receipt
+
+Print receipt for an order.
+
+**Use Case:** Reprint a receipt.
+
+**Request Body:**
+```json
+{
+  "order_id": 1001
+}
+```
+
+**Response:**
+```json
+{
+  "error": false,
+  "message": "Receipt printed"
+}
+```
+
+---
+
+### POST /printer/open-drawer
+
+Open the cash drawer.
+
+**Use Case:** Open drawer for cash operations.
+
+**Response:**
+```json
+{
+  "error": false,
+  "message": "Cash drawer opened"
+}
+```
+
+---
+
+### POST /printer/test
+
+Print a test page.
+
+**Use Case:** Verify printer is working.
+
+**Response:**
+```json
+{
+  "error": false,
+  "message": "Test page printed"
+}
+```
+
+---
+
+## Reports
+
+### GET /reports/orders
+
+Get orders report with date filtering.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from_date` | string | Yes | Start date (YYYY-MM-DD) |
+| `to_date` | string | Yes | End date (YYYY-MM-DD) |
+
+**Example Request:**
+```
+GET /reports/orders?from_date=2024-01-01&to_date=2024-01-31
+```
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "summary": {
+      "total_orders": 150,
+      "total_revenue": 15000.00,
+      "total_tax": 2250.00,
+      "total_discount": 500.00,
+      "cash_sales": 10000.00,
+      "card_sales": 5000.00,
+      "average_order_value": 100.00
+    },
+    "orders": [
+      {
+        "id": 1001,
+        "code": "ORD-2024-001001",
+        "amount": 100.00,
+        "payment_method": "pos_cash",
+        "created_at": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### GET /reports/products
+
+Get products sold report.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from_date` | string | Yes | Start date (YYYY-MM-DD) |
+| `to_date` | string | Yes | End date (YYYY-MM-DD) |
+| `sort_by` | string | No | `quantity`, `revenue`, or `name` |
+| `sort_order` | string | No | `asc` or `desc` |
+
+**Response:**
+```json
+{
+  "error": false,
+  "data": {
+    "products": [
+      {
+        "id": 1,
+        "name": "Organic Coffee Beans",
+        "sku": "COF-ORG-001",
+        "quantity_sold": 100,
+        "revenue": 2499.00
+      }
+    ],
+    "summary": {
+      "total_products_sold": 500,
+      "total_revenue": 15000.00
+    }
   }
 }
 ```
@@ -802,6 +1263,7 @@ GET /denominations?currency=USD
 | 403 | Forbidden - Insufficient permissions |
 | 404 | Not Found - Resource doesn't exist |
 | 422 | Validation Error - Invalid data |
+| 429 | Too Many Requests - Rate limit exceeded |
 | 500 | Server Error |
 
 ---
@@ -813,12 +1275,12 @@ The POS app supports offline mode. When offline:
 1. Products are loaded from local SQLite database
 2. Orders are queued in `pending_orders` table
 3. When back online, pending orders are automatically synced
-4. Cart operations require online connectivity
+4. Sessions require online connectivity
 
 ---
 
 ## Version
 
 **API Version:** v1
-**Documentation Version:** 1.0.0
+**Documentation Version:** 2.0.0
 **Last Updated:** January 2025

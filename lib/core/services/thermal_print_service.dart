@@ -162,7 +162,19 @@ class ThermalPrintService {
     commands.addAll(_escNewLine());
     commands.addAll(_textToBytes('Date: ${dateFormat.format(order.createdAt)}'));
     commands.addAll(_escNewLine());
-    commands.addAll(_textToBytes('Payment: ${_formatPaymentMethod(order.paymentMethod)}'));
+
+    // Customer (if available)
+    if (order.customer != null) {
+      commands.addAll(_textToBytes('Customer: ${order.customer!.name}'));
+      commands.addAll(_escNewLine());
+    }
+
+    // Payment method with card last 4 if applicable
+    String paymentInfo = 'Payment: ${_formatPaymentMethod(order.paymentMethod)}';
+    if (order.cardLastFour != null) {
+      paymentInfo += ' (*${order.cardLastFour})';
+    }
+    commands.addAll(_textToBytes(paymentInfo));
     commands.addAll(_escNewLine());
 
     // Divider
@@ -218,6 +230,15 @@ class ThermalPrintService {
     commands.addAll(_escNewLine());
     commands.addAll(_escNormalSize());
     commands.addAll(_escBoldOff());
+
+    // Cash payment details (received / change)
+    if (order.cashReceived != null && order.changeGiven != null) {
+      commands.addAll(_escNewLine());
+      commands.addAll(_textToBytes(_formatTotalLine('Cash:', AppCurrency.format(order.cashReceived!))));
+      commands.addAll(_escNewLine());
+      commands.addAll(_textToBytes(_formatTotalLine('Change:', AppCurrency.format(order.changeGiven!))));
+      commands.addAll(_escNewLine());
+    }
 
     // Footer
     commands.addAll(_escNewLine());

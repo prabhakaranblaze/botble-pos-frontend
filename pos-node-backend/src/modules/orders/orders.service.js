@@ -345,6 +345,7 @@ class OrdersService {
       status: order.status,
       created_at: order.created_at.toISOString(),
       payment_details: paymentDetails,
+      payment_metadata: paymentMetadata,
       items: formattedItems,
     };
   }

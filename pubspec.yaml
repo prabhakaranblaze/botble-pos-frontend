@@ -44,8 +44,8 @@ dependencies:
   uuid: ^4.2.1
   collection: ^1.18.0
 
-  # Excel Export
-  excel: ^4.0.3
+  # CSV/Excel Export
+  csv: ^6.0.0
   path_provider: ^2.1.1
   open_file: ^3.3.2
 

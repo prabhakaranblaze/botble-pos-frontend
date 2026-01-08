@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:excel/excel.dart';
+import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import '../../core/api/api_service.dart';
@@ -174,68 +174,58 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
 
     try {
-      final excel = Excel.createExcel();
-      final sheet = excel['Orders'];
+      final List<List<dynamic>> rows = [];
 
       // Header row
-      sheet.appendRow([
-        TextCellValue('Order #'),
-        TextCellValue('Date'),
-        TextCellValue('Customer'),
-        TextCellValue('Items'),
-        TextCellValue('Subtotal'),
-        TextCellValue('Tax'),
-        TextCellValue('Discount'),
-        TextCellValue('Total'),
-        TextCellValue('Payment'),
-        TextCellValue('Status'),
+      rows.add([
+        'Order #',
+        'Date',
+        'Customer',
+        'Items',
+        'Subtotal',
+        'Tax',
+        'Discount',
+        'Total',
+        'Payment',
+        'Status',
       ]);
 
       // Data rows
       for (final order in _orders) {
-        sheet.appendRow([
-          TextCellValue(order['code']?.toString() ?? ''),
-          TextCellValue(order['created_at']?.toString() ?? ''),
-          TextCellValue(order['customer_name']?.toString() ?? 'Walk-in'),
-          IntCellValue(order['items_count'] as int? ?? 0),
-          DoubleCellValue((order['sub_total'] as num?)?.toDouble() ?? 0),
-          DoubleCellValue((order['tax_amount'] as num?)?.toDouble() ?? 0),
-          DoubleCellValue((order['discount_amount'] as num?)?.toDouble() ?? 0),
-          DoubleCellValue((order['amount'] as num?)?.toDouble() ?? 0),
-          TextCellValue(order['payment_method']?.toString() ?? ''),
-          TextCellValue(order['status']?.toString() ?? ''),
+        rows.add([
+          order['code']?.toString() ?? '',
+          order['created_at']?.toString() ?? '',
+          order['customer_name']?.toString() ?? 'Walk-in',
+          order['items_count'] ?? 0,
+          (order['sub_total'] as num?)?.toDouble() ?? 0,
+          (order['tax_amount'] as num?)?.toDouble() ?? 0,
+          (order['discount_amount'] as num?)?.toDouble() ?? 0,
+          (order['amount'] as num?)?.toDouble() ?? 0,
+          order['payment_method']?.toString() ?? '',
+          order['status']?.toString() ?? '',
         ]);
       }
 
-      // Summary row
-      sheet.appendRow([TextCellValue('')]);
-      sheet.appendRow([
-        TextCellValue('Total Orders:'),
-        IntCellValue(_ordersSummary['total_orders'] as int? ?? _orders.length),
-      ]);
-      sheet.appendRow([
-        TextCellValue('Total Revenue:'),
-        DoubleCellValue((_ordersSummary['total_revenue'] as num?)?.toDouble() ?? 0),
-      ]);
+      // Summary rows
+      rows.add([]);
+      rows.add(['Total Orders:', _ordersSummary['total_orders'] ?? _orders.length]);
+      rows.add(['Total Revenue:', (_ordersSummary['total_revenue'] as num?)?.toDouble() ?? 0]);
 
-      // Remove default sheet
-      excel.delete('Sheet1');
+      // Convert to CSV
+      final csv = const ListToCsvConverter().convert(rows);
 
       // Save file
-      final bytes = excel.encode();
-      if (bytes != null) {
-        final dir = await getApplicationDocumentsDirectory();
-        final dateStr = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-        final file = File('${dir.path}/orders_report_$dateStr.xlsx');
-        await file.writeAsBytes(bytes);
+      final dir = await getApplicationDocumentsDirectory();
+      final dateStr = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
+      final file = File('${dir.path}/orders_report_$dateStr.csv');
+      await file.writeAsString(csv);
 
-        await OpenFile.open(file.path);
+      await OpenFile.open(file.path);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Exported to ${file.path}')),
-          );
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Exported to ${file.path}')),
+        );
       }
     } catch (e) {
       debugPrint('Export error: $e');
@@ -256,62 +246,49 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
 
     try {
-      final excel = Excel.createExcel();
-      final sheet = excel['Products Sold'];
+      final List<List<dynamic>> rows = [];
 
       // Header row
-      sheet.appendRow([
-        TextCellValue('Product'),
-        TextCellValue('SKU'),
-        TextCellValue('Variation'),
-        TextCellValue('Qty Sold'),
-        TextCellValue('Revenue'),
+      rows.add([
+        'Product',
+        'SKU',
+        'Variation',
+        'Qty Sold',
+        'Revenue',
       ]);
 
       // Data rows
       for (final product in _products) {
-        sheet.appendRow([
-          TextCellValue(product['name']?.toString() ?? ''),
-          TextCellValue(product['sku']?.toString() ?? ''),
-          TextCellValue(product['variation']?.toString() ?? '-'),
-          IntCellValue(product['quantity'] as int? ?? 0),
-          DoubleCellValue((product['revenue'] as num?)?.toDouble() ?? 0),
+        rows.add([
+          product['name']?.toString() ?? '',
+          product['sku']?.toString() ?? '',
+          product['variation']?.toString() ?? '-',
+          product['quantity'] ?? 0,
+          (product['revenue'] as num?)?.toDouble() ?? 0,
         ]);
       }
 
-      // Summary row
-      sheet.appendRow([TextCellValue('')]);
-      sheet.appendRow([
-        TextCellValue('Total Products:'),
-        IntCellValue(_productsSummary['total_products'] as int? ?? _products.length),
-      ]);
-      sheet.appendRow([
-        TextCellValue('Total Units Sold:'),
-        IntCellValue(_productsSummary['total_quantity'] as int? ?? 0),
-      ]);
-      sheet.appendRow([
-        TextCellValue('Total Revenue:'),
-        DoubleCellValue((_productsSummary['total_revenue'] as num?)?.toDouble() ?? 0),
-      ]);
+      // Summary rows
+      rows.add([]);
+      rows.add(['Total Products:', _productsSummary['total_products'] ?? _products.length]);
+      rows.add(['Total Units Sold:', _productsSummary['total_quantity'] ?? 0]);
+      rows.add(['Total Revenue:', (_productsSummary['total_revenue'] as num?)?.toDouble() ?? 0]);
 
-      // Remove default sheet
-      excel.delete('Sheet1');
+      // Convert to CSV
+      final csv = const ListToCsvConverter().convert(rows);
 
       // Save file
-      final bytes = excel.encode();
-      if (bytes != null) {
-        final dir = await getApplicationDocumentsDirectory();
-        final dateStr = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-        final file = File('${dir.path}/products_report_$dateStr.xlsx');
-        await file.writeAsBytes(bytes);
+      final dir = await getApplicationDocumentsDirectory();
+      final dateStr = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
+      final file = File('${dir.path}/products_report_$dateStr.csv');
+      await file.writeAsString(csv);
 
-        await OpenFile.open(file.path);
+      await OpenFile.open(file.path);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Exported to ${file.path}')),
-          );
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Exported to ${file.path}')),
+        );
       }
     } catch (e) {
       debugPrint('Export error: $e');
@@ -353,7 +330,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                             ? _exportOrdersToExcel
                             : _exportProductsToExcel,
                         icon: const Icon(Icons.download, size: 18),
-                        label: const Text('Export Excel'),
+                        label: const Text('Export CSV'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.success,
                           padding: const EdgeInsets.symmetric(

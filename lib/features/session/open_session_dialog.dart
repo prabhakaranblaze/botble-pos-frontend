@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'session_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../shared/widgets/app_toast.dart';
 
 class OpenSessionDialog extends StatefulWidget {
   const OpenSessionDialog({super.key});
@@ -25,9 +26,7 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
   Future<void> _handleOpenSession() async {
     final amount = double.tryParse(_openingCashController.text) ?? 0;
     if (amount < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid opening cash amount')),
-      );
+      AppToast.error(context, 'Please enter a valid opening cash amount');
       return;
     }
 
@@ -40,9 +39,7 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
     if (success && mounted) {
       Navigator.pop(context, true);
     } else if (session.error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(session.error!)),
-      );
+      AppToast.error(context, session.error!);
     }
   }
 

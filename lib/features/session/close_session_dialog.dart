@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'session_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../shared/widgets/app_toast.dart';
 
 class CloseSessionDialog extends StatefulWidget {
   const CloseSessionDialog({super.key});
@@ -28,9 +29,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
   Future<void> _handleCloseSession() async {
     final amount = double.tryParse(_closingCashController.text) ?? 0;
     if (amount < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter closing cash amount')),
-      );
+      AppToast.error(context, 'Please enter closing cash amount');
       return;
     }
 
@@ -71,12 +70,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
       setState(() => _isClosing = false);
 
       if (sessionProvider.error != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(sessionProvider.error!),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppToast.error(context, sessionProvider.error!);
       }
     }
   }

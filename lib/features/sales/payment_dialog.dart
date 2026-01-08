@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/models/cart.dart';
 import '../session/session_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../shared/widgets/app_toast.dart';
 
 class PaymentDialog extends StatefulWidget {
   final Cart cart;
@@ -64,9 +65,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
   void _handleSubmit() {
     if (_paymentMethod == 'pos_cash') {
       if (_cashReceived < widget.cart.total) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Insufficient cash received')),
-        );
+        AppToast.error(context, 'Insufficient cash received');
         return;
       }
 
@@ -76,9 +75,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
       });
     } else {
       if (_cardDigitsController.text.length != 4) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter last 4 digits')),
-        );
+        AppToast.error(context, 'Please enter last 4 digits');
         return;
       }
 

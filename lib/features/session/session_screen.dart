@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'session_provider.dart';
 import 'close_session_dialog.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SessionScreen extends StatelessWidget {
   const SessionScreen({super.key});
@@ -20,6 +21,7 @@ class SessionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<SessionProvider>(
       builder: (context, session, _) {
         if (!session.hasActiveSession) {
@@ -31,7 +33,7 @@ class SessionScreen extends StatelessWidget {
                     size: 64, color: AppColors.textSecondary),
                 const SizedBox(height: 16),
                 Text(
-                  'No active session',
+                  l10n?.noActiveSession ?? 'No active session',
                   style:
                       TextStyle(fontSize: 18, color: AppColors.textSecondary),
                 ),
@@ -54,9 +56,9 @@ class SessionScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Active Session',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              Text(
+                l10n?.session ?? 'Active Session',
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
               Card(
@@ -81,7 +83,7 @@ class SessionScreen extends StatelessWidget {
                                     fontSize: 20, fontWeight: FontWeight.bold),
                               ),
                               Text(
-                                'Session #${activeSession['id']}',
+                                '${l10n?.session ?? 'Session'} #${activeSession['id']}',
                                 style:
                                     TextStyle(color: AppColors.textSecondary),
                               ),
@@ -101,7 +103,7 @@ class SessionScreen extends StatelessWidget {
                                     size: 8, color: AppColors.success),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'OPEN',
+                                  l10n?.sessionOpen ?? 'OPEN',
                                   style: TextStyle(
                                     color: AppColors.success,
                                     fontWeight: FontWeight.bold,
@@ -113,20 +115,20 @@ class SessionScreen extends StatelessWidget {
                         ],
                       ),
                       const Divider(height: 32),
-                      _buildInfoRow('Opened At', dateFormat.format(openedAt)),
-                      _buildInfoRow('Duration', '${hours}h ${minutes}m'),
-                      _buildInfoRow('Opened By',
+                      _buildInfoRow(l10n?.openedAt ?? 'Opened At', dateFormat.format(openedAt)),
+                      _buildInfoRow(l10n?.duration ?? 'Duration', '${hours}h ${minutes}m'),
+                      _buildInfoRow(l10n?.openedBy ?? 'Opened By',
                           activeSession['user_name'] as String? ?? 'User'),
                       _buildInfoRow(
-                        'Opening Cash',
+                        l10n?.openingCash ?? 'Opening Cash',
                         AppCurrency.format((activeSession['opening_cash'] as num).toDouble()),
                       ),
                       if (activeSession['opening_notes'] != null &&
                           (activeSession['opening_notes'] as String)
                               .isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const Text('Notes:',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
+                        Text('${l10n?.notes ?? 'Notes'}:',
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),
                         Text(activeSession['opening_notes'] as String),
                       ],
@@ -143,9 +145,9 @@ class SessionScreen extends StatelessWidget {
                     backgroundColor: AppColors.error,
                     padding: const EdgeInsets.symmetric(vertical: 20),
                   ),
-                  child: const Text(
-                    'Close Session',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Text(
+                    l10n?.closeSession ?? 'Close Session',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

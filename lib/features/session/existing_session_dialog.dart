@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'close_session_dialog.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Dialog shown when user logs in with an existing open session
 /// Gives options to Continue or Start Fresh
@@ -26,6 +27,7 @@ class ExistingSessionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
     final openedAt = DateTime.parse(session['opened_at']);
     final userName = session['user_name'] ?? 'User';
@@ -47,10 +49,10 @@ class ExistingSessionDialog extends StatelessWidget {
                   size: 32,
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Session Already Open',
-                    style: TextStyle(
+                    l10n?.existingSession ?? 'Session Already Open',
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -75,7 +77,7 @@ class ExistingSessionDialog extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'You have an open session:',
+                    l10n?.existingSessionMessage ?? 'You have an open session:',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -87,7 +89,7 @@ class ExistingSessionDialog extends StatelessWidget {
                   // User name
                   _buildInfoRow(
                     Icons.person,
-                    'User',
+                    l10n?.openedBy ?? 'User',
                     userName,
                   ),
 
@@ -96,7 +98,7 @@ class ExistingSessionDialog extends StatelessWidget {
                   // Opened time
                   _buildInfoRow(
                     Icons.access_time,
-                    'Opened',
+                    l10n?.openedAt ?? 'Opened',
                     dateFormat.format(openedAt),
                   ),
 
@@ -105,7 +107,7 @@ class ExistingSessionDialog extends StatelessWidget {
                   // Opening cash
                   _buildInfoRow(
                     Icons.attach_money,
-                    'Opening Cash',
+                    l10n?.openingCash ?? 'Opening Cash',
                     AppCurrency.format((session['opening_cash'] as num).toDouble()),
                   ),
 
@@ -115,7 +117,7 @@ class ExistingSessionDialog extends StatelessWidget {
                     const SizedBox(height: 8),
                     _buildInfoRow(
                       Icons.receipt_long,
-                      'Transactions',
+                      l10n?.orders ?? 'Transactions',
                       '${session['total_orders']}',
                     ),
                   ],
@@ -126,7 +128,7 @@ class ExistingSessionDialog extends StatelessWidget {
                     const SizedBox(height: 8),
                     _buildInfoRow(
                       Icons.point_of_sale,
-                      'Total Sales',
+                      l10n?.totalSales ?? 'Total Sales',
                       AppCurrency.format((session['total_sales'] as num).toDouble()),
                     ),
                   ],
@@ -136,23 +138,13 @@ class ExistingSessionDialog extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Question
-            Text(
-              'What would you like to do?',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
             const SizedBox(height: 20),
 
             // Continue Button
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(context, 'continue'),
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Continue Session'),
+              label: Text(l10n?.continueSession ?? 'Continue Session'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -165,7 +157,7 @@ class ExistingSessionDialog extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => _handleStartFresh(context),
               icon: const Icon(Icons.refresh),
-              label: const Text('Start Fresh'),
+              label: Text(l10n?.startFresh ?? 'Start Fresh'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 side: BorderSide(color: AppColors.primary),
@@ -177,7 +169,7 @@ class ExistingSessionDialog extends StatelessWidget {
             // Cancel Button
             TextButton(
               onPressed: () => Navigator.pop(context, 'cancel'),
-              child: const Text('Cancel'),
+              child: Text(l10n?.cancel ?? 'Cancel'),
             ),
 
             const SizedBox(height: 12),
@@ -199,7 +191,7 @@ class ExistingSessionDialog extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Continue: Resume your session\nStart Fresh: Close & open new session',
+                      '${l10n?.continueSession ?? 'Continue'}: Resume your session\n${l10n?.startFresh ?? 'Start Fresh'}: Close & open new session',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,

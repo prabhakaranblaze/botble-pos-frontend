@@ -529,4 +529,110 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noUpdatesAvailable => 'No updates available';
   @override
   String get check => 'Check';
+
+  // Additional Auth
+  @override
+  String get signInToContinue => 'Sign in to continue';
+  @override
+  String get pleaseEnterUsername => 'Please enter your username';
+  @override
+  String get usernameTooShort => 'Username must be at least 3 characters';
+  @override
+  String get pleaseEnterPassword => 'Please enter your password';
+  @override
+  String get passwordTooShort => 'Password must be at least 6 characters';
+  @override
+  String get pleaseEnterDeviceName => 'Please enter device name';
+
+  // Lock Screen
+  @override
+  String get sessionLocked => 'Session Locked';
+  @override
+  String get lockedDueToInactivity => 'Locked due to inactivity';
+  @override
+  String get enterPasswordToUnlock => 'Enter password to unlock';
+  @override
+  String get unlock => 'Unlock';
+  @override
+  String get logoutQuestion => 'Logout?';
+  @override
+  String get logoutConfirmWithSession => 'Are you sure you want to logout? Your session will remain open and you can continue later.';
+  @override
+  String get logoutInstead => 'Logout Instead';
+  @override
+  String get invalidPassword => 'Invalid password. Please try again.';
+
+  // Additional UI
+  @override
+  String get changeLanguage => 'Change Language';
+  @override
+  String get notes => 'Notes:';
+  @override
+  String get exact => 'Exact';
+  @override
+  String get payWithCash => 'Pay with Cash';
+  @override
+  String get totalAmount => 'Total Amount';
+  @override
+  String get createNewCustomer => 'Create New Customer';
+  @override
+  String get add => 'Add';
+  @override
+  String get emailOptional => 'Email (Optional)';
+  @override
+  String get addNewAddress => 'Add New Address';
+  @override
+  String get pleaseEnterCouponCode => 'Please enter a coupon code';
+  @override
+  String get invalidCouponCode => 'Invalid coupon code';
+  @override
+  String get applyDiscount => 'Apply Discount';
+  @override
+  String get discountType => 'Discount Type';
+  @override
+  String get percentage => 'Percentage';
+  @override
+  String get fixed => 'Fixed';
+  @override
+  String get discountAmount => 'Discount Amount';
+  @override
+  String get updateShipping => 'Update Shipping';
+  @override
+  String get selectVariant => 'Select Variant';
+  @override
+  String get options => 'Options';
+  @override
+  String get item => 'item';
+  @override
+  String get itemPlural => 'items';
+  @override
+  String get unit => 'unit';
+  @override
+  String get unitPlural => 'units';
+  @override
+  String get scanProductsToAdd => 'Scan products to add to cart';
+  @override
+  String get useBarcodeScanner => 'Use barcode scanner or search above';
+  @override
+  String get noProductsFound => 'No products found';
+  @override
+  String orderCompletedPrinting(String orderCode) => 'Order $orderCode completed! Printing...';
+  @override
+  String get areYouSureRemoveAllItems => 'Are you sure you want to remove all items from the cart?';
+  @override
+  String get sessionFound => 'Session Found';
+  @override
+  String get existingSessionMessage => 'You already have an open session. Would you like to continue with that session?';
+  @override
+  String get couldNotRecoverSession => 'Could not recover session. Please try again.';
+  @override
+  String get enterValidOpeningCash => 'Please enter a valid opening cash amount';
+  @override
+  String get dataManagement => 'Data Management';
+  @override
+  String get about => 'About';
+  @override
+  String get receiptPreview => 'Receipt Preview';
+  @override
+  String get version => 'Version';
 }

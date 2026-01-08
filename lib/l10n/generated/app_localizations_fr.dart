@@ -529,4 +529,110 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noUpdatesAvailable => 'Aucune mise à jour disponible';
   @override
   String get check => 'Vérifier';
+
+  // Additional Auth
+  @override
+  String get signInToContinue => 'Connectez-vous pour continuer';
+  @override
+  String get pleaseEnterUsername => 'Veuillez entrer votre nom d\'utilisateur';
+  @override
+  String get usernameTooShort => 'Le nom d\'utilisateur doit contenir au moins 3 caractères';
+  @override
+  String get pleaseEnterPassword => 'Veuillez entrer votre mot de passe';
+  @override
+  String get passwordTooShort => 'Le mot de passe doit contenir au moins 6 caractères';
+  @override
+  String get pleaseEnterDeviceName => 'Veuillez entrer le nom de l\'appareil';
+
+  // Lock Screen
+  @override
+  String get sessionLocked => 'Session verrouillée';
+  @override
+  String get lockedDueToInactivity => 'Verrouillé pour inactivité';
+  @override
+  String get enterPasswordToUnlock => 'Entrez le mot de passe pour déverrouiller';
+  @override
+  String get unlock => 'Déverrouiller';
+  @override
+  String get logoutQuestion => 'Déconnexion?';
+  @override
+  String get logoutConfirmWithSession => 'Êtes-vous sûr de vouloir vous déconnecter? Votre session restera ouverte et vous pourrez continuer plus tard.';
+  @override
+  String get logoutInstead => 'Se déconnecter plutôt';
+  @override
+  String get invalidPassword => 'Mot de passe invalide. Veuillez réessayer.';
+
+  // Additional UI
+  @override
+  String get changeLanguage => 'Changer de langue';
+  @override
+  String get notes => 'Notes:';
+  @override
+  String get exact => 'Exact';
+  @override
+  String get payWithCash => 'Payer en espèces';
+  @override
+  String get totalAmount => 'Montant total';
+  @override
+  String get createNewCustomer => 'Créer un nouveau client';
+  @override
+  String get add => 'Ajouter';
+  @override
+  String get emailOptional => 'E-mail (Optionnel)';
+  @override
+  String get addNewAddress => 'Ajouter une nouvelle adresse';
+  @override
+  String get pleaseEnterCouponCode => 'Veuillez entrer un code coupon';
+  @override
+  String get invalidCouponCode => 'Code coupon invalide';
+  @override
+  String get applyDiscount => 'Appliquer la remise';
+  @override
+  String get discountType => 'Type de remise';
+  @override
+  String get percentage => 'Pourcentage';
+  @override
+  String get fixed => 'Fixe';
+  @override
+  String get discountAmount => 'Montant de la remise';
+  @override
+  String get updateShipping => 'Mettre à jour la livraison';
+  @override
+  String get selectVariant => 'Sélectionner la variante';
+  @override
+  String get options => 'Options';
+  @override
+  String get item => 'article';
+  @override
+  String get itemPlural => 'articles';
+  @override
+  String get unit => 'unité';
+  @override
+  String get unitPlural => 'unités';
+  @override
+  String get scanProductsToAdd => 'Scannez des produits pour les ajouter';
+  @override
+  String get useBarcodeScanner => 'Utilisez le scanner ou recherchez ci-dessus';
+  @override
+  String get noProductsFound => 'Aucun produit trouvé';
+  @override
+  String orderCompletedPrinting(String orderCode) => 'Commande $orderCode terminée! Impression...';
+  @override
+  String get areYouSureRemoveAllItems => 'Êtes-vous sûr de vouloir supprimer tous les articles du panier?';
+  @override
+  String get sessionFound => 'Session trouvée';
+  @override
+  String get existingSessionMessage => 'Vous avez déjà une session ouverte. Voulez-vous continuer avec cette session?';
+  @override
+  String get couldNotRecoverSession => 'Impossible de récupérer la session. Veuillez réessayer.';
+  @override
+  String get enterValidOpeningCash => 'Veuillez entrer un montant d\'ouverture valide';
+  @override
+  String get dataManagement => 'Gestion des données';
+  @override
+  String get about => 'À propos';
+  @override
+  String get receiptPreview => 'Aperçu du reçu';
+  @override
+  String get version => 'Version';
 }

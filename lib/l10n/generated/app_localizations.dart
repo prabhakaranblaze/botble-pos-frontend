@@ -320,6 +320,62 @@ abstract class AppLocalizations {
   String get updateAvailable;
   String get noUpdatesAvailable;
   String get check;
+
+  // Additional Auth
+  String get signInToContinue;
+  String get pleaseEnterUsername;
+  String get usernameTooShort;
+  String get pleaseEnterPassword;
+  String get passwordTooShort;
+  String get pleaseEnterDeviceName;
+
+  // Lock Screen
+  String get sessionLocked;
+  String get lockedDueToInactivity;
+  String get enterPasswordToUnlock;
+  String get unlock;
+  String get logoutQuestion;
+  String get logoutConfirmWithSession;
+  String get logoutInstead;
+  String get invalidPassword;
+
+  // Additional UI
+  String get changeLanguage;
+  String get notes;
+  String get exact;
+  String get payWithCash;
+  String get totalAmount;
+  String get createNewCustomer;
+  String get add;
+  String get emailOptional;
+  String get addNewAddress;
+  String get pleaseEnterCouponCode;
+  String get invalidCouponCode;
+  String get applyDiscount;
+  String get discountType;
+  String get percentage;
+  String get fixed;
+  String get discountAmount;
+  String get updateShipping;
+  String get selectVariant;
+  String get options;
+  String get item;
+  String get itemPlural;
+  String get unit;
+  String get unitPlural;
+  String get scanProductsToAdd;
+  String get useBarcodeScanner;
+  String get noProductsFound;
+  String orderCompletedPrinting(String orderCode);
+  String get areYouSureRemoveAllItems;
+  String get sessionFound;
+  String get existingSessionMessage;
+  String get couldNotRecoverSession;
+  String get enterValidOpeningCash;
+  String get dataManagement;
+  String get about;
+  String get receiptPreview;
+  String get version;
 }
 
 class _AppLocalizationsDelegate

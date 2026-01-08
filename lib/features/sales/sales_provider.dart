@@ -629,7 +629,7 @@ class SalesProvider with ChangeNotifier {
   }
 
   // ✅ CHECKOUT: Create order - sends cart items directly to backend
-  Future<Order?> checkout({String? paymentDetails}) async {
+  Future<Order?> checkout({String? paymentDetails, Map<String, dynamic>? paymentMetadata}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -676,6 +676,7 @@ class SalesProvider with ChangeNotifier {
         items: items,
         paymentMethod: _paymentMethod,
         paymentDetails: paymentDetails,
+        paymentMetadata: paymentMetadata,
         customerId: _selectedCustomer?.id,
         // Discount parameters
         discountId: _couponDiscountId,

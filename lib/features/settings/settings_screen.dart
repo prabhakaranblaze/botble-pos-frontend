@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:flutter_thermal_printer/utils/printer.dart';
+import 'package:intl/intl.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../core/services/thermal_print_service.dart';
 import '../../core/database/database_service.dart';
@@ -42,29 +43,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Printer Settings
-            _buildSection(
-              title: 'Printer Settings',
-              icon: Icons.print,
-              child: const PrinterSettingsCard(),
+            // Two column layout: Printer Settings | Receipt Preview
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left column - Printer Settings
+                Expanded(
+                  flex: 3,
+                  child: _buildSection(
+                    title: 'Printer Settings',
+                    icon: Icons.print,
+                    child: const PrinterSettingsCard(),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                // Right column - Receipt Preview
+                Expanded(
+                  flex: 2,
+                  child: _buildSection(
+                    title: 'Receipt Preview',
+                    icon: Icons.receipt_long,
+                    child: const ReceiptPreviewCard(),
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(height: 24),
 
-            // Data Management
-            _buildSection(
-              title: 'Data Management',
-              icon: Icons.storage,
-              child: _buildDataManagementCard(),
-            ),
-
-            const SizedBox(height: 24),
-
-            // App Info
-            _buildSection(
-              title: 'About',
-              icon: Icons.info_outline,
-              child: _buildAboutCard(),
+            // Two column layout: Data Management | About
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Data Management
+                Expanded(
+                  child: _buildSection(
+                    title: 'Data Management',
+                    icon: Icons.storage,
+                    child: _buildDataManagementCard(),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                // App Info
+                Expanded(
+                  child: _buildSection(
+                    title: 'About',
+                    icon: Icons.info_outline,
+                    child: _buildAboutCard(),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -887,5 +915,233 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
       default:
         return Icons.print;
     }
+  }
+}
+
+/// Receipt Preview Card - Shows thermal receipt with demo data
+class ReceiptPreviewCard extends StatefulWidget {
+  const ReceiptPreviewCard({super.key});
+
+  @override
+  State<ReceiptPreviewCard> createState() => _ReceiptPreviewCardState();
+}
+
+class _ReceiptPreviewCardState extends State<ReceiptPreviewCard> {
+  String _paymentType = 'cash'; // 'cash' or 'card'
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Payment type toggle
+            Row(
+              children: [
+                const Text('Demo Payment: ', style: TextStyle(fontSize: 12)),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'cash', label: Text('Cash')),
+                    ButtonSegment(value: 'card', label: Text('Card')),
+                  ],
+                  selected: {_paymentType},
+                  onSelectionChanged: (types) {
+                    setState(() => _paymentType = types.first);
+                  },
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Receipt preview (thermal paper style)
+            Center(
+              child: Container(
+                width: 280, // 58mm paper width at ~screen DPI
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: _buildReceiptContent(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                '58mm Thermal Paper Preview',
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReceiptContent() {
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final now = DateTime.now();
+    final isCash = _paymentType == 'cash';
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: DefaultTextStyle(
+        style: const TextStyle(
+          fontFamily: 'Courier',
+          fontSize: 11,
+          color: Colors.black,
+          height: 1.3,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Header
+            Text(
+              AppConstants.appName,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const Text('POS Receipt'),
+            const SizedBox(height: 8),
+
+            // Order info
+            _receiptLine('Order: #ORD-00123'),
+            _receiptLine('Date: ${dateFormat.format(now)}'),
+            _receiptLine('Customer: John Doe'),
+            _receiptLine(isCash ? 'Payment: Cash' : 'Payment: Card (*4242)'),
+
+            const SizedBox(height: 4),
+            _divider(),
+            const SizedBox(height: 4),
+
+            // Column headers
+            _itemRow('Item', 'Qty', 'Amount', bold: true),
+            _divider(),
+            const SizedBox(height: 2),
+
+            // Demo items
+            _itemRow('Organic Coffee Beans', '2', '${AppConstants.currencyCode} 45.00'),
+            _itemRow('Fresh Milk 1L', '1', '${AppConstants.currencyCode} 12.50'),
+            _itemRow('Whole Wheat Bread', '1', '${AppConstants.currencyCode} 8.00'),
+
+            const SizedBox(height: 4),
+            _divider(),
+            const SizedBox(height: 4),
+
+            // Totals
+            _totalRow('Subtotal:', '${AppConstants.currencyCode} 65.50'),
+            _totalRow('Tax (15%):', '${AppConstants.currencyCode} 9.83'),
+            _totalRow('Discount:', '-${AppConstants.currencyCode} 5.00'),
+
+            _divider(),
+
+            // Grand total
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'TOTAL:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  Text(
+                    '${AppConstants.currencyCode} 70.33',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+
+            // Cash payment details
+            if (isCash) ...[
+              const SizedBox(height: 2),
+              _totalRow('Cash:', '${AppConstants.currencyCode} 100.00'),
+              _totalRow('Change:', '${AppConstants.currencyCode} 29.67'),
+            ],
+
+            const SizedBox(height: 8),
+            _divider(),
+            const SizedBox(height: 8),
+
+            // Footer
+            const Text(
+              'Thank you for your purchase!',
+              textAlign: TextAlign.center,
+            ),
+            const Text(
+              'Please come again',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _receiptLine(String text) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(text),
+    );
+  }
+
+  Widget _divider() {
+    return const Text(
+      '--------------------------------',
+      style: TextStyle(letterSpacing: -1),
+    );
+  }
+
+  Widget _itemRow(String name, String qty, String amount, {bool bold = false}) {
+    final style = bold ? const TextStyle(fontWeight: FontWeight.bold) : null;
+    // Truncate long names
+    final displayName = name.length > 18 ? '${name.substring(0, 18)}' : name;
+
+    return Row(
+      children: [
+        Expanded(
+          flex: 5,
+          child: Text(displayName, style: style),
+        ),
+        SizedBox(
+          width: 30,
+          child: Text(qty, textAlign: TextAlign.center, style: style),
+        ),
+        Expanded(
+          flex: 3,
+          child: Text(amount, textAlign: TextAlign.right, style: style),
+        ),
+      ],
+    );
+  }
+
+  Widget _totalRow(String label, String amount) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          Text(amount),
+        ],
+      ),
+    );
   }
 }

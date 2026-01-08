@@ -127,6 +127,7 @@ class SessionsService {
     // Find orders between session open and close (or now if still open)
     const endTime = session.closed_at || new Date();
 
+    // Get orders for this session's user within the session time range
     const orders = await prisma.order.findMany({
       where: {
         created_at: {
@@ -134,10 +135,12 @@ class SessionsService {
           lte: endTime,
         },
         status: 'completed',
-        // Filter by description containing payment method
         description: {
           contains: 'POS Order',
         },
+      },
+      include: {
+        payment: true,
       },
     });
 
@@ -146,13 +149,12 @@ class SessionsService {
 
     for (const order of orders) {
       const amount = Number(order.amount);
-      // Check payment method from description
-      if (order.description?.includes('CASH')) {
-        cashSales += amount;
-      } else if (order.description?.includes('CARD')) {
+      // Check payment method from payment record
+      const paymentChannel = order.payment?.payment_channel || '';
+      if (paymentChannel === 'pos_card' || paymentChannel.includes('card')) {
         cardSales += amount;
       } else {
-        // Default to cash if not specified
+        // Default to cash (pos_cash or any other)
         cashSales += amount;
       }
     }

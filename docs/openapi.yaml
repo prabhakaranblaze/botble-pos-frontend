@@ -11,14 +11,16 @@ info:
     - User Authentication with JWT tokens
     - Product Management with variant support
     - Shopping Cart operations
-    - Order processing and receipts
+    - Order processing with payment metadata
     - Cash Register session management
-    - Offline-first architecture support
+    - Discount and coupon system
+    - Reports and analytics
+    - Thermal printer integration
 
     ## Authentication
     Most endpoints require a Bearer token obtained from `/auth/login`.
     Include the token in the `Authorization` header: `Bearer {token}`
-  version: 1.0.0
+  version: 2.0.0
   contact:
     name: StampSmart Support
     email: support@stampsmart.com
@@ -26,8 +28,8 @@ info:
     name: Proprietary
 
 servers:
-  - url: https://stampsmart.test/api/v1/pos
-    description: Development Server
+  - url: https://seypost-posapi-uat.stampsm.art/api/v1/pos
+    description: UAT Server
   - url: https://api.stampsmart.com/api/v1/pos
     description: Production Server
 
@@ -39,13 +41,21 @@ tags:
   - name: Cart
     description: Shopping cart operations
   - name: Customers
-    description: Customer search and creation
+    description: Customer search, creation, and addresses
   - name: Orders
     description: Checkout and order management
   - name: Sessions
     description: Cash register session management
   - name: Denominations
     description: Currency denomination lookups
+  - name: Discounts
+    description: Coupon validation and manual discounts
+  - name: Settings
+    description: POS application settings
+  - name: Printer
+    description: Thermal printer operations
+  - name: Reports
+    description: Sales and product reports
 
 security:
   - bearerAuth: []
@@ -54,10 +64,8 @@ security:
 paths:
   /auth/login:
     post:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: User Login
-      description: Authenticate a user and receive an access token for subsequent API calls.
       operationId: login
       security: []
       requestBody:
@@ -66,10 +74,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
-            example:
-              username: admin@example.com
-              password: "12345678"
-              device_name: POS-Terminal-01
       responses:
         '200':
           description: Login successful
@@ -77,30 +81,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
-              example:
-                error: false
-                message: Login successful
-                data:
-                  token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
-                  user:
-                    id: 1
-                    name: Admin User
-                    email: admin@example.com
-                    store_id: 1
-                    store_name: Main Store
-        '401':
-          description: Invalid credentials
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/me:
     get:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: Get Current User
-      description: Retrieve the authenticated user's profile information.
       operationId: getCurrentUser
       responses:
         '200':
@@ -108,29 +93,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      user:
-                        $ref: '#/components/schemas/User'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/UserResponse'
 
   /auth/logout:
     post:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: User Logout
-      description: Logout the current user and invalidate the session.
       operationId: logout
       responses:
         '200':
@@ -138,57 +106,95 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /auth/verify-password:
+    post:
+      tags: [Authentication]
+      summary: Verify Password
+      operationId: verifyPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password verification result
+          content:
+            application/json:
+              schema:
                 type: object
                 properties:
                   error:
                     type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: Logged out successfully
+                  data:
+                    type: object
+                    properties:
+                      valid:
+                        type: boolean
 
   /products:
     get:
-      tags:
-        - Products
+      tags: [Products]
       summary: List Products
-      description: Retrieve a paginated list of products. Supports search by name, SKU, or barcode.
       operationId: getProducts
       parameters:
         - name: page
           in: query
-          description: Page number
           schema:
             type: integer
             default: 1
-            minimum: 1
         - name: per_page
           in: query
-          description: Items per page
           schema:
             type: integer
             default: 20
-            minimum: 1
-            maximum: 100
         - name: search
           in: query
-          description: Search by name, SKU, or barcode
           schema:
             type: string
+        - name: category_id
+          in: query
+          schema:
+            type: integer
       responses:
         '200':
-          description: Products retrieved successfully
+          description: Products retrieved
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductListResponse'
 
+  /products/{id}:
+    get:
+      tags: [Products]
+      summary: Get Product
+      operationId: getProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+
   /products/scan-barcode:
     post:
-      tags:
-        - Products
+      tags: [Products]
       summary: Scan Barcode
-      description: Find a product by scanning its barcode. Returns the product if found, null otherwise.
       operationId: scanBarcode
       requestBody:
         required: true
@@ -196,63 +202,48 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - barcode
+              required: [barcode]
               properties:
                 barcode:
                   type: string
-                  description: Product barcode
-                  example: "1234567890123"
       responses:
         '200':
           description: Barcode scan result
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      product:
-                        $ref: '#/components/schemas/Product'
-                        nullable: true
+                $ref: '#/components/schemas/ProductResponse'
 
   /products/categories:
     get:
-      tags:
-        - Products
+      tags: [Products]
       summary: List Categories
-      description: Get all product categories with product counts.
       operationId: getCategories
       responses:
         '200':
-          description: Categories retrieved successfully
+          description: Categories retrieved
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      categories:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/CategoriesResponse'
+
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Get Cart
+      operationId: getCart
+      responses:
+        '200':
+          description: Cart retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
 
   /cart/add:
     post:
-      tags:
-        - Cart
+      tags: [Cart]
       summary: Add to Cart
-      description: Add a product to the shopping cart. Supports product variants/attributes.
       operationId: addToCart
       requestBody:
         required: true
@@ -260,15 +251,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AddToCartRequest'
-            example:
-              product_id: 1
-              quantity: 2
-              attributes:
-                "1": 2
-                "2": 4
       responses:
         '200':
-          description: Product added to cart
+          description: Product added
           content:
             application/json:
               schema:
@@ -276,10 +261,8 @@ paths:
 
   /cart/update:
     post:
-      tags:
-        - Cart
+      tags: [Cart]
       summary: Update Cart Item
-      description: Update the quantity of an item in the cart.
       operationId: updateCart
       requestBody:
         required: true
@@ -287,20 +270,12 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - product_id
-                - quantity
+              required: [product_id, quantity]
               properties:
                 product_id:
                   type: integer
-                  description: Product ID to update
                 quantity:
                   type: integer
-                  description: New quantity
-                  minimum: 1
-            example:
-              product_id: 1
-              quantity: 3
       responses:
         '200':
           description: Cart updated
@@ -311,10 +286,8 @@ paths:
 
   /cart/remove:
     post:
-      tags:
-        - Cart
+      tags: [Cart]
       summary: Remove from Cart
-      description: Remove an item from the cart.
       operationId: removeFromCart
       requestBody:
         required: true
@@ -322,17 +295,13 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - product_id
+              required: [product_id]
               properties:
                 product_id:
                   type: integer
-                  description: Product ID to remove
-            example:
-              product_id: 1
       responses:
         '200':
-          description: Item removed from cart
+          description: Item removed
           content:
             application/json:
               schema:
@@ -340,10 +309,8 @@ paths:
 
   /cart/clear:
     post:
-      tags:
-        - Cart
+      tags: [Cart]
       summary: Clear Cart
-      description: Remove all items from the cart.
       operationId: clearCart
       responses:
         '200':
@@ -351,21 +318,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: Cart cleared
+                $ref: '#/components/schemas/MessageResponse'
 
   /cart/update-payment-method:
     post:
-      tags:
-        - Cart
+      tags: [Cart]
       summary: Update Payment Method
-      description: Set the payment method for the current cart.
       operationId: updatePaymentMethod
       requestBody:
         required: true
@@ -373,15 +331,11 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - payment_method
+              required: [payment_method]
               properties:
                 payment_method:
                   type: string
-                  enum: [cash, card]
-                  description: Payment method
-            example:
-              payment_method: cash
+                  enum: [pos_cash, pos_card]
       responses:
         '200':
           description: Payment method updated
@@ -392,16 +346,13 @@ paths:
 
   /customers/search:
     get:
-      tags:
-        - Customers
+      tags: [Customers]
       summary: Search Customers
-      description: Search for customers by name, email, or phone.
       operationId: searchCustomers
       parameters:
         - name: keyword
           in: query
           required: true
-          description: Search keyword
           schema:
             type: string
       responses:
@@ -410,25 +361,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      customers:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Customer'
+                $ref: '#/components/schemas/CustomersResponse'
 
   /customers:
     post:
-      tags:
-        - Customers
+      tags: [Customers]
       summary: Create Customer
-      description: Register a new customer.
       operationId: createCustomer
       requestBody:
         required: true
@@ -436,48 +374,138 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateCustomerRequest'
-            example:
-              name: Jane Smith
-              email: jane@example.com
-              phone: "+1987654321"
-              address: 456 Oak Ave, Town
       responses:
         '200':
           description: Customer created
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      customer:
-                        $ref: '#/components/schemas/Customer'
+                $ref: '#/components/schemas/CustomerResponse'
 
-  /orders:
+  /customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get Customer
+      operationId: getCustomer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+
+  /customers/{id}/addresses:
+    get:
+      tags: [Customers]
+      summary: Get Customer Addresses
+      operationId: getCustomerAddresses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Addresses retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressesResponse'
     post:
-      tags:
-        - Orders
-      summary: Checkout
-      description: Complete checkout and create an order from the current cart.
-      operationId: checkout
+      tags: [Customers]
+      summary: Create Customer Address
+      operationId: createCustomerAddress
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                payment_details:
-                  type: string
-                  description: Additional payment information
-                  example: "Last 4 digits: 1234"
+              $ref: '#/components/schemas/CreateAddressRequest'
       responses:
         '200':
-          description: Order created successfully
+          description: Address created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressResponse'
+
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List Orders
+      operationId: getOrders
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Orders retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersResponse'
+    post:
+      tags: [Orders]
+      summary: Checkout
+      operationId: checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get Order
+      operationId: getOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Order retrieved
           content:
             application/json:
               schema:
@@ -485,16 +513,13 @@ paths:
 
   /orders/{id}/receipt:
     get:
-      tags:
-        - Orders
+      tags: [Orders]
       summary: Get Receipt
-      description: Get the HTML receipt for an order.
       operationId: getReceipt
       parameters:
         - name: id
           in: path
           required: true
-          description: Order ID
           schema:
             type: integer
       responses:
@@ -503,50 +528,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      receipt_html:
-                        type: string
-                        description: HTML content of the receipt
-
-  /cash-registers:
-    get:
-      tags:
-        - Sessions
-      summary: List Cash Registers
-      description: Get all available cash registers for the store.
-      operationId: getCashRegisters
-      responses:
-        '200':
-          description: Cash registers retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      cash_registers:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/CashRegister'
+                $ref: '#/components/schemas/ReceiptResponse'
 
   /sessions/active:
     get:
-      tags:
-        - Sessions
+      tags: [Sessions]
       summary: Get Active Session
-      description: Check if there's an active session for the current user.
       operationId: getActiveSession
       responses:
         '200':
@@ -554,25 +541,36 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      session:
-                        $ref: '#/components/schemas/Session'
+                $ref: '#/components/schemas/SessionResponse'
         '404':
           description: No active session
 
+  /sessions/history:
+    get:
+      tags: [Sessions]
+      summary: Get Session History
+      operationId: getSessionHistory
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Session history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsResponse'
+
   /sessions/open:
     post:
-      tags:
-        - Sessions
+      tags: [Sessions]
       summary: Open Session
-      description: Open a new cash register session at the start of a shift.
       operationId: openSession
       requestBody:
         required: true
@@ -580,36 +578,18 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OpenSessionRequest'
-            example:
-              cash_register_id: 1
-              opening_cash: 200.00
-              opening_denominations:
-                "100": 1
-                "50": 2
-              opening_notes: Starting morning shift
       responses:
         '200':
           description: Session opened
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      session:
-                        $ref: '#/components/schemas/Session'
+                $ref: '#/components/schemas/SessionResponse'
 
   /sessions/close:
     post:
-      tags:
-        - Sessions
+      tags: [Sessions]
       summary: Close Session
-      description: Close the current cash register session at the end of a shift.
       operationId: closeSession
       requestBody:
         required: true
@@ -617,65 +597,226 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CloseSessionRequest'
-            example:
-              session_id: 101
-              closing_cash: 450.00
-              closing_denominations:
-                "100": 3
-                "50": 2
-                "20": 2
-                "10": 1
-              closing_notes: End of morning shift
       responses:
         '200':
           description: Session closed
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      session:
-                        $ref: '#/components/schemas/Session'
+                $ref: '#/components/schemas/SessionResponse'
 
   /denominations:
     get:
-      tags:
-        - Denominations
+      tags: [Denominations]
       summary: List Denominations
-      description: Get available currency denominations for cash counting.
       operationId: getDenominations
       parameters:
         - name: currency
           in: query
-          description: Currency code
           schema:
             type: string
-            default: USD
-            enum: [USD, INR]
+            default: SCR
       responses:
         '200':
           description: Denominations retrieved
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: boolean
-                    example: false
-                  data:
-                    type: object
-                    properties:
-                      denominations:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Denomination'
+                $ref: '#/components/schemas/DenominationsResponse'
+
+  /denominations/currencies:
+    get:
+      tags: [Denominations]
+      summary: List Currencies
+      operationId: getCurrencies
+      responses:
+        '200':
+          description: Currencies retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrenciesResponse'
+
+  /discounts/validate:
+    post:
+      tags: [Discounts]
+      summary: Validate Coupon
+      operationId: validateCoupon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, subtotal]
+              properties:
+                code:
+                  type: string
+                subtotal:
+                  type: number
+                customer_id:
+                  type: integer
+      responses:
+        '200':
+          description: Coupon validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscountValidationResponse'
+
+  /discounts/calculate:
+    post:
+      tags: [Discounts]
+      summary: Calculate Manual Discount
+      operationId: calculateDiscount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subtotal, discount_type, discount_value]
+              properties:
+                subtotal:
+                  type: number
+                discount_type:
+                  type: string
+                  enum: [percentage, fixed]
+                discount_value:
+                  type: number
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Discount calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscountCalculationResponse'
+
+  /settings:
+    get:
+      tags: [Settings]
+      summary: Get Settings
+      operationId: getSettings
+      responses:
+        '200':
+          description: Settings retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsResponse'
+
+  /printer/print-receipt:
+    post:
+      tags: [Printer]
+      summary: Print Receipt
+      operationId: printReceipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id]
+              properties:
+                order_id:
+                  type: integer
+      responses:
+        '200':
+          description: Receipt printed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /printer/open-drawer:
+    post:
+      tags: [Printer]
+      summary: Open Cash Drawer
+      operationId: openDrawer
+      responses:
+        '200':
+          description: Drawer opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /printer/test:
+    post:
+      tags: [Printer]
+      summary: Print Test Page
+      operationId: printTest
+      responses:
+        '200':
+          description: Test page printed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /reports/orders:
+    get:
+      tags: [Reports]
+      summary: Orders Report
+      operationId: getOrdersReport
+      parameters:
+        - name: from_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersReportResponse'
+
+  /reports/products:
+    get:
+      tags: [Reports]
+      summary: Products Report
+      operationId: getProductsReport
+      parameters:
+        - name: from_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [quantity, revenue, name]
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductsReportResponse'
 
 components:
   securitySchemes:
@@ -683,38 +824,158 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token obtained from /auth/login
     apiKey:
       type: apiKey
       in: header
       name: X-API-KEY
-      description: API key for authentication
 
   schemas:
+    # Request Schemas
     LoginRequest:
       type: object
-      required:
-        - username
-        - password
-        - device_name
+      required: [username, password, device_name]
       properties:
         username:
           type: string
-          description: User email or username
         password:
           type: string
-          format: password
-          description: User password
         device_name:
           type: string
-          description: Name identifying this POS terminal
+
+    AddToCartRequest:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+        attributes:
+          type: object
+          additionalProperties:
+            type: integer
+
+    CreateCustomerRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+
+    CreateAddressRequest:
+      type: object
+      required: [name, address, city, country]
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        zip_code:
+          type: string
+        phone:
+          type: string
+        is_default:
+          type: boolean
+
+    CheckoutRequest:
+      type: object
+      required: [items, payment_method]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id:
+                type: integer
+              name:
+                type: string
+              quantity:
+                type: integer
+              price:
+                type: number
+              sku:
+                type: string
+              tax_rate:
+                type: number
+        payment_method:
+          type: string
+          enum: [pos_cash, pos_card]
+        payment_details:
+          type: string
+        payment_metadata:
+          type: object
+          properties:
+            cash_received:
+              type: number
+            change_given:
+              type: number
+            card_last_four:
+              type: string
+        customer_id:
+          type: integer
+        discount_amount:
+          type: number
+        discount_description:
+          type: string
+        shipping_amount:
+          type: number
+        delivery_type:
+          type: string
+          enum: [pickup, ship]
+        tax_amount:
+          type: number
+
+    OpenSessionRequest:
+      type: object
+      required: [opening_cash]
+      properties:
+        opening_cash:
+          type: number
+        denominations:
+          type: object
+          additionalProperties:
+            type: integer
+        notes:
+          type: string
+
+    CloseSessionRequest:
+      type: object
+      required: [closing_cash]
+      properties:
+        closing_cash:
+          type: number
+        denominations:
+          type: object
+          additionalProperties:
+            type: integer
+        notes:
+          type: string
+
+    # Response Schemas
+    MessageResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        message:
+          type: string
 
     LoginResponse:
       type: object
       properties:
         error:
           type: boolean
-          example: false
         message:
           type: string
         data:
@@ -722,10 +983,300 @@ components:
           properties:
             token:
               type: string
-              description: JWT access token
             user:
               $ref: '#/components/schemas/User'
 
+    UserResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+
+    ProductListResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            products:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    ProductResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            product:
+              $ref: '#/components/schemas/Product'
+
+    CategoriesResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            categories:
+              type: array
+              items:
+                $ref: '#/components/schemas/Category'
+
+    CartResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Cart'
+
+    CustomersResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            customers:
+              type: array
+              items:
+                $ref: '#/components/schemas/Customer'
+
+    CustomerResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            customer:
+              $ref: '#/components/schemas/Customer'
+
+    AddressesResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            addresses:
+              type: array
+              items:
+                $ref: '#/components/schemas/CustomerAddress'
+
+    AddressResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            address:
+              $ref: '#/components/schemas/CustomerAddress'
+
+    OrdersResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            orders:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    OrderResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Order'
+
+    ReceiptResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            receipt_html:
+              type: string
+
+    SessionResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            session:
+              $ref: '#/components/schemas/Session'
+
+    SessionsResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            sessions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Session'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    DenominationsResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            denominations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Denomination'
+
+    CurrenciesResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            currencies:
+              type: array
+              items:
+                type: string
+
+    DiscountValidationResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            valid:
+              type: boolean
+            discount:
+              $ref: '#/components/schemas/DiscountResult'
+
+    DiscountCalculationResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            discount_amount:
+              type: number
+            description:
+              type: string
+
+    SettingsResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            settings:
+              $ref: '#/components/schemas/Settings'
+
+    OrdersReportResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            summary:
+              type: object
+              properties:
+                total_orders:
+                  type: integer
+                total_revenue:
+                  type: number
+                total_tax:
+                  type: number
+                total_discount:
+                  type: number
+                cash_sales:
+                  type: number
+                card_sales:
+                  type: number
+                average_order_value:
+                  type: number
+            orders:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+
+    ProductsReportResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+        data:
+          type: object
+          properties:
+            products:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  sku:
+                    type: string
+                  quantity_sold:
+                    type: integer
+                  revenue:
+                    type: number
+            summary:
+              type: object
+              properties:
+                total_products_sold:
+                  type: integer
+                total_revenue:
+                  type: number
+
+    # Entity Schemas
     User:
       type: object
       properties:
@@ -735,13 +1286,14 @@ components:
           type: string
         email:
           type: string
-          format: email
         store_id:
           type: integer
-          nullable: true
         store_name:
           type: string
-          nullable: true
+        permissions:
+          type: array
+          items:
+            type: string
 
     Product:
       type: object
@@ -752,36 +1304,26 @@ components:
           type: string
         sku:
           type: string
-          nullable: true
         barcode:
           type: string
-          nullable: true
         price:
           type: number
-          format: double
         sale_price:
           type: number
-          format: double
-          nullable: true
         image:
           type: string
-          format: uri
-          nullable: true
         quantity:
           type: integer
-          nullable: true
         description:
           type: string
-          nullable: true
         is_available:
           type: boolean
-          default: true
+        tax_rate:
+          type: number
         has_variants:
           type: boolean
-          default: false
         variants:
           type: array
-          nullable: true
           items:
             $ref: '#/components/schemas/ProductVariant'
 
@@ -790,12 +1332,8 @@ components:
       properties:
         id:
           type: integer
-        type:
-          type: string
-          description: Variant type (e.g., "attribute")
         name:
           type: string
-          description: Variant name (e.g., "Size", "Color")
         options:
           type: array
           items:
@@ -808,12 +1346,8 @@ components:
           type: integer
         name:
           type: string
-          description: Option name (e.g., "Small", "Blue")
         price_modifier:
           type: number
-          format: double
-          nullable: true
-          description: Price adjustment for this option
 
     Category:
       type: object
@@ -825,70 +1359,17 @@ components:
         product_count:
           type: integer
 
-    ProductListResponse:
+    Pagination:
       type: object
       properties:
-        error:
-          type: boolean
-          example: false
-        data:
-          type: object
-          properties:
-            products:
-              type: array
-              items:
-                $ref: '#/components/schemas/Product'
-            pagination:
-              type: object
-              properties:
-                current_page:
-                  type: integer
-                per_page:
-                  type: integer
-                total:
-                  type: integer
-                last_page:
-                  type: integer
-
-    AddToCartRequest:
-      type: object
-      required:
-        - product_id
-        - quantity
-      properties:
-        product_id:
+        current_page:
           type: integer
-          description: Product ID to add
-        quantity:
+        per_page:
           type: integer
-          minimum: 1
-          description: Quantity to add
-        attributes:
-          type: object
-          additionalProperties:
-            type: integer
-          description: Variant selections as variant_id:option_id pairs
-
-    CartItem:
-      type: object
-      properties:
-        id:
+        total:
           type: integer
-          description: Product ID
-        name:
-          type: string
-        sku:
-          type: string
-          nullable: true
-        price:
-          type: number
-          format: double
-        quantity:
+        last_page:
           type: integer
-        image:
-          type: string
-          format: uri
-          nullable: true
 
     Cart:
       type: object
@@ -899,35 +1380,34 @@ components:
             $ref: '#/components/schemas/CartItem'
         subtotal:
           type: number
-          format: double
         discount:
           type: number
-          format: double
         tax:
           type: number
-          format: double
         shipping_amount:
           type: number
-          format: double
         total:
           type: number
-          format: double
         payment_method:
           type: string
-          nullable: true
-          enum: [cash, card]
         coupon_code:
           type: string
-          nullable: true
 
-    CartResponse:
+    CartItem:
       type: object
       properties:
-        error:
-          type: boolean
-          example: false
-        data:
-          $ref: '#/components/schemas/Cart'
+        id:
+          type: integer
+        name:
+          type: string
+        sku:
+          type: string
+        price:
+          type: number
+        quantity:
+          type: integer
+        image:
+          type: string
 
     Customer:
       type: object
@@ -938,29 +1418,30 @@ components:
           type: string
         email:
           type: string
-          format: email
-          nullable: true
         phone:
           type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
 
-    CreateCustomerRequest:
+    CustomerAddress:
       type: object
-      required:
-        - name
       properties:
+        id:
+          type: integer
         name:
           type: string
-        email:
-          type: string
-          format: email
-        phone:
-          type: string
         address:
           type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        zip_code:
+          type: string
+        phone:
+          type: string
+        is_default:
+          type: boolean
 
     Order:
       type: object
@@ -969,13 +1450,24 @@ components:
           type: integer
         code:
           type: string
-          description: Order reference code
         amount:
           type: number
-          format: double
+        sub_total:
+          type: number
+        tax_amount:
+          type: number
+        discount_amount:
+          type: number
+        shipping_amount:
+          type: number
         payment_method:
           type: string
-          enum: [cash, card]
+        payment_id:
+          type: integer
+        invoice_id:
+          type: integer
+        invoice_code:
+          type: string
         status:
           type: string
         created_at:
@@ -983,60 +1475,22 @@ components:
           format: date-time
         payment_details:
           type: string
-          nullable: true
+        payment_metadata:
+          type: object
         items:
           type: array
           items:
             $ref: '#/components/schemas/CartItem'
-
-    OrderResponse:
-      type: object
-      properties:
-        error:
-          type: boolean
-          example: false
-        data:
-          type: object
-          properties:
-            order:
-              $ref: '#/components/schemas/Order'
-
-    CashRegister:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        code:
-          type: string
-        store_id:
-          type: integer
-        description:
-          type: string
-          nullable: true
-        is_active:
-          type: boolean
-        initial_float:
-          type: number
-          format: double
-          nullable: true
 
     Session:
       type: object
       properties:
         id:
           type: integer
-        cash_register_id:
-          type: integer
-        cash_register_name:
-          type: string
-          nullable: true
         user_id:
           type: integer
         user_name:
           type: string
-          nullable: true
         status:
           type: string
           enum: [open, closed]
@@ -1046,73 +1500,20 @@ components:
         closed_at:
           type: string
           format: date-time
-          nullable: true
         opening_cash:
           type: number
-          format: double
         closing_cash:
           type: number
-          format: double
-          nullable: true
-        opening_denominations:
-          type: object
-          additionalProperties:
-            type: integer
-          nullable: true
-        closing_denominations:
-          type: object
-          additionalProperties:
-            type: integer
-          nullable: true
-        opening_notes:
-          type: string
-          nullable: true
-        closing_notes:
-          type: string
-          nullable: true
+        cash_sales:
+          type: number
+        card_sales:
+          type: number
+        total_sales:
+          type: number
+        order_count:
+          type: integer
         difference:
           type: number
-          format: double
-          nullable: true
-          description: Cash difference (short/excess)
-
-    OpenSessionRequest:
-      type: object
-      required:
-        - cash_register_id
-        - opening_cash
-      properties:
-        cash_register_id:
-          type: integer
-        opening_cash:
-          type: number
-          format: double
-        opening_denominations:
-          type: object
-          additionalProperties:
-            type: integer
-          description: Count of each denomination
-        opening_notes:
-          type: string
-
-    CloseSessionRequest:
-      type: object
-      required:
-        - session_id
-        - closing_cash
-      properties:
-        session_id:
-          type: integer
-        closing_cash:
-          type: number
-          format: double
-        closing_denominations:
-          type: object
-          additionalProperties:
-            type: integer
-          description: Count of each denomination
-        closing_notes:
-          type: string
 
     Denomination:
       type: object
@@ -1123,12 +1524,45 @@ components:
           type: string
         value:
           type: number
-          format: double
         type:
           type: string
           enum: [bill, coin]
         display_name:
           type: string
+
+    DiscountResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        type:
+          type: string
+        value:
+          type: number
+        discount_amount:
+          type: number
+        description:
+          type: string
+
+    Settings:
+      type: object
+      properties:
+        store_name:
+          type: string
+        store_address:
+          type: string
+        store_phone:
+          type: string
+        currency:
+          type: string
+        tax_rate:
+          type: number
+        receipt_footer:
+          type: string
+        auto_print_receipt:
+          type: boolean
 
     ErrorResponse:
       type: object
@@ -1138,4 +1572,3 @@ components:
           example: true
         message:
           type: string
-          description: Error message

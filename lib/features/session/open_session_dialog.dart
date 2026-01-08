@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'session_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../shared/widgets/app_toast.dart';
 
 class OpenSessionDialog extends StatefulWidget {
   const OpenSessionDialog({super.key});
@@ -25,9 +26,7 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
   Future<void> _handleOpenSession() async {
     final amount = double.tryParse(_openingCashController.text) ?? 0;
     if (amount < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid opening cash amount')),
-      );
+      AppToast.error(context, 'Please enter a valid opening cash amount');
       return;
     }
 
@@ -40,9 +39,54 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
     if (success && mounted) {
       Navigator.pop(context, true);
     } else if (session.error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(session.error!)),
-      );
+      // Check if error is "already have open register"
+      if (session.error!.toLowerCase().contains('already have an open')) {
+        _showRecoverSessionDialog();
+      } else {
+        AppToast.error(context, session.error!);
+      }
+    }
+  }
+
+  Future<void> _showRecoverSessionDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+            const SizedBox(width: 12),
+            const Text('Session Found'),
+          ],
+        ),
+        content: const Text(
+          'You already have an open session. Would you like to continue with that session?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Continue Session'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      // Retry fetching active session
+      final session = context.read<SessionProvider>();
+      await session.checkActiveSession();
+
+      if (session.hasActiveSession && mounted) {
+        Navigator.pop(context, true); // Close dialog and proceed
+      } else if (mounted) {
+        AppToast.error(context, 'Could not recover session. Please try again.');
+      }
     }
   }
 
@@ -77,9 +121,9 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
                 // Opening Cash Amount
                 TextField(
                   controller: _openingCashController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Opening Cash Amount',
-                    prefixIcon: Icon(Icons.attach_money),
+                    prefixText: '${AppConstants.currencyCode} ',
                     hintText: '0.00',
                     helperText: 'Enter the cash in your drawer',
                   ),

@@ -143,7 +143,7 @@ class ThermalPrintService {
     commands.addAll(_escInit());
 
     // Store name - centered, bold, double height
-    commands.addAll(_escAlign(Align.center));
+    commands.addAll(_escAlign(PrintAlign.center));
     commands.addAll(_escBoldOn());
     commands.addAll(_escDoubleHeight());
     commands.addAll(_textToBytes(AppConstants.appName));
@@ -157,12 +157,24 @@ class ThermalPrintService {
     commands.addAll(_escNewLine());
 
     // Order info - left aligned
-    commands.addAll(_escAlign(Align.left));
+    commands.addAll(_escAlign(PrintAlign.left));
     commands.addAll(_textToBytes('Order: ${order.code}'));
     commands.addAll(_escNewLine());
     commands.addAll(_textToBytes('Date: ${dateFormat.format(order.createdAt)}'));
     commands.addAll(_escNewLine());
-    commands.addAll(_textToBytes('Payment: ${_formatPaymentMethod(order.paymentMethod)}'));
+
+    // Customer (if available)
+    if (order.customer != null) {
+      commands.addAll(_textToBytes('Customer: ${order.customer!.name}'));
+      commands.addAll(_escNewLine());
+    }
+
+    // Payment method with card last 4 if applicable
+    String paymentInfo = 'Payment: ${_formatPaymentMethod(order.paymentMethod)}';
+    if (order.cardLastFour != null) {
+      paymentInfo += ' (*${order.cardLastFour})';
+    }
+    commands.addAll(_textToBytes(paymentInfo));
     commands.addAll(_escNewLine());
 
     // Divider
@@ -219,9 +231,18 @@ class ThermalPrintService {
     commands.addAll(_escNormalSize());
     commands.addAll(_escBoldOff());
 
+    // Cash payment details (received / change)
+    if (order.cashReceived != null && order.changeGiven != null) {
+      commands.addAll(_escNewLine());
+      commands.addAll(_textToBytes(_formatTotalLine('Cash:', AppCurrency.format(order.cashReceived!))));
+      commands.addAll(_escNewLine());
+      commands.addAll(_textToBytes(_formatTotalLine('Change:', AppCurrency.format(order.changeGiven!))));
+      commands.addAll(_escNewLine());
+    }
+
     // Footer
     commands.addAll(_escNewLine());
-    commands.addAll(_escAlign(Align.center));
+    commands.addAll(_escAlign(PrintAlign.center));
     commands.addAll(_textToBytes('--------------------------------'));
     commands.addAll(_escNewLine());
     commands.addAll(_textToBytes('Thank you for your purchase!'));
@@ -245,16 +266,16 @@ class ThermalPrintService {
   List<int> _escInit() => [0x1B, 0x40]; // ESC @
 
   /// Set text alignment
-  List<int> _escAlign(Align align) {
+  List<int> _escAlign(PrintAlign align) {
     int a = 0;
     switch (align) {
-      case Align.left:
+      case PrintAlign.left:
         a = 0;
         break;
-      case Align.center:
+      case PrintAlign.center:
         a = 1;
         break;
-      case Align.right:
+      case PrintAlign.right:
         a = 2;
         break;
     }
@@ -345,4 +366,4 @@ class ThermalPrintService {
   }
 }
 
-enum Align { left, center, right }
+enum PrintAlign { left, center, right }

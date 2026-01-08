@@ -130,6 +130,7 @@ class OrdersService {
     items,
     paymentMethod = 'pos_cash',
     paymentDetails = null,
+    paymentMetadata = null,     // JSON object with cash/card details
     customerId = null,
     // New discount/shipping parameters
     discountId = null,          // Coupon discount ID (for usage tracking)
@@ -202,10 +203,13 @@ class OrdersService {
         payment_type: 'confirm',
         customer_id: customerId ? BigInt(customerId) : null,
         customer_type: customerId ? 'Botble\\Ecommerce\\Models\\Customer' : null,
+        metadata: paymentMetadata ? JSON.stringify(paymentMetadata) : null,
         created_at: new Date(),
         updated_at: new Date(),
       },
     });
+
+    console.log('  - Payment created with metadata:', paymentMetadata);
 
     // Generate order code (async - sequential like Laravel)
     const orderCode = await this.generateOrderCode();
@@ -341,6 +345,7 @@ class OrdersService {
       status: order.status,
       created_at: order.created_at.toISOString(),
       payment_details: paymentDetails,
+      payment_metadata: paymentMetadata,
       items: formattedItems,
     };
   }

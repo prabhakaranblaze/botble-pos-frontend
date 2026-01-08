@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import '../../core/api/api_service.dart';
 import '../../shared/constants/app_constants.dart';
+import '../session/session_provider.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -36,12 +37,17 @@ class _ReportsScreenState extends State<ReportsScreen>
   String _productsSortBy = 'quantity';
   String _productsSortOrder = 'desc';
 
+  // Session data
+  List<dynamic> _sessionOrders = [];
+  bool _sessionLoading = false;
+  String _sessionPaymentFilter = 'all'; // all, cash, card
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _loadOrdersReport();
+    _loadSessionOrders(); // Load session orders first (default tab)
   }
 
   @override
@@ -53,10 +59,50 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    if (_tabController.index == 0) {
-      _loadOrdersReport();
-    } else {
-      _loadProductsReport();
+    switch (_tabController.index) {
+      case 0:
+        _loadSessionOrders();
+        break;
+      case 1:
+        _loadOrdersReport();
+        break;
+      case 2:
+        _loadProductsReport();
+        break;
+    }
+  }
+
+  Future<void> _loadSessionOrders() async {
+    setState(() => _sessionLoading = true);
+
+    try {
+      final sessionProvider = context.read<SessionProvider>();
+      final activeSession = sessionProvider.activeSession;
+
+      if (activeSession == null) {
+        setState(() {
+          _sessionOrders = [];
+          _sessionLoading = false;
+        });
+        return;
+      }
+
+      // Get orders for current session using session time range
+      final api = context.read<ApiService>();
+      final openedAt = DateTime.parse(activeSession['opened_at'] as String);
+
+      final data = await api.getOrdersReport(
+        fromDate: openedAt,
+        toDate: DateTime.now(),
+      );
+
+      setState(() {
+        _sessionOrders = data['orders'] as List<dynamic>? ?? [];
+        _sessionLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading session orders: $e');
+      setState(() => _sessionLoading = false);
     }
   }
 
@@ -158,10 +204,16 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   void _refreshCurrentTab() {
-    if (_tabController.index == 0) {
-      _loadOrdersReport();
-    } else {
-      _loadProductsReport();
+    switch (_tabController.index) {
+      case 0:
+        _loadSessionOrders();
+        break;
+      case 1:
+        _loadOrdersReport();
+        break;
+      case 2:
+        _loadProductsReport();
+        break;
     }
   }
 
@@ -324,71 +376,86 @@ class _ReportsScreenState extends State<ReportsScreen>
                         ),
                       ),
                       const Spacer(),
-                      // Export button
-                      ElevatedButton.icon(
-                        onPressed: _tabController.index == 0
-                            ? _exportOrdersToExcel
-                            : _exportProductsToExcel,
-                        icon: const Icon(Icons.download, size: 18),
-                        label: const Text('Export CSV'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                      // Export button (hide for Session tab for now)
+                      if (_tabController.index != 0)
+                        ElevatedButton.icon(
+                          onPressed: _tabController.index == 1
+                              ? _exportOrdersToExcel
+                              : _exportProductsToExcel,
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('Export CSV'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                         ),
-                      ),
+                      // Refresh button for Session tab
+                      if (_tabController.index == 0)
+                        ElevatedButton.icon(
+                          onPressed: _loadSessionOrders,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Refresh'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // Date filters
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    children: [
-                      _buildDateFilterChip('Today', 'today'),
-                      const SizedBox(width: 8),
-                      _buildDateFilterChip('Yesterday', 'yesterday'),
-                      const SizedBox(width: 8),
-                      _buildDateFilterChip('This Week', 'this_week'),
-                      const SizedBox(width: 8),
-                      _buildDateFilterChip('This Month', 'this_month'),
-                      const SizedBox(width: 8),
-                      // Custom date range
-                      ActionChip(
-                        avatar: Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: _selectedDateFilter == 'custom'
-                              ? Colors.white
-                              : AppColors.textSecondary,
-                        ),
-                        label: Text(
-                          _selectedDateFilter == 'custom' &&
-                                  _customFromDate != null &&
-                                  _customToDate != null
-                              ? '${DateFormat('MMM d').format(_customFromDate!)} - ${DateFormat('MMM d').format(_customToDate!)}'
-                              : 'Custom',
-                          style: TextStyle(
+                // Date filters (hide for Session tab)
+                if (_tabController.index != 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        _buildDateFilterChip('Today', 'today'),
+                        const SizedBox(width: 8),
+                        _buildDateFilterChip('Yesterday', 'yesterday'),
+                        const SizedBox(width: 8),
+                        _buildDateFilterChip('This Week', 'this_week'),
+                        const SizedBox(width: 8),
+                        _buildDateFilterChip('This Month', 'this_month'),
+                        const SizedBox(width: 8),
+                        // Custom date range
+                        ActionChip(
+                          avatar: Icon(
+                            Icons.calendar_today,
+                            size: 16,
                             color: _selectedDateFilter == 'custom'
                                 ? Colors.white
-                                : AppColors.textPrimary,
+                                : AppColors.textSecondary,
                           ),
+                          label: Text(
+                            _selectedDateFilter == 'custom' &&
+                                    _customFromDate != null &&
+                                    _customToDate != null
+                                ? '${DateFormat('MMM d').format(_customFromDate!)} - ${DateFormat('MMM d').format(_customToDate!)}'
+                                : 'Custom',
+                            style: TextStyle(
+                              color: _selectedDateFilter == 'custom'
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                          backgroundColor: _selectedDateFilter == 'custom'
+                              ? AppColors.primary
+                              : AppColors.background,
+                          onPressed: _selectCustomDateRange,
                         ),
-                        backgroundColor: _selectedDateFilter == 'custom'
-                            ? AppColors.primary
-                            : AppColors.background,
-                        onPressed: _selectCustomDateRange,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                if (_tabController.index != 0) const SizedBox(height: 16),
 
                 // Tabs
                 TabBar(
@@ -397,6 +464,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                   unselectedLabelColor: AppColors.textSecondary,
                   indicatorColor: AppColors.primary,
                   tabs: const [
+                    Tab(text: 'Session'),
                     Tab(text: 'Orders'),
                     Tab(text: 'Products Sold'),
                   ],
@@ -410,12 +478,158 @@ class _ReportsScreenState extends State<ReportsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
+                _buildSessionTab(),
                 _buildOrdersTab(),
                 _buildProductsTab(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSessionTab() {
+    final sessionProvider = context.watch<SessionProvider>();
+    final activeSession = sessionProvider.activeSession;
+
+    // Filter orders based on payment filter
+    final filteredOrders = _sessionPaymentFilter == 'all'
+        ? _sessionOrders
+        : _sessionOrders.where((order) {
+            final method = order['payment_method']?.toString() ?? '';
+            if (_sessionPaymentFilter == 'cash') {
+              return method.contains('cash');
+            } else {
+              return method.contains('card');
+            }
+          }).toList();
+
+    // Calculate stats
+    final totalOrders = filteredOrders.length;
+    final cashOrders = _sessionOrders.where((o) =>
+        (o['payment_method']?.toString() ?? '').contains('cash')).toList();
+    final cardOrders = _sessionOrders.where((o) =>
+        (o['payment_method']?.toString() ?? '').contains('card')).toList();
+    final cashTotal = cashOrders.fold<double>(
+        0, (sum, o) => sum + ((o['amount'] as num?)?.toDouble() ?? 0));
+    final cardTotal = cardOrders.fold<double>(
+        0, (sum, o) => sum + ((o['amount'] as num?)?.toDouble() ?? 0));
+
+    return Column(
+      children: [
+        // Stats bar
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: AppColors.primary.withOpacity(0.05),
+          child: Row(
+            children: [
+              _buildSummaryItem(
+                'Total Orders',
+                '$totalOrders',
+                Icons.receipt_long,
+              ),
+              const SizedBox(width: 32),
+              _buildSummaryItem(
+                'Cash',
+                AppCurrency.format(cashTotal),
+                Icons.money,
+              ),
+              const SizedBox(width: 32),
+              _buildSummaryItem(
+                'Card',
+                AppCurrency.format(cardTotal),
+                Icons.credit_card,
+              ),
+              const Spacer(),
+              // Payment filter
+              Row(
+                children: [
+                  Text('Filter: ', style: TextStyle(color: AppColors.textSecondary)),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: _sessionPaymentFilter == 'all',
+                    onSelected: (selected) {
+                      if (selected) setState(() => _sessionPaymentFilter = 'all');
+                    },
+                    selectedColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      color: _sessionPaymentFilter == 'all' ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('Cash'),
+                    selected: _sessionPaymentFilter == 'cash',
+                    onSelected: (selected) {
+                      if (selected) setState(() => _sessionPaymentFilter = 'cash');
+                    },
+                    selectedColor: AppColors.success,
+                    labelStyle: TextStyle(
+                      color: _sessionPaymentFilter == 'cash' ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('Card'),
+                    selected: _sessionPaymentFilter == 'card',
+                    onSelected: (selected) {
+                      if (selected) setState(() => _sessionPaymentFilter = 'card');
+                    },
+                    selectedColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      color: _sessionPaymentFilter == 'card' ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Session orders list
+        Expanded(
+          child: activeSession == null
+              ? _buildEmptyState('No active session')
+              : _sessionLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredOrders.isEmpty
+                      ? _buildEmptyState('No transactions yet')
+                      : _buildSessionOrdersList(filteredOrders),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSessionOrdersList(List<dynamic> orders) {
+    return SingleChildScrollView(
+      child: DataTable(
+        headingRowColor: WidgetStateProperty.all(AppColors.surface),
+        columns: const [
+          DataColumn(label: Text('Order #')),
+          DataColumn(label: Text('Customer')),
+          DataColumn(label: Text('Total'), numeric: true),
+          DataColumn(label: Text('Mode')),
+          DataColumn(label: Text('Status')),
+        ],
+        rows: orders.map((order) {
+          return DataRow(
+            cells: [
+              DataCell(Text(
+                order['code']?.toString() ?? '-',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              )),
+              DataCell(Text(order['customer_name']?.toString() ?? 'Walk-in')),
+              DataCell(Text(
+                AppCurrency.format((order['amount'] as num?)?.toDouble() ?? 0),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              )),
+              DataCell(_buildPaymentBadge(order['payment_method']?.toString())),
+              DataCell(_buildStatusBadge(order['status']?.toString())),
+            ],
+          );
+        }).toList(),
       ),
     );
   }

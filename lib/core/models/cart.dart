@@ -197,6 +197,7 @@ class Order {
   final Customer? customer;
   final List<CartItem> items;
   final String? paymentDetails;
+  final Map<String, dynamic>? paymentMetadata;
 
   Order({
     required this.id,
@@ -212,7 +213,13 @@ class Order {
     this.customer,
     required this.items,
     this.paymentDetails,
+    this.paymentMetadata,
   });
+
+  // Helper getters for payment metadata
+  double? get cashReceived => paymentMetadata?['cash_received']?.toDouble();
+  double? get changeGiven => paymentMetadata?['change_given']?.toDouble();
+  String? get cardLastFour => paymentMetadata?['card_last_four']?.toString();
 
   factory Order.fromJson(Map<String, dynamic> json) {
     debugPrint('📦 ORDER: Parsing order from JSON');
@@ -237,6 +244,7 @@ class Order {
             .map((item) => CartItem.fromJson(item as Map<String, dynamic>))
             .toList(),
         paymentDetails: json['payment_details'] as String?,
+        paymentMetadata: json['payment_metadata'] as Map<String, dynamic>?,
       );
 
       debugPrint('✅ ORDER: Order parsed - ${order.items.length} items');

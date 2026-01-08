@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'session_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../shared/widgets/app_toast.dart';
 
 class CloseSessionDialog extends StatefulWidget {
   const CloseSessionDialog({super.key});
@@ -28,9 +29,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
   Future<void> _handleCloseSession() async {
     final amount = double.tryParse(_closingCashController.text) ?? 0;
     if (amount < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter closing cash amount')),
-      );
+      AppToast.error(context, 'Please enter closing cash amount');
       return;
     }
 
@@ -71,12 +70,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
       setState(() => _isClosing = false);
 
       if (sessionProvider.error != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(sessionProvider.error!),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppToast.error(context, sessionProvider.error!);
       }
     }
   }
@@ -101,7 +95,10 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                 double.tryParse(_closingCashController.text) ?? 0;
             final openingCash =
                 (activeSession['opening_cash'] as num).toDouble();
-            final difference = closingAmount - openingCash;
+            final cashSales =
+                (activeSession['cash_sales'] as num?)?.toDouble() ?? 0;
+            final expectedCash = openingCash + cashSales;
+            final difference = closingAmount - expectedCash;
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -125,13 +122,48 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     color: AppColors.background,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
                     children: [
-                      const Text('Opening Cash:'),
-                      Text(
-                        '\$${openingCash.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Opening Cash:'),
+                          Text(
+                            AppCurrency.format(openingCash),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Cash Sales:'),
+                          Text(
+                            '+ ${AppCurrency.format(cashSales)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Expected Cash:',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            AppCurrency.format(expectedCash),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -139,9 +171,9 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _closingCashController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Closing Cash Amount',
-                    prefixIcon: Icon(Icons.attach_money),
+                    prefixText: '${AppConstants.currencyCode} ',
                     hintText: '0.00',
                   ),
                   keyboardType:
@@ -177,7 +209,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                           ),
                         ),
                         Text(
-                          '\$${difference.abs().toStringAsFixed(2)}',
+                          AppCurrency.format(difference.abs()),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

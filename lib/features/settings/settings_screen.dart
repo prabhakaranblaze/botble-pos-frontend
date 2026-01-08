@@ -138,6 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildUpdateSection() {
+    final l10n = AppLocalizations.of(context);
     return Consumer<UpdateProvider>(
       builder: (context, updateProvider, child) {
         final hasUpdate = updateProvider.hasUpdate;
@@ -150,9 +151,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Icon(Icons.system_update, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
-                const Text(
-                  'Software Update',
-                  style: TextStyle(
+                Text(
+                  l10n?.softwareUpdate ?? 'Software Update',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -165,9 +166,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: AppColors.error,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'NEW',
-                      style: TextStyle(
+                    child: Text(
+                      l10n?.newBadge ?? 'NEW',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -198,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                hasUpdate ? 'Update Available' : 'App is up to date',
+                                hasUpdate ? (l10n?.updateAvailable ?? 'Update Available') : (l10n?.appUpToDate ?? 'App is up to date'),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 16,
@@ -206,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Current: v${UpdateService.appVersion}',
+                                '${l10n?.currentVersionLabel ?? 'Current:'} v${UpdateService.appVersion}',
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,
@@ -214,7 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               if (hasUpdate && updateInfo != null)
                                 Text(
-                                  'Latest: v${updateInfo.latestVersion}',
+                                  '${l10n?.latestVersionLabel ?? 'Latest:'} v${updateInfo.latestVersion}',
                                   style: TextStyle(
                                     color: AppColors.success,
                                     fontSize: 13,
@@ -251,7 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ElevatedButton.icon(
                             onPressed: () => _downloadAndInstallUpdate(updateProvider),
                             icon: const Icon(Icons.download, size: 18),
-                            label: const Text('Update'),
+                            label: Text(l10n?.update ?? 'Update'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.success,
                             ),
@@ -260,7 +261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           OutlinedButton.icon(
                             onPressed: () => updateProvider.checkForUpdate(),
                             icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Check'),
+                            label: Text(l10n?.check ?? 'Check'),
                           ),
                       ],
                     ),
@@ -270,9 +271,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 8),
-                      const Text(
-                        'What\'s New:',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      Text(
+                        l10n?.whatsNew ?? 'What\'s New:',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
                       ...updateInfo.releaseNotes.map((note) => Padding(
@@ -296,7 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (updateInfo.fileSize != null) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Download size: ${updateInfo.fileSize}',
+                          '${l10n?.downloadSize ?? 'Download size:'} ${updateInfo.fileSize}',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -315,6 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _downloadAndInstallUpdate(UpdateProvider updateProvider) async {
+    final l10n = AppLocalizations.of(context);
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
@@ -323,24 +325,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(Icons.system_update, color: AppColors.primary),
             const SizedBox(width: 12),
-            const Text('Install Update'),
+            Text(l10n?.installUpdateTitle ?? 'Install Update'),
           ],
         ),
         content: Text(
+          l10n?.downloadAndInstallConfirm(updateProvider.updateInfo?.latestVersion ?? '') ??
           'Download and install version ${updateProvider.updateInfo?.latestVersion}?\n\n'
           'The app will restart after installation.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
             ),
-            child: const Text('Update Now'),
+            child: Text(l10n?.updateNow ?? 'Update Now'),
           ),
         ],
       ),
@@ -425,9 +428,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 l10n?.clearAndResyncProducts ?? 'Clear & Resync Products',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: const Text(
-                'Clear local product cache and download fresh data from server',
-                style: TextStyle(fontSize: 12),
+              subtitle: Text(
+                l10n?.clearLocalCacheDescription ?? 'Clear local product cache and download fresh data from server',
+                style: const TextStyle(fontSize: 12),
               ),
               trailing: ElevatedButton(
                 onPressed: () => _showClearAndResyncDialog(),
@@ -456,9 +459,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 l10n?.clearAllData ?? 'Clear All Local Data',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: const Text(
-                'Remove all cached data including products, saved carts, and pending orders',
-                style: TextStyle(fontSize: 12),
+              subtitle: Text(
+                l10n?.clearAllLocalDataDescription ?? 'Remove all cached data including products, saved carts, and pending orders',
+                style: const TextStyle(fontSize: 12),
               ),
               trailing: OutlinedButton(
                 onPressed: () => _showClearAllDataDialog(),
@@ -476,6 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showClearAndResyncDialog() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -483,10 +487,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(Icons.sync, color: AppColors.warning),
             const SizedBox(width: 12),
-            const Text('Clear & Resync Products'),
+            Text(l10n?.clearAndResyncTitle ?? 'Clear & Resync Products'),
           ],
         ),
-        content: const Text(
+        content: Text(
+          l10n?.clearAndResyncContent ??
           'This will:\n'
           '• Delete all locally cached products\n'
           '• Download fresh product data from server\n'
@@ -496,7 +501,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -504,7 +509,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: AppColors.warning,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Resync Now'),
+            child: Text(l10n?.resyncNow ?? 'Resync Now'),
           ),
         ],
       ),
@@ -516,16 +521,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _performResync() async {
+    final l10n = AppLocalizations.of(context);
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
+      builder: (context) => AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 24),
-            Text('Resyncing products...'),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 24),
+            Text(l10n?.resyncing ?? 'Resyncing products...'),
           ],
         ),
       ),
@@ -547,8 +553,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Products resynced successfully!'),
+          SnackBar(
+            content: Text(l10n?.resyncSuccess ?? 'Products resynced successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -559,7 +565,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Resync failed: $e'),
+            content: Text('${l10n?.resyncFailed ?? 'Resync failed'}: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -568,6 +574,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showClearAllDataDialog() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -575,10 +582,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(Icons.warning, color: AppColors.error),
             const SizedBox(width: 12),
-            const Text('Clear All Data'),
+            Text(l10n?.clearAllDataTitle ?? 'Clear All Data'),
           ],
         ),
-        content: const Text(
+        content: Text(
+          l10n?.clearAllDataWarning ??
           '⚠️ WARNING: This will permanently delete:\n\n'
           '• All cached products\n'
           '• All saved/held carts\n'
@@ -589,7 +597,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -597,7 +605,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Clear All'),
+            child: Text(l10n?.clearAll ?? 'Clear All'),
           ),
         ],
       ),
@@ -609,16 +617,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _performClearAll() async {
+    final l10n = AppLocalizations.of(context);
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
+      builder: (context) => AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 24),
-            Text('Clearing all data...'),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 24),
+            Text(l10n?.clearingData ?? 'Clearing all data...'),
           ],
         ),
       ),
@@ -641,8 +650,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('All local data cleared and resynced!'),
+          SnackBar(
+            content: Text(l10n?.dataCleared ?? 'All local data cleared and resynced!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -653,7 +662,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Clear failed: $e'),
+            content: Text('${l10n?.clearFailed ?? 'Clear failed'}: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -729,9 +738,10 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
     });
 
     if (mounted) {
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Default printer set to: ${printer.name}'),
+          content: Text(l10n?.defaultPrinterSetTo(printer.name ?? '') ?? 'Default printer set to: ${printer.name}'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -767,8 +777,9 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
     });
 
     if (mounted) {
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Default printer cleared')),
+        SnackBar(content: Text(l10n?.defaultPrinterCleared ?? 'Default printer cleared')),
       );
     }
   }
@@ -818,10 +829,11 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
   }
 
   Future<void> _testPrint() async {
+    final l10n = AppLocalizations.of(context);
     if (_savedPrinterAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a printer first'),
+        SnackBar(
+          content: Text(l10n?.selectPrinterFirst ?? 'Please select a printer first'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -856,8 +868,8 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Test print sent successfully!'),
+            SnackBar(
+              content: Text(l10n?.testPrintSuccess ?? 'Test print sent successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -869,7 +881,7 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Print failed: ${e.toString()}'),
+            content: Text('${l10n?.printFailed ?? 'Print failed'}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -926,6 +938,7 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -944,15 +957,15 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Default Printer',
-                        style: TextStyle(
+                      Text(
+                        l10n?.defaultPrinter ?? 'Default Printer',
+                        style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
                         ),
                       ),
                       Text(
-                        _savedPrinterName ?? 'Not configured',
+                        _savedPrinterName ?? (l10n?.notConfigured ?? 'Not configured'),
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: _savedPrinterName != null ? null : AppColors.textSecondary,
@@ -976,12 +989,12 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
                           )
                         : const Icon(Icons.print),
                     onPressed: _isTesting ? null : _testPrint,
-                    tooltip: 'Test Print',
+                    tooltip: l10n?.testPrint ?? 'Test Print',
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: _clearPrinter,
-                    tooltip: 'Clear',
+                    tooltip: l10n?.clear ?? 'Clear',
                   ),
                 ],
               ],
@@ -991,8 +1004,8 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
 
             // Auto Print Toggle
             SwitchListTile(
-              title: const Text('Auto Print on Payment'),
-              subtitle: const Text('Automatically print receipt when order is paid'),
+              title: Text(l10n?.autoPrintOnPayment ?? 'Auto Print on Payment'),
+              subtitle: Text(l10n?.autoPrintDescription ?? 'Automatically print receipt when order is paid'),
               value: _autoPrintEnabled,
               onChanged: _toggleAutoPrint,
               contentPadding: EdgeInsets.zero,
@@ -1007,26 +1020,26 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Text(
-                  'Select Printer',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                Text(
+                  l10n?.selectPrinter ?? 'Select Printer',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SegmentedButton<ConnectionType>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: ConnectionType.USB,
-                          label: Text('USB'),
+                          label: Text(l10n?.usb ?? 'USB'),
                         ),
                         ButtonSegment(
                           value: ConnectionType.BLE,
-                          label: Text('BT'),
+                          label: Text(l10n?.bluetooth ?? 'BT'),
                         ),
                         ButtonSegment(
                           value: ConnectionType.NETWORK,
-                          label: Text('WiFi'),
+                          label: Text(l10n?.wifi ?? 'WiFi'),
                         ),
                       ],
                       selected: {_selectedConnectionType},
@@ -1049,7 +1062,7 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
                               ),
                             )
                           : const Icon(Icons.search),
-                      label: Text(_isScanning ? 'Scanning...' : 'Scan'),
+                      label: Text(_isScanning ? (l10n?.scanning ?? 'Scanning...') : (l10n?.scan ?? 'Scan')),
                     ),
                   ],
                 ),
@@ -1073,7 +1086,7 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Requires ESC/POS thermal receipt printer (Epson, Star, HOIN, etc.)\nVirtual printers (PDF, OneNote) are not supported.',
+                      l10n?.escposPrinterNote ?? 'Requires ESC/POS thermal receipt printer (Epson, Star, HOIN, etc.)\nVirtual printers (PDF, OneNote) are not supported.',
                       style: TextStyle(fontSize: 12, color: Colors.amber[900]),
                     ),
                   ),
@@ -1099,13 +1112,13 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'No thermal printers found',
+                        l10n?.noThermalPrintersFound ?? 'No thermal printers found',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Connect a USB thermal printer and click Scan',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      Text(
+                        l10n?.connectThermalPrinter ?? 'Connect a USB thermal printer and click Scan',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -1131,7 +1144,7 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
                         _getConnectionIcon(printer.connectionType),
                         color: isSelected ? AppColors.success : AppColors.primary,
                       ),
-                      title: Text(printer.name ?? 'Unknown Printer'),
+                      title: Text(printer.name ?? (l10n?.unknownPrinter ?? 'Unknown Printer')),
                       subtitle: Text(
                         printer.address ?? '',
                         style: const TextStyle(fontSize: 12),
@@ -1178,6 +1191,7 @@ class _ReceiptPreviewCardState extends State<ReceiptPreviewCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1187,17 +1201,17 @@ class _ReceiptPreviewCardState extends State<ReceiptPreviewCard> {
             // Payment type toggle
             Row(
               children: [
-                const Text('Demo Payment: ', style: TextStyle(fontSize: 12)),
+                Text('${l10n?.demoPayment ?? 'Demo Payment'}: ', style: const TextStyle(fontSize: 12)),
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'cash', label: Text('Cash')),
-                    ButtonSegment(value: 'card', label: Text('Card')),
+                  segments: [
+                    ButtonSegment(value: 'cash', label: Text(l10n?.cash ?? 'Cash')),
+                    ButtonSegment(value: 'card', label: Text(l10n?.card ?? 'Card')),
                   ],
                   selected: {_paymentType},
                   onSelectionChanged: (types) {
                     setState(() => _paymentType = types.first);
                   },
-                  style: ButtonStyle(
+                  style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -1228,7 +1242,7 @@ class _ReceiptPreviewCardState extends State<ReceiptPreviewCard> {
             const SizedBox(height: 12),
             Center(
               child: Text(
-                '58mm Thermal Paper Preview',
+                l10n?.thermalPaperPreview ?? '58mm Thermal Paper Preview',
                 style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
               ),
             ),

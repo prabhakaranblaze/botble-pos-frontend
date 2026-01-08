@@ -256,6 +256,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
   }
 
   Widget _buildCashPaymentSection() {
+    final l10n = AppLocalizations.of(context);
     return Consumer<SessionProvider>(
       builder: (context, session, _) {
         return Column(
@@ -264,9 +265,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
             // Cash Received Input
             TextField(
               controller: _cashReceivedController,
-              decoration: const InputDecoration(
-                labelText: 'Cash Received',
-                prefixIcon: Icon(Icons.attach_money),
+              decoration: InputDecoration(
+                labelText: l10n?.cashReceived ?? 'Cash Received',
+                prefixIcon: const Icon(Icons.attach_money),
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
@@ -292,7 +293,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Change',
+                      l10n?.change ?? 'Change',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -318,9 +319,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
             // Quick Cash Buttons (Dynamic based on total)
             const SizedBox(height: 16),
-            const Text(
-              'Quick Cash',
-              style: TextStyle(
+            Text(
+              l10n?.quickCash ?? 'Quick Cash',
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey,
@@ -343,7 +344,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     foregroundColor: AppColors.primary,
                     elevation: 0,
                   ),
-                  child: const Text('Exact'),
+                  child: Text(l10n?.exact ?? 'Exact'),
                 ),
                 // Dynamic amounts
                 ..._quickCashAmounts.map((amount) {
@@ -368,7 +369,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
             if (session.denominations.isNotEmpty) ...[
               const SizedBox(height: 16),
               ExpansionTile(
-                title: const Text('Enter Denominations'),
+                title: Text(l10n?.enterDenominations ?? 'Enter Denominations'),
                 children: [
                   ...session.denominations.map((denom) {
                     return Padding(
@@ -435,15 +436,16 @@ class _PaymentDialogState extends State<PaymentDialog> {
   }
 
   Widget _buildCardPaymentSection() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
           controller: _cardDigitsController,
-          decoration: const InputDecoration(
-            labelText: 'Last 4 digits of card',
-            prefixIcon: Icon(Icons.credit_card),
-            hintText: '1234',
+          decoration: InputDecoration(
+            labelText: l10n?.cardLastDigits ?? 'Last 4 digits of card',
+            prefixIcon: const Icon(Icons.credit_card),
+            hintText: l10n?.cardLastDigitsHint ?? '1234',
           ),
           keyboardType: TextInputType.number,
           maxLength: 4,
@@ -463,10 +465,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
             children: [
               Icon(Icons.info_outline, color: AppColors.primary),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Process the card payment on your card terminal, then enter the last 4 digits here for record keeping.',
-                  style: TextStyle(fontSize: 13),
+                  l10n?.cardPaymentInstruction ?? 'Process the card payment on your card terminal, then enter the last 4 digits here for record keeping.',
+                  style: const TextStyle(fontSize: 13),
                 ),
               ),
             ],

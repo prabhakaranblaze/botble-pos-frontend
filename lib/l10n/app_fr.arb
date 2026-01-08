@@ -340,5 +340,71 @@
   "currentCart": "Actuel",
   "completePayment": "Finaliser le paiement",
   "insufficientCash": "Montant en espèces insuffisant",
-  "enterLast4Digits": "Veuillez entrer les 4 derniers chiffres"
+  "enterLast4Digits": "Veuillez entrer les 4 derniers chiffres",
+
+  "softwareUpdate": "Mise à jour du logiciel",
+  "newBadge": "NOUVEAU",
+  "appUpToDate": "L'application est à jour",
+  "currentVersionLabel": "Actuelle:",
+  "latestVersionLabel": "Dernière:",
+  "whatsNew": "Nouveautés:",
+  "downloadSize": "Taille du téléchargement:",
+  "installUpdateTitle": "Installer la mise à jour",
+  "downloadAndInstallConfirm": "Télécharger et installer la version {version}?\n\nL'application redémarrera après l'installation.",
+  "@downloadAndInstallConfirm": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+
+  "clearAndResyncTitle": "Effacer et resynchroniser les produits",
+  "clearAndResyncContent": "Cela va:\n• Supprimer tous les produits mis en cache localement\n• Télécharger les données produit fraîches du serveur\n• Mettre à jour les images et les prix des produits\n\nVos paniers enregistrés et commandes en attente ne seront PAS affectés.",
+  "clearLocalCacheDescription": "Effacer le cache local des produits et télécharger les données fraîches du serveur",
+  "clearAllLocalDataDescription": "Supprimer toutes les données en cache, y compris les produits, paniers enregistrés et commandes en attente",
+  "clearAllDataTitle": "Effacer toutes les données",
+  "clearAllDataWarning": "⚠️ ATTENTION: Cela supprimera définitivement:\n\n• Tous les produits en cache\n• Tous les paniers enregistrés/en attente\n• Toutes les commandes hors ligne en attente\n• L'historique des sessions\n\nCette action est irréversible!",
+
+  "notConfigured": "Non configuré",
+  "scanning": "Recherche...",
+  "scan": "Rechercher",
+  "escposPrinterNote": "Nécessite une imprimante thermique ESC/POS (Epson, Star, HOIN, etc.)\nLes imprimantes virtuelles (PDF, OneNote) ne sont pas prises en charge.",
+  "noThermalPrintersFound": "Aucune imprimante thermique trouvée",
+  "connectThermalPrinter": "Connectez une imprimante thermique USB et cliquez sur Rechercher",
+  "unknownPrinter": "Imprimante inconnue",
+  "thermalPaperPreview": "Aperçu papier thermique 58mm",
+
+  "totalOrders": "Total commandes",
+  "avgOrder": "Commande moyenne",
+  "unitsSold": "Unités vendues",
+  "productsSold": "Produits vendus",
+  "noActiveSessionMessage": "Aucune session active",
+  "noTransactionsYet": "Aucune transaction pour le moment",
+  "noOrdersFound": "Aucune commande trouvée",
+  "noProductsSold": "Aucun produit vendu",
+  "descending": "Décroissant",
+  "ascending": "Croissant",
+
+  "today": "Aujourd'hui",
+  "yesterday": "Hier",
+  "thisWeek": "Cette semaine",
+  "thisMonth": "Ce mois",
+  "customDate": "Personnalisé",
+
+  "hold": "Mettre en attente",
+  "selectOptions": "Sélectionner les options",
+  "clearCartTooltip": "Vider le panier",
+  "cardPaymentInstruction": "Traitez le paiement par carte sur votre terminal, puis entrez les 4 derniers chiffres ici pour l'enregistrement.",
+  "defaultPrinterSetTo": "Imprimante par défaut définie: {printerName}",
+  "@defaultPrinterSetTo": {
+    "placeholders": {
+      "printerName": {"type": "String"}
+    }
+  },
+  "receiptPrintedFor": "Reçu imprimé pour {orderCode}",
+  "@receiptPrintedFor": {
+    "placeholders": {
+      "orderCode": {"type": "String"}
+    }
+  },
+  "noPrinterConfigured": "Aucune imprimante configurée. Veuillez configurer une imprimante dans les Paramètres."
 }

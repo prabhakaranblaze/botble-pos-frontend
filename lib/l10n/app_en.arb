@@ -341,5 +341,71 @@
   "currentCart": "Current",
   "completePayment": "Complete Payment",
   "insufficientCash": "Insufficient cash received",
-  "enterLast4Digits": "Please enter last 4 digits"
+  "enterLast4Digits": "Please enter last 4 digits",
+
+  "softwareUpdate": "Software Update",
+  "newBadge": "NEW",
+  "appUpToDate": "App is up to date",
+  "currentVersionLabel": "Current:",
+  "latestVersionLabel": "Latest:",
+  "whatsNew": "What's New:",
+  "downloadSize": "Download size:",
+  "installUpdateTitle": "Install Update",
+  "downloadAndInstallConfirm": "Download and install version {version}?\n\nThe app will restart after installation.",
+  "@downloadAndInstallConfirm": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+
+  "clearAndResyncTitle": "Clear & Resync Products",
+  "clearAndResyncContent": "This will:\n• Delete all locally cached products\n• Download fresh product data from server\n• Update product images and prices\n\nYour saved carts and pending orders will NOT be affected.",
+  "clearLocalCacheDescription": "Clear local product cache and download fresh data from server",
+  "clearAllLocalDataDescription": "Remove all cached data including products, saved carts, and pending orders",
+  "clearAllDataTitle": "Clear All Data",
+  "clearAllDataWarning": "⚠️ WARNING: This will permanently delete:\n\n• All cached products\n• All saved/held carts\n• All pending offline orders\n• Session history\n\nThis action cannot be undone!",
+
+  "notConfigured": "Not configured",
+  "scanning": "Scanning...",
+  "scan": "Scan",
+  "escposPrinterNote": "Requires ESC/POS thermal receipt printer (Epson, Star, HOIN, etc.)\nVirtual printers (PDF, OneNote) are not supported.",
+  "noThermalPrintersFound": "No thermal printers found",
+  "connectThermalPrinter": "Connect a USB thermal printer and click Scan",
+  "unknownPrinter": "Unknown Printer",
+  "thermalPaperPreview": "58mm Thermal Paper Preview",
+
+  "totalOrders": "Total Orders",
+  "avgOrder": "Avg Order",
+  "unitsSold": "Units Sold",
+  "productsSold": "Products Sold",
+  "noActiveSessionMessage": "No active session",
+  "noTransactionsYet": "No transactions yet",
+  "noOrdersFound": "No orders found",
+  "noProductsSold": "No products sold",
+  "descending": "Descending",
+  "ascending": "Ascending",
+
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "thisWeek": "This Week",
+  "thisMonth": "This Month",
+  "customDate": "Custom",
+
+  "hold": "Hold",
+  "selectOptions": "Select Options",
+  "clearCartTooltip": "Clear cart",
+  "cardPaymentInstruction": "Process the card payment on your card terminal, then enter the last 4 digits here for record keeping.",
+  "defaultPrinterSetTo": "Default printer set to: {printerName}",
+  "@defaultPrinterSetTo": {
+    "placeholders": {
+      "printerName": {"type": "String"}
+    }
+  },
+  "receiptPrintedFor": "Receipt printed for {orderCode}",
+  "@receiptPrintedFor": {
+    "placeholders": {
+      "orderCode": {"type": "String"}
+    }
+  },
+  "noPrinterConfigured": "No printer configured. Please set up a printer in Settings."
 }

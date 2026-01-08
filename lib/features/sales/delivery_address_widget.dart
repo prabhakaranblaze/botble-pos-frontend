@@ -37,80 +37,53 @@ class _DeliveryAddressWidgetState extends State<DeliveryAddressWidget> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header with inline delivery type toggle
             Row(
               children: [
-                Icon(Icons.local_shipping_outlined, color: AppColors.primary),
+                Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 const Text(
                   'Delivery',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(width: 16),
+                // Inline radio-style toggle
+                _buildInlineToggle(
+                  label: 'Pickup',
+                  isSelected: widget.deliveryType == DeliveryType.pickup,
+                  onTap: () => widget.onDeliveryTypeChanged(DeliveryType.pickup),
+                ),
+                const SizedBox(width: 12),
+                _buildInlineToggle(
+                  label: 'Ship',
+                  isSelected: widget.deliveryType == DeliveryType.ship,
+                  onTap: () => widget.onDeliveryTypeChanged(DeliveryType.ship),
+                ),
               ],
-            ),
-            const SizedBox(height: 16),
-
-            // Delivery Type Toggle
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildToggleOption(
-                      icon: Icons.store,
-                      label: 'Pickup at Store',
-                      isSelected: widget.deliveryType == DeliveryType.pickup,
-                      onTap: () => widget.onDeliveryTypeChanged(DeliveryType.pickup),
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildToggleOption(
-                      icon: Icons.local_shipping,
-                      label: 'Ship to Address',
-                      isSelected: widget.deliveryType == DeliveryType.ship,
-                      onTap: () => widget.onDeliveryTypeChanged(DeliveryType.ship),
-                    ),
-                  ),
-                ],
-              ),
             ),
 
             // Address Selection (only for Ship)
             if (widget.deliveryType == DeliveryType.ship) ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-
-              if (widget.isLoadingAddresses)
-                const Center(child: CircularProgressIndicator())
-              else if (widget.addresses.isEmpty)
-                // No addresses - show add button
-                _buildNoAddressState()
-              else
-                // Has addresses - show dropdown
-                _buildAddressDropdown(),
-
               const SizedBox(height: 12),
 
-              // Add New Address button
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: widget.onAddNewAddress,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add New Address'),
-                ),
-              ),
+              if (widget.isLoadingAddresses)
+                const SizedBox(
+                  height: 40,
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                )
+              else if (widget.addresses.isEmpty)
+                // No addresses - compact state
+                _buildNoAddressStateCompact()
+              else
+                // Has addresses - compact dropdown with add icon
+                _buildCompactAddressDropdown(),
             ],
           ],
         ),
@@ -118,74 +91,46 @@ class _DeliveryAddressWidgetState extends State<DeliveryAddressWidget> {
     );
   }
 
-  Widget _buildToggleOption({
-    required IconData icon,
+  Widget _buildInlineToggle({
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? Colors.white : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: 13,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNoAddressState() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.location_off_outlined,
-            size: 40,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No saved addresses',
-            style: TextStyle(
-              color: AppColors.textSecondary,
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                width: 2,
+              ),
             ),
+            child: isSelected
+                ? Center(
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                : null,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(width: 4),
           Text(
-            'Add an address for delivery',
+            label,
             style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
+              fontSize: 13,
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],
@@ -193,136 +138,105 @@ class _DeliveryAddressWidgetState extends State<DeliveryAddressWidget> {
     );
   }
 
-  Widget _buildAddressDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildNoAddressStateCompact() {
+    return Row(
       children: [
-        Text(
-          'Select Address',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<CustomerAddress>(
-              value: widget.selectedAddress,
-              isExpanded: true,
-              hint: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'Select an address',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              items: widget.addresses.map((address) {
-                return DropdownMenuItem<CustomerAddress>(
-                  value: address,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              address.displayText,
-                              style: const TextStyle(fontSize: 14),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (address.isDefault)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Default',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (address.phone != null)
-                        Text(
-                          address.phone!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (address) => widget.onAddressSelected(address),
-            ),
-          ),
-        ),
-
-        // Selected address details
-        if (widget.selectedAddress != null) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.05),
+              color: AppColors.background,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.selectedAddress!.name,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.selectedAddress!.displayText,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                if (widget.selectedAddress!.phone != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.selectedAddress!.phone!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
+            child: Text(
+              'No saved addresses',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
-        ],
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          onPressed: widget.onAddNewAddress,
+          icon: Icon(Icons.add_location_alt_outlined, color: AppColors.primary, size: 22),
+          tooltip: 'Add New Address',
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          padding: EdgeInsets.zero,
+        ),
       ],
     );
   }
+
+  Widget _buildCompactAddressDropdown() {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<CustomerAddress>(
+                value: widget.selectedAddress,
+                isExpanded: true,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'Select address',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                isDense: true,
+                items: widget.addresses.map((address) {
+                  return DropdownMenuItem<CustomerAddress>(
+                    value: address,
+                    child: Row(
+                      children: [
+                        Icon(Icons.location_on, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            address.displayText,
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (address.isDefault)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              'Default',
+                              style: TextStyle(fontSize: 9, color: AppColors.primary),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (address) => widget.onAddressSelected(address),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          onPressed: widget.onAddNewAddress,
+          icon: Icon(Icons.add_location_alt_outlined, color: AppColors.primary, size: 22),
+          tooltip: 'Add New Address',
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          padding: EdgeInsets.zero,
+        ),
+      ],
+    );
+  }
+
 }

@@ -817,92 +817,113 @@ class _SalesScreenState extends State<SalesScreen> {
 
   /// Kiosk search field only (dropdown rendered separately in overlay)
   Widget _buildKioskSearchField() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppColors.surface,
-      child: Focus(
-        onKeyEvent: (node, event) {
-          if (event is KeyDownEvent) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
-                _showSearchDropdown &&
-                _searchResults.isNotEmpty) {
-              setState(() {
-                _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
-              });
-              return KeyEventResult.handled;
-            } else if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-                _showSearchDropdown &&
-                _searchResults.isNotEmpty) {
-              setState(() {
-                _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
-              });
-              return KeyEventResult.handled;
-            } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-              _clearSearch();
-              return KeyEventResult.handled;
-            }
-          }
-          return KeyEventResult.ignored;
-        },
-        child: TextField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
-          decoration: InputDecoration(
-            hintText: 'Scan barcode, SKU, or search products...',
-            prefixIcon: Icon(
-              Icons.qr_code_scanner_rounded,
-              color: AppColors.primary,
-            ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: _clearSearch,
-                  )
-                : null,
+    return Consumer<SalesProvider>(
+      builder: (context, sales, _) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          color: AppColors.surface,
+          child: Row(
+            children: [
+              // Search field
+              Expanded(
+                child: Focus(
+                  onKeyEvent: (node, event) {
+                    if (event is KeyDownEvent) {
+                      if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
+                          _showSearchDropdown &&
+                          _searchResults.isNotEmpty) {
+                        setState(() {
+                          _selectedIndex = (_selectedIndex + 1) % _searchResults.length;
+                        });
+                        return KeyEventResult.handled;
+                      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+                          _showSearchDropdown &&
+                          _searchResults.isNotEmpty) {
+                        setState(() {
+                          _selectedIndex = (_selectedIndex - 1 + _searchResults.length) % _searchResults.length;
+                        });
+                        return KeyEventResult.handled;
+                      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+                        _clearSearch();
+                        return KeyEventResult.handled;
+                      }
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Scan barcode, SKU, or search products...',
+                      prefixIcon: Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: AppColors.primary,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: _clearSearch,
+                            )
+                          : null,
+                    ),
+                    onSubmitted: (value) async {
+                      debugPrint('⏎ ENTER: Submitted with value: "$value"');
+
+                      // If user has selected an item via keyboard, use that
+                      if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
+                        debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
+                        await _addProductToCart(_searchResults[_selectedIndex]);
+                        _clearSearch();
+                        return;
+                      }
+
+                      if (value.isEmpty) return;
+
+                      // Always try barcode/SKU API first
+                      debugPrint('⏎ ENTER: Trying barcode/SKU API...');
+                      final product = await context.read<SalesProvider>().scanBarcode(value);
+
+                      if (product != null) {
+                        debugPrint('⏎ ENTER: Product found via API: ${product.name}');
+                        await _addProductToCart(product);
+                        _clearSearch();
+                      } else if (_searchResults.length == 1) {
+                        debugPrint('⏎ ENTER: Not found via API, using local result');
+                        await _addProductToCart(_searchResults.first);
+                        _clearSearch();
+                      } else if (_searchResults.isNotEmpty) {
+                        debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
+                        if (_selectedIndex < 0) {
+                          setState(() => _selectedIndex = 0);
+                        }
+                      } else {
+                        debugPrint('⏎ ENTER: Product not found');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Product not found')),
+                        );
+                      }
+                    },
+                    onChanged: (value) {
+                      setState(() {});
+                      _handleSearch(value);
+                    },
+                  ),
+                ),
+              ),
+              // Delete cart icon (only show if cart has items)
+              if (sales.cart.items.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: AppColors.error),
+                  onPressed: () => _showClearCartDialog(),
+                  tooltip: 'Clear cart',
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
+              ],
+            ],
           ),
-          onSubmitted: (value) async {
-            debugPrint('⏎ ENTER: Submitted with value: "$value"');
-
-            // If user has selected an item via keyboard, use that
-            if (_selectedIndex >= 0 && _selectedIndex < _searchResults.length) {
-              debugPrint('⏎ ENTER: Using keyboard-selected item at index $_selectedIndex');
-              await _addProductToCart(_searchResults[_selectedIndex]);
-              _clearSearch();
-              return;
-            }
-
-            if (value.isEmpty) return;
-
-            // Always try barcode/SKU API first
-            debugPrint('⏎ ENTER: Trying barcode/SKU API...');
-            final product = await context.read<SalesProvider>().scanBarcode(value);
-
-            if (product != null) {
-              debugPrint('⏎ ENTER: Product found via API: ${product.name}');
-              await _addProductToCart(product);
-              _clearSearch();
-            } else if (_searchResults.length == 1) {
-              debugPrint('⏎ ENTER: Not found via API, using local result');
-              await _addProductToCart(_searchResults.first);
-              _clearSearch();
-            } else if (_searchResults.isNotEmpty) {
-              debugPrint('⏎ ENTER: Multiple local results, use arrow keys to select');
-              if (_selectedIndex < 0) {
-                setState(() => _selectedIndex = 0);
-              }
-            } else {
-              debugPrint('⏎ ENTER: Product not found');
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Product not found')),
-              );
-            }
-          },
-          onChanged: (value) {
-            setState(() {});
-            _handleSearch(value);
-          },
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1405,35 +1426,7 @@ class _SalesScreenState extends State<SalesScreen> {
           color: AppColors.surface,
           child: Column(
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.receipt_long, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      l10n?.checkout ?? 'Checkout',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (cart.items.isNotEmpty)
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, color: AppColors.error),
-                        onPressed: () => _showClearCartDialog(),
-                        tooltip: 'Clear cart',
-                      ),
-                  ],
-                ),
-              ),
-
-              // Customer Selection
+              // Customer Selection (no header - moved delete to left panel)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: CustomerSearchWidget(

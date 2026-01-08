@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../core/models/customer.dart';
 
 class AddAddressDialog extends StatefulWidget {
@@ -77,6 +78,7 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 500,
@@ -91,9 +93,9 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                 // Header
                 Row(
                   children: [
-                    const Text(
-                      'Add New Address',
-                      style: TextStyle(
+                    Text(
+                      l10n?.addNewAddress ?? 'Add New Address',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -108,14 +110,14 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                 const SizedBox(height: 24),
 
                 // Full Name
-                _buildLabel('Full Name', required: true),
+                _buildLabel(l10n?.name ?? 'Full Name', required: true),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(hintText: 'Enter name'),
+                  decoration: InputDecoration(hintText: l10n?.enterName ?? 'Enter name'),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Name is required';
+                      return l10n?.enterName ?? 'Name is required';
                     }
                     return null;
                   },
@@ -130,11 +132,11 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('Email'),
+                          _buildLabel(l10n?.email ?? 'Email'),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _emailController,
-                            decoration: const InputDecoration(hintText: 'Enter email'),
+                            decoration: InputDecoration(hintText: l10n?.enterEmail ?? 'Enter email'),
                             keyboardType: TextInputType.emailAddress,
                           ),
                         ],
@@ -145,11 +147,11 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('Phone'),
+                          _buildLabel(l10n?.phone ?? 'Phone'),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _phoneController,
-                            decoration: const InputDecoration(hintText: 'Enter phone'),
+                            decoration: InputDecoration(hintText: l10n?.enterPhone ?? 'Enter phone'),
                             keyboardType: TextInputType.phone,
                           ),
                         ],
@@ -160,14 +162,14 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                 const SizedBox(height: 16),
 
                 // Address
-                _buildLabel('Address', required: true),
+                _buildLabel(l10n?.streetAddress ?? 'Address', required: true),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _addressController,
-                  decoration: const InputDecoration(hintText: 'Enter street address'),
+                  decoration: InputDecoration(hintText: l10n?.enterStreetAddress ?? 'Enter street address'),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Address is required';
+                      return l10n?.enterStreetAddress ?? 'Address is required';
                     }
                     return null;
                   },
@@ -182,11 +184,11 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('City'),
+                          _buildLabel(l10n?.city ?? 'City'),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _cityController,
-                            decoration: const InputDecoration(hintText: 'Enter city'),
+                            decoration: InputDecoration(hintText: l10n?.enterCity ?? 'Enter city'),
                           ),
                         ],
                       ),
@@ -196,11 +198,11 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('Zip Code'),
+                          _buildLabel(l10n?.zipCode ?? 'Zip Code'),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _zipCodeController,
-                            decoration: const InputDecoration(hintText: 'Enter zip code'),
+                            decoration: InputDecoration(hintText: l10n?.enterZipCode ?? 'Enter zip code'),
                           ),
                         ],
                       ),
@@ -215,7 +217,7 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                   children: [
                     OutlinedButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
+                      child: Text(l10n?.cancel ?? 'Cancel'),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
@@ -230,7 +232,7 @@ class _AddAddressDialogState extends State<AddAddressDialog> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Save'),
+                          : Text(l10n?.save ?? 'Save'),
                     ),
                   ],
                 ),

@@ -4,6 +4,7 @@ import 'session_provider.dart';
 import 'open_session_dialog.dart';
 import '../auth/auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Open Register Screen
 ///
@@ -35,22 +36,23 @@ class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
   }
 
   Future<void> _handleLogout() async {
+    final l10n = AppLocalizations.of(context);
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(l10n?.logout ?? 'Logout'),
+        content: Text(l10n?.logoutConfirm ?? 'Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('Logout'),
+            child: Text(l10n?.logout ?? 'Logout'),
           ),
         ],
       ),
@@ -66,18 +68,19 @@ class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final authProvider = context.watch<AuthProvider>();
     final userName = authProvider.user?.name ?? 'User';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Open Register'),
+        title: Text(l10n?.openRegister ?? 'Open Register'),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _handleLogout,
-            tooltip: 'Logout',
+            tooltip: l10n?.logout ?? 'Logout',
           ),
           const SizedBox(width: 8),
         ],
@@ -101,7 +104,7 @@ class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Open a register to start your session',
+              l10n?.openSessionFirst ?? 'Open a register to start your session',
               style: TextStyle(
                 fontSize: 16,
                 color: AppColors.textSecondary,
@@ -111,7 +114,7 @@ class _RegisterSelectionScreenState extends State<RegisterSelectionScreen> {
             ElevatedButton.icon(
               onPressed: _showOpenSessionDialog,
               icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Open Register'),
+              label: Text(l10n?.openRegister ?? 'Open Register'),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,

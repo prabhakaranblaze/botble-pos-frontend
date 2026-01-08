@@ -5,6 +5,7 @@ import 'package:flutter_thermal_printer/utils/printer.dart';
 import '../../core/models/cart.dart';
 import '../../core/services/thermal_print_service.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ReceiptDialog extends StatefulWidget {
   final Order order;
@@ -35,6 +36,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 400,
@@ -49,9 +51,9 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                 children: [
                   const Icon(Icons.check_circle, color: Colors.white, size: 32),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Order Complete!',
-                    style: TextStyle(
+                  Text(
+                    l10n?.orderComplete ?? 'Order Complete!',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -111,7 +113,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                                   ),
                                 )
                               : const Icon(Icons.print),
-                          label: Text(_isPrinting ? 'Printing...' : 'Print'),
+                          label: Text(_isPrinting ? (l10n?.printing ?? 'Printing...') : (l10n?.printReceipt ?? 'Print')),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
@@ -125,7 +127,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                             backgroundColor: AppColors.success,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: const Text('Done'),
+                          child: Text(l10n?.done ?? 'Done'),
                         ),
                       ),
                     ],
@@ -140,6 +142,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
   }
 
   Widget _buildReceiptContent() {
+    final l10n = AppLocalizations.of(context);
     final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
 
     return Column(
@@ -154,7 +157,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Order ${widget.order.code}',
+          '${l10n?.orderNumber ?? 'Order'} ${widget.order.code}',
           style: TextStyle(
             fontSize: 16,
             color: AppColors.textSecondary,
@@ -204,15 +207,15 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
 
         // Subtotal
         if (widget.order.subTotal > 0)
-          _buildSummaryRow('Subtotal', AppCurrency.format(widget.order.subTotal)),
+          _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', AppCurrency.format(widget.order.subTotal)),
 
         // Tax
         if (widget.order.taxAmount > 0)
-          _buildSummaryRow('Tax', AppCurrency.format(widget.order.taxAmount)),
+          _buildSummaryRow(l10n?.tax ?? 'Tax', AppCurrency.format(widget.order.taxAmount)),
 
         // Discount
         if (widget.order.discountAmount > 0)
-          _buildSummaryRow('Discount', '-${AppCurrency.format(widget.order.discountAmount)}'),
+          _buildSummaryRow(l10n?.discount ?? 'Discount', '-${AppCurrency.format(widget.order.discountAmount)}'),
 
         const SizedBox(height: 8),
 
@@ -220,9 +223,9 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Total',
-              style: TextStyle(
+            Text(
+              l10n?.total ?? 'Total',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -250,7 +253,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Payment Method',
+                l10n?.paymentMethod ?? 'Payment Method',
                 style: TextStyle(color: AppColors.textSecondary),
               ),
               Text(
@@ -296,13 +299,14 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
   }
 
   String _formatPaymentMethod(String method) {
+    final l10n = AppLocalizations.of(context);
     switch (method.toLowerCase()) {
       case 'pos_cash':
       case 'cash':
-        return 'Cash';
+        return l10n?.cash ?? 'Cash';
       case 'pos_card':
       case 'card':
-        return 'Card';
+        return l10n?.card ?? 'Card';
       default:
         return method.toUpperCase();
     }
@@ -419,8 +423,9 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Select Printer'),
+      title: Text(l10n?.selectPrinter ?? 'Select Printer'),
       content: SizedBox(
         width: 350,
         height: 400,
@@ -458,18 +463,18 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
 
             // Scan status
             if (_isScanning)
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    SizedBox(width: 12),
-                    Text('Scanning for printers...'),
+                    const SizedBox(width: 12),
+                    Text(l10n?.loading ?? 'Scanning for printers...'),
                   ],
                 ),
               ),
@@ -488,14 +493,14 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'No printers found',
+                            l10n?.noResults ?? 'No printers found',
                             style: TextStyle(color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 8),
                           TextButton.icon(
                             onPressed: _startScan,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Scan Again'),
+                            label: Text(l10n?.refresh ?? 'Scan Again'),
                           ),
                         ],
                       ),
@@ -526,12 +531,12 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n?.cancel ?? 'Cancel'),
         ),
         TextButton.icon(
           onPressed: _startScan,
           icon: const Icon(Icons.refresh),
-          label: const Text('Refresh'),
+          label: Text(l10n?.refresh ?? 'Refresh'),
         ),
       ],
     );

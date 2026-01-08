@@ -12,55 +12,6 @@ import 'app_localizations_fr.dart';
 
 /// Callers can lookup localized strings with an instance of AppLocalizations
 /// returned by `AppLocalizations.of(context)`.
-///
-/// Applications need to include `AppLocalizations.delegate()` in their app's
-/// `localizationDelegates` list, and the locales they support in the app's
-/// `supportedLocales` list. For example:
-///
-/// ```dart
-/// import 'generated/app_localizations.dart';
-///
-/// return MaterialApp(
-///   localizationsDelegates: AppLocalizations.localizationsDelegates,
-///   supportedLocales: AppLocalizations.supportedLocales,
-///   home: MyApplicationHome(),
-/// );
-/// ```
-///
-/// ## Update pubspec.yaml
-///
-/// Please make sure to update your pubspec.yaml to include the following
-/// packages:
-///
-/// ```yaml
-/// dependencies:
-///   # Internationalization support.
-///   flutter_localizations:
-///     sdk: flutter
-///   intl: any # Use the pinned version from flutter_localizations
-///
-///   # Rest of dependencies
-/// ```
-///
-/// ## iOS Applications
-///
-/// iOS applications define key application metadata, including supported
-/// locales, in an Info.plist file that is built into the application bundle.
-/// To configure the locales supported by your app, you’ll need to edit this
-/// file.
-///
-/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
-/// Then, in the Project Navigator, open the Info.plist file under the Runner
-/// project’s Runner folder.
-///
-/// Next, select the Information Property List item, select Add Item from the
-/// Editor menu, then select Localizations from the pop-up menu.
-///
-/// Select and expand the newly-created Localizations item then, for each
-/// locale your application supports, add a new item and select the locale
-/// you wish to add from the pop-up menu in the Value field. This list should
-/// be consistent with the languages listed in the AppLocalizations.supportedLocales
-/// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
       : localeName = intl.Intl.canonicalizedLocale(locale.toString());
@@ -74,16 +25,6 @@ abstract class AppLocalizations {
   static const LocalizationsDelegate<AppLocalizations> delegate =
       _AppLocalizationsDelegate();
 
-  /// A list of this localizations delegate along with the default localizations
-  /// delegates.
-  ///
-  /// Returns a list of localizations delegates containing this delegate along with
-  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
-  /// and GlobalWidgetsLocalizations.delegate.
-  ///
-  /// Additional delegates can be added by appending to this list in
-  /// MaterialApp. This list does not have to be used at all if a custom list
-  /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
     delegate,
@@ -92,611 +33,369 @@ abstract class AppLocalizations {
     GlobalWidgetsLocalizations.delegate,
   ];
 
-  /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('fr')
   ];
 
-  /// Application title
-  ///
-  /// In en, this message translates to:
-  /// **'StampSmart POS'**
+  // Auth
   String get appTitle;
-
-  /// No description provided for @login.
-  ///
-  /// In en, this message translates to:
-  /// **'Login'**
   String get login;
-
-  /// No description provided for @logout.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout'**
   String get logout;
-
-  /// No description provided for @email.
-  ///
-  /// In en, this message translates to:
-  /// **'Email'**
   String get email;
-
-  /// No description provided for @password.
-  ///
-  /// In en, this message translates to:
-  /// **'Password'**
   String get password;
-
-  /// No description provided for @loginButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Sign In'**
+  String get username;
   String get loginButton;
-
-  /// No description provided for @loggingIn.
-  ///
-  /// In en, this message translates to:
-  /// **'Signing in...'**
   String get loggingIn;
-
-  /// No description provided for @loginFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Login failed'**
   String get loginFailed;
-
-  /// No description provided for @invalidCredentials.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid email or password'**
   String get invalidCredentials;
+  String get deviceName;
+  String get deviceNameHint;
+  String get enterPassword;
+  String get unlockScreen;
+  String get locked;
+  String get logoutConfirm;
 
-  /// No description provided for @sales.
-  ///
-  /// In en, this message translates to:
-  /// **'Sales'**
+  // Navigation
   String get sales;
-
-  /// No description provided for @products.
-  ///
-  /// In en, this message translates to:
-  /// **'Products'**
   String get products;
-
-  /// No description provided for @categories.
-  ///
-  /// In en, this message translates to:
-  /// **'Categories'**
   String get categories;
-
-  /// No description provided for @customers.
-  ///
-  /// In en, this message translates to:
-  /// **'Customers'**
   String get customers;
-
-  /// No description provided for @orders.
-  ///
-  /// In en, this message translates to:
-  /// **'Orders'**
   String get orders;
-
-  /// No description provided for @reports.
-  ///
-  /// In en, this message translates to:
-  /// **'Reports'**
   String get reports;
-
-  /// No description provided for @settings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
   String get settings;
 
-  /// No description provided for @cart.
-  ///
-  /// In en, this message translates to:
-  /// **'Cart'**
+  // Cart
   String get cart;
-
-  /// No description provided for @emptyCart.
-  ///
-  /// In en, this message translates to:
-  /// **'Cart is empty'**
   String get emptyCart;
-
-  /// No description provided for @addToCart.
-  ///
-  /// In en, this message translates to:
-  /// **'Add to Cart'**
   String get addToCart;
-
-  /// No description provided for @removeFromCart.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove'**
   String get removeFromCart;
-
-  /// No description provided for @clearCart.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear Cart'**
   String get clearCart;
-
-  /// No description provided for @saveCart.
-  ///
-  /// In en, this message translates to:
-  /// **'Save Cart'**
+  String get clearCartConfirm;
+  String get clearCartMessage;
   String get saveCart;
-
-  /// No description provided for @savedCarts.
-  ///
-  /// In en, this message translates to:
-  /// **'Saved Carts'**
   String get savedCarts;
-
-  /// No description provided for @loadCart.
-  ///
-  /// In en, this message translates to:
-  /// **'Load Cart'**
   String get loadCart;
-
-  /// No description provided for @deleteCart.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Cart'**
   String get deleteCart;
+  String get cartName;
+  String get enterCartName;
+  String get cartHeldSuccess;
+  String get cartLoadedSuccess;
+  String get userNotLoggedIn;
+  String get clear;
 
-  /// No description provided for @checkout.
-  ///
-  /// In en, this message translates to:
-  /// **'Checkout'**
+  // Checkout/Payment
   String get checkout;
-
-  /// No description provided for @payment.
-  ///
-  /// In en, this message translates to:
-  /// **'Payment'**
   String get payment;
-
-  /// No description provided for @cash.
-  ///
-  /// In en, this message translates to:
-  /// **'Cash'**
   String get cash;
-
-  /// No description provided for @card.
-  ///
-  /// In en, this message translates to:
-  /// **'Card'**
   String get card;
-
-  /// No description provided for @cashReceived.
-  ///
-  /// In en, this message translates to:
-  /// **'Cash Received'**
   String get cashReceived;
-
-  /// No description provided for @change.
-  ///
-  /// In en, this message translates to:
-  /// **'Change'**
   String get change;
-
-  /// No description provided for @cardLastDigits.
-  ///
-  /// In en, this message translates to:
-  /// **'Last 4 digits of card'**
   String get cardLastDigits;
-
-  /// No description provided for @completePayment.
-  ///
-  /// In en, this message translates to:
-  /// **'Complete Payment'**
+  String get cardLastDigitsHint;
   String get completePayment;
-
-  /// No description provided for @insufficientCash.
-  ///
-  /// In en, this message translates to:
-  /// **'Insufficient cash received'**
   String get insufficientCash;
-
-  /// No description provided for @enterCardDigits.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter last 4 digits'**
   String get enterCardDigits;
+  String get payNow;
+  String get processing;
 
-  /// No description provided for @subtotal.
-  ///
-  /// In en, this message translates to:
-  /// **'Subtotal'**
+  // Amounts
   String get subtotal;
-
-  /// No description provided for @tax.
-  ///
-  /// In en, this message translates to:
-  /// **'Tax'**
   String get tax;
-
-  /// No description provided for @discount.
-  ///
-  /// In en, this message translates to:
-  /// **'Discount'**
   String get discount;
-
-  /// No description provided for @total.
-  ///
-  /// In en, this message translates to:
-  /// **'Total'**
   String get total;
-
-  /// No description provided for @quantity.
-  ///
-  /// In en, this message translates to:
-  /// **'Quantity'**
   String get quantity;
-
-  /// No description provided for @price.
-  ///
-  /// In en, this message translates to:
-  /// **'Price'**
   String get price;
-
-  /// No description provided for @amount.
-  ///
-  /// In en, this message translates to:
-  /// **'Amount'**
   String get amount;
+  String get shipping;
+  String get shippingAmount;
+  String get enterShippingAmount;
+  String get shippingUpdated;
 
-  /// No description provided for @orderComplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Order Complete'**
+  // Coupon
+  String get coupon;
+  String get couponCode;
+  String get enterCouponCode;
+  String get applyCoupon;
+  String get removeCoupon;
+  String get couponApplied;
+  String get apply;
+  String get applying;
+
+  // Discount
+  String get discountDescription;
+  String get discountDescriptionHint;
+  String get discountApplied;
+
+  // Order
   String get orderComplete;
-
-  /// No description provided for @orderCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Order Code'**
   String get orderCode;
-
-  /// No description provided for @orderDate.
-  ///
-  /// In en, this message translates to:
-  /// **'Date'**
+  String get orderNumber;
   String get orderDate;
-
-  /// No description provided for @paymentMethod.
-  ///
-  /// In en, this message translates to:
-  /// **'Payment Method'**
+  String get dateTime;
   String get paymentMethod;
-
-  /// No description provided for @printReceipt.
-  ///
-  /// In en, this message translates to:
-  /// **'Print Receipt'**
   String get printReceipt;
-
-  /// No description provided for @newSale.
-  ///
-  /// In en, this message translates to:
-  /// **'New Sale'**
   String get newSale;
+  String get orderCompleted;
+  String get printing;
+  String get receiptPrinted;
+  String get items;
+  String get status;
+  String get mode;
 
-  /// No description provided for @session.
-  ///
-  /// In en, this message translates to:
-  /// **'Session'**
+  // Session
   String get session;
-
-  /// No description provided for @openRegister.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Register'**
   String get openRegister;
-
-  /// No description provided for @closeRegister.
-  ///
-  /// In en, this message translates to:
-  /// **'Close Register'**
   String get closeRegister;
-
-  /// No description provided for @openingCash.
-  ///
-  /// In en, this message translates to:
-  /// **'Opening Cash'**
   String get openingCash;
-
-  /// No description provided for @closingCash.
-  ///
-  /// In en, this message translates to:
-  /// **'Closing Cash'**
+  String get openingCashAmount;
   String get closingCash;
-
-  /// No description provided for @expectedCash.
-  ///
-  /// In en, this message translates to:
-  /// **'Expected Cash'**
+  String get closingCashAmount;
   String get expectedCash;
-
-  /// No description provided for @actualCash.
-  ///
-  /// In en, this message translates to:
-  /// **'Actual Cash'**
   String get actualCash;
-
-  /// No description provided for @difference.
-  ///
-  /// In en, this message translates to:
-  /// **'Difference'**
   String get difference;
-
-  /// No description provided for @cashSales.
-  ///
-  /// In en, this message translates to:
-  /// **'Cash Sales'**
   String get cashSales;
-
-  /// No description provided for @cardSales.
-  ///
-  /// In en, this message translates to:
-  /// **'Card Sales'**
   String get cardSales;
-
-  /// No description provided for @totalSales.
-  ///
-  /// In en, this message translates to:
-  /// **'Total Sales'**
   String get totalSales;
-
-  /// No description provided for @sessionNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'Session Notes'**
   String get sessionNotes;
-
-  /// No description provided for @closeSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Close Session'**
+  String get notesOptional;
+  String get addNotes;
   String get closeSession;
-
-  /// No description provided for @sessionClosed.
-  ///
-  /// In en, this message translates to:
-  /// **'Session Closed'**
+  String get closingSession;
   String get sessionClosed;
-
-  /// No description provided for @noActiveSession.
-  ///
-  /// In en, this message translates to:
-  /// **'No Active Session'**
   String get noActiveSession;
-
-  /// No description provided for @openSessionFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Please open a register to start selling'**
+  String get noSession;
+  String get viewActiveSession;
   String get openSessionFirst;
+  String get closeSessionFirst;
+  String get closeSessionFirstMessage;
+  String get viewSession;
+  String get continueSession;
+  String get startFresh;
+  String get existingSession;
+  String get sessionOpen;
+  String get openedAt;
+  String get openedBy;
+  String get duration;
+  String get countDenominations;
+  String get checkingSession;
 
-  /// No description provided for @search.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
+  // Search & General
   String get search;
-
-  /// No description provided for @searchProducts.
-  ///
-  /// In en, this message translates to:
-  /// **'Search products...'**
   String get searchProducts;
-
-  /// No description provided for @searchCustomers.
-  ///
-  /// In en, this message translates to:
-  /// **'Search customers...'**
+  String get scanBarcode;
   String get searchCustomers;
-
-  /// No description provided for @noResults.
-  ///
-  /// In en, this message translates to:
-  /// **'No results found'**
+  String get searchCustomer;
+  String get searchByOrderCode;
   String get noResults;
-
-  /// No description provided for @loading.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading...'**
   String get loading;
-
-  /// No description provided for @error.
-  ///
-  /// In en, this message translates to:
-  /// **'Error'**
   String get error;
-
-  /// No description provided for @retry.
-  ///
-  /// In en, this message translates to:
-  /// **'Retry'**
   String get retry;
-
-  /// No description provided for @cancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
   String get cancel;
-
-  /// No description provided for @confirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm'**
   String get confirm;
-
-  /// No description provided for @save.
-  ///
-  /// In en, this message translates to:
-  /// **'Save'**
   String get save;
-
-  /// No description provided for @delete.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete'**
   String get delete;
-
-  /// No description provided for @edit.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit'**
   String get edit;
-
-  /// No description provided for @close.
-  ///
-  /// In en, this message translates to:
-  /// **'Close'**
   String get close;
-
-  /// No description provided for @back.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
   String get back;
-
-  /// No description provided for @next.
-  ///
-  /// In en, this message translates to:
-  /// **'Next'**
   String get next;
-
-  /// No description provided for @done.
-  ///
-  /// In en, this message translates to:
-  /// **'Done'**
   String get done;
-
-  /// No description provided for @yes.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes'**
   String get yes;
-
-  /// No description provided for @no.
-  ///
-  /// In en, this message translates to:
-  /// **'No'**
   String get no;
-
-  /// No description provided for @ok.
-  ///
-  /// In en, this message translates to:
-  /// **'OK'**
   String get ok;
+  String get update;
+  String get refresh;
+  String get all;
+  String get filter;
+  String get sortBy;
+  String get current;
+  String get useArrowKeys;
 
-  /// No description provided for @customer.
-  ///
-  /// In en, this message translates to:
-  /// **'Customer'**
+  // Customer
   String get customer;
-
-  /// No description provided for @walkInCustomer.
-  ///
-  /// In en, this message translates to:
-  /// **'Walk-in Customer'**
+  String get walkIn;
   String get walkInCustomer;
-
-  /// No description provided for @selectCustomer.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Customer'**
   String get selectCustomer;
-
-  /// No description provided for @noCustomer.
-  ///
-  /// In en, this message translates to:
-  /// **'No customer selected'**
   String get noCustomer;
+  String get addCustomer;
+  String get customerName;
+  String get enterName;
+  String get enterEmail;
+  String get enterEmailOptional;
+  String get enterPhone;
+  String get deliver;
+  String get deliveryAddress;
+  String get addAddress;
+  String get streetAddress;
+  String get enterStreetAddress;
+  String get city;
+  String get enterCity;
+  String get zipCode;
+  String get enterZipCode;
+  String get phone;
+  String get name;
 
-  /// No description provided for @productNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Product not found'**
+  // Product
   String get productNotFound;
-
-  /// No description provided for @outOfStock.
-  ///
-  /// In en, this message translates to:
-  /// **'Out of Stock'**
   String get outOfStock;
-
-  /// No description provided for @inStock.
-  ///
-  /// In en, this message translates to:
-  /// **'In Stock'**
   String get inStock;
-
-  /// No description provided for @lowStock.
-  ///
-  /// In en, this message translates to:
-  /// **'Low Stock'**
   String get lowStock;
+  String get sku;
+  String get variation;
+  String get qtySold;
+  String get revenue;
+  String get product;
 
-  /// No description provided for @language.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
+  // Language
   String get language;
-
-  /// No description provided for @english.
-  ///
-  /// In en, this message translates to:
-  /// **'English'**
   String get english;
-
-  /// No description provided for @french.
-  ///
-  /// In en, this message translates to:
-  /// **'French'**
   String get french;
-
-  /// No description provided for @currency.
-  ///
-  /// In en, this message translates to:
-  /// **'Currency'**
   String get currency;
 
-  /// No description provided for @receipt.
-  ///
-  /// In en, this message translates to:
-  /// **'Receipt'**
+  // Receipt
   String get receipt;
-
-  /// No description provided for @thankYou.
-  ///
-  /// In en, this message translates to:
-  /// **'Thank you for your purchase!'**
+  String get posReceipt;
   String get thankYou;
-
-  /// No description provided for @pleaseReturn.
-  ///
-  /// In en, this message translates to:
-  /// **'Please come again'**
   String get pleaseReturn;
 
-  /// No description provided for @enterDenominations.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter Denominations'**
+  // Denominations
   String get enterDenominations;
-
-  /// No description provided for @quickCash.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick Cash'**
   String get quickCash;
+
+  // Dashboard
+  String get recentBills;
+  String get calculator;
+  String get fullScreen;
+  String get exitFullScreen;
+
+  // Connectivity
+  String get workingOffline;
+  String get online;
+  String get offline;
+
+  // Export
+  String get exportCsv;
+  String get exportSuccess;
+  String get exportFailed;
+  String get noOrdersToExport;
+  String get noProductsToExport;
+
+  // Resync
+  String get resync;
+  String get resyncProducts;
+  String get clearAndResyncProducts;
+  String get resyncNow;
+  String get resyncing;
+  String get resyncSuccess;
+  String get resyncFailed;
+
+  // Clear Data
+  String get clearAllData;
+  String get clearAll;
+  String get clearingData;
+  String get dataCleared;
+  String get clearFailed;
+
+  // Printer
+  String get printerSettings;
+  String get selectPrinter;
+  String get defaultPrinter;
+  String get defaultPrinterSet;
+  String get defaultPrinterCleared;
+  String get selectPrinterFirst;
+  String get testPrint;
+  String get testPrintSuccess;
+  String get printFailed;
+  String get autoPrintOnPayment;
+  String get autoPrintDescription;
+  String get usb;
+  String get bluetooth;
+  String get wifi;
+  String get demoPayment;
+
+  // Updates
+  String get checkForUpdates;
+  String get installUpdate;
+  String get updateNow;
+  String get updateAvailable;
+  String get noUpdatesAvailable;
+  String get check;
+
+  // Additional Auth
+  String get signInToContinue;
+  String get pleaseEnterUsername;
+  String get usernameTooShort;
+  String get pleaseEnterPassword;
+  String get passwordTooShort;
+  String get pleaseEnterDeviceName;
+
+  // Lock Screen
+  String get sessionLocked;
+  String get lockedDueToInactivity;
+  String get enterPasswordToUnlock;
+  String get unlock;
+  String get logoutQuestion;
+  String get logoutConfirmWithSession;
+  String get logoutInstead;
+  String get invalidPassword;
+
+  // Additional UI
+  String get changeLanguage;
+  String get notes;
+  String get exact;
+  String get payWithCash;
+  String get totalAmount;
+  String get createNewCustomer;
+  String get add;
+  String get emailOptional;
+  String get addNewAddress;
+  String get pleaseEnterCouponCode;
+  String get invalidCouponCode;
+  String get applyDiscount;
+  String get discountType;
+  String get percentage;
+  String get fixed;
+  String get discountAmount;
+  String get updateShipping;
+  String get selectVariant;
+  String get options;
+  String get item;
+  String get itemPlural;
+  String get unit;
+  String get unitPlural;
+  String get scanProductsToAdd;
+  String get useBarcodeScanner;
+  String get noProductsFound;
+  String orderCompletedPrinting(String orderCode);
+  String get areYouSureRemoveAllItems;
+  String get sessionFound;
+  String get existingSessionMessage;
+  String get couldNotRecoverSession;
+  String get enterValidOpeningCash;
+  String get dataManagement;
+  String get about;
+  String get receiptPreview;
+  String get version;
+
+  // Dashboard Session
+  String get closeSessionFirst;
+  String get closeSessionFirstMessage;
+  String get viewSession;
+  String get viewActiveSession;
+  String get noSession;
+  String get sessionOpen;
+  String get openedAt;
+  String get openedBy;
+  String get searchByOrderCode;
+  String get userNotLoggedIn;
+  String get cartHeldSuccess;
+  String get cartLoadedSuccess;
+  String get searchProductsHint;
+  String get refreshProducts;
+  String get currentCart;
+  String get completePayment;
+  String get insufficientCash;
+  String get enterLast4Digits;
 }
 
 class _AppLocalizationsDelegate
@@ -717,7 +416,6 @@ class _AppLocalizationsDelegate
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-  // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
@@ -726,8 +424,5 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+      'AppLocalizations.delegate failed to load unsupported locale "$locale".');
 }

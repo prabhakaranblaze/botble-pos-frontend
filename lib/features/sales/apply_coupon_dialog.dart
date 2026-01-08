@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 import 'sales_provider.dart';
 
 class ApplyCouponDialog extends StatefulWidget {
@@ -22,10 +23,11 @@ class _ApplyCouponDialogState extends State<ApplyCouponDialog> {
   }
 
   Future<void> _validateCoupon() async {
+    final l10n = AppLocalizations.of(context);
     final code = _couponController.text.trim();
     if (code.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter a coupon code';
+        _errorMessage = l10n?.pleaseEnterCouponCode ?? 'Please enter a coupon code';
       });
       return;
     }
@@ -56,7 +58,7 @@ class _ApplyCouponDialogState extends State<ApplyCouponDialog> {
         Navigator.pop(context, true);
       } else {
         setState(() {
-          _errorMessage = result?['message'] ?? 'Invalid coupon code';
+          _errorMessage = result?['message'] ?? l10n?.invalidCouponCode ?? 'Invalid coupon code';
           _isLoading = false;
         });
       }
@@ -71,6 +73,7 @@ class _ApplyCouponDialogState extends State<ApplyCouponDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 400,
@@ -84,9 +87,9 @@ class _ApplyCouponDialogState extends State<ApplyCouponDialog> {
               children: [
                 Icon(Icons.local_offer_rounded, color: AppColors.primary, size: 28),
                 const SizedBox(width: 12),
-                const Text(
-                  'Apply Coupon',
-                  style: TextStyle(
+                Text(
+                  l10n?.applyCoupon ?? 'Apply Coupon',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -104,8 +107,8 @@ class _ApplyCouponDialogState extends State<ApplyCouponDialog> {
             TextField(
               controller: _couponController,
               decoration: InputDecoration(
-                labelText: 'Coupon Code',
-                hintText: 'Enter coupon code',
+                labelText: l10n?.couponCode ?? 'Coupon Code',
+                hintText: l10n?.enterCouponCode ?? 'Enter coupon code',
                 prefixIcon: const Icon(Icons.confirmation_number_outlined),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -130,7 +133,7 @@ class _ApplyCouponDialogState extends State<ApplyCouponDialog> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(l10n?.cancel ?? 'Cancel'),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -154,7 +157,7 @@ class _ApplyCouponDialogState extends State<ApplyCouponDialog> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Apply'),
+                        : Text(l10n?.apply ?? 'Apply'),
                   ),
                 ),
               ],

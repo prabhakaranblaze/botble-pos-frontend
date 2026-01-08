@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/models/product.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class VariantSelectionDialog extends StatefulWidget {
   final Product product;
@@ -115,6 +116,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 500,
@@ -135,9 +137,9 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                 children: [
                   Icon(Icons.tune, color: AppColors.primary),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Select Product Options',
-                    style: TextStyle(
+                  Text(
+                    l10n?.selectVariant ?? 'Select Product Options',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -236,7 +238,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Quantity',
+                          l10n?.quantity ?? 'Quantity',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -291,9 +293,9 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Total',
-                            style: TextStyle(
+                          Text(
+                            l10n?.total ?? 'Total',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
@@ -328,7 +330,7 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                   onPressed: _isValid ? _handleAddToCart : null,
                   icon: const Icon(Icons.shopping_cart),
                   label: Text(
-                    'Add to Cart - ${AppCurrency.format(_calculatedPrice)}',
+                    '${l10n?.addToCart ?? 'Add to Cart'} - ${AppCurrency.format(_calculatedPrice)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

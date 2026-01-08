@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import '../../core/api/api_service.dart';
 import '../../shared/constants/app_constants.dart';
 import '../session/session_provider.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -368,42 +369,57 @@ class _ReportsScreenState extends State<ReportsScreen>
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                   child: Row(
                     children: [
-                      const Text(
-                        'Reports',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context);
+                          return Text(
+                            l10n?.reports ?? 'Reports',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
                       ),
                       const Spacer(),
                       // Export button (hide for Session tab for now)
                       if (_tabController.index != 0)
-                        ElevatedButton.icon(
-                          onPressed: _tabController.index == 1
-                              ? _exportOrdersToExcel
-                              : _exportProductsToExcel,
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('Export CSV'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final l10n = AppLocalizations.of(context);
+                            return ElevatedButton.icon(
+                              onPressed: _tabController.index == 1
+                                  ? _exportOrdersToExcel
+                                  : _exportProductsToExcel,
+                              icon: const Icon(Icons.download, size: 18),
+                              label: Text(l10n?.exportCsv ?? 'Export CSV'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       // Refresh button for Session tab
                       if (_tabController.index == 0)
-                        ElevatedButton.icon(
-                          onPressed: _loadSessionOrders,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('Refresh'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final l10n = AppLocalizations.of(context);
+                            return ElevatedButton.icon(
+                              onPressed: _loadSessionOrders,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: Text(l10n?.refresh ?? 'Refresh'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),
@@ -413,61 +429,71 @@ class _ReportsScreenState extends State<ReportsScreen>
 
                 // Date filters (hide for Session tab)
                 if (_tabController.index != 0)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      children: [
-                        _buildDateFilterChip('Today', 'today'),
-                        const SizedBox(width: 8),
-                        _buildDateFilterChip('Yesterday', 'yesterday'),
-                        const SizedBox(width: 8),
-                        _buildDateFilterChip('This Week', 'this_week'),
-                        const SizedBox(width: 8),
-                        _buildDateFilterChip('This Month', 'this_month'),
-                        const SizedBox(width: 8),
-                        // Custom date range
-                        ActionChip(
-                          avatar: Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: _selectedDateFilter == 'custom'
-                                ? Colors.white
-                                : AppColors.textSecondary,
-                          ),
-                          label: Text(
-                            _selectedDateFilter == 'custom' &&
-                                    _customFromDate != null &&
-                                    _customToDate != null
-                                ? '${DateFormat('MMM d').format(_customFromDate!)} - ${DateFormat('MMM d').format(_customToDate!)}'
-                                : 'Custom',
-                            style: TextStyle(
-                              color: _selectedDateFilter == 'custom'
-                                  ? Colors.white
-                                  : AppColors.textPrimary,
+                  Builder(
+                    builder: (context) {
+                      final l10n = AppLocalizations.of(context);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Row(
+                          children: [
+                            _buildDateFilterChip(l10n?.today ?? 'Today', 'today'),
+                            const SizedBox(width: 8),
+                            _buildDateFilterChip(l10n?.yesterday ?? 'Yesterday', 'yesterday'),
+                            const SizedBox(width: 8),
+                            _buildDateFilterChip(l10n?.thisWeek ?? 'This Week', 'this_week'),
+                            const SizedBox(width: 8),
+                            _buildDateFilterChip(l10n?.thisMonth ?? 'This Month', 'this_month'),
+                            const SizedBox(width: 8),
+                            // Custom date range
+                            ActionChip(
+                              avatar: Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: _selectedDateFilter == 'custom'
+                                    ? Colors.white
+                                    : AppColors.textSecondary,
+                              ),
+                              label: Text(
+                                _selectedDateFilter == 'custom' &&
+                                        _customFromDate != null &&
+                                        _customToDate != null
+                                    ? '${DateFormat('MMM d').format(_customFromDate!)} - ${DateFormat('MMM d').format(_customToDate!)}'
+                                    : (l10n?.customDate ?? 'Custom'),
+                                style: TextStyle(
+                                  color: _selectedDateFilter == 'custom'
+                                      ? Colors.white
+                                      : AppColors.textPrimary,
+                                ),
+                              ),
+                              backgroundColor: _selectedDateFilter == 'custom'
+                                  ? AppColors.primary
+                                  : AppColors.background,
+                              onPressed: _selectCustomDateRange,
                             ),
-                          ),
-                          backgroundColor: _selectedDateFilter == 'custom'
-                              ? AppColors.primary
-                              : AppColors.background,
-                          onPressed: _selectCustomDateRange,
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
 
                 if (_tabController.index != 0) const SizedBox(height: 16),
 
                 // Tabs
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  indicatorColor: AppColors.primary,
-                  tabs: const [
-                    Tab(text: 'Session'),
-                    Tab(text: 'Orders'),
-                    Tab(text: 'Products Sold'),
-                  ],
+                Builder(
+                  builder: (context) {
+                    final l10n = AppLocalizations.of(context);
+                    return TabBar(
+                      controller: _tabController,
+                      labelColor: AppColors.primary,
+                      unselectedLabelColor: AppColors.textSecondary,
+                      indicatorColor: AppColors.primary,
+                      tabs: [
+                        Tab(text: l10n?.session ?? 'Session'),
+                        Tab(text: l10n?.orders ?? 'Orders'),
+                        Tab(text: l10n?.products ?? 'Products Sold'),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -525,19 +551,19 @@ class _ReportsScreenState extends State<ReportsScreen>
           child: Row(
             children: [
               _buildSummaryItem(
-                'Total Orders',
+                AppLocalizations.of(context)?.totalOrders ?? 'Total Orders',
                 '$totalOrders',
                 Icons.receipt_long,
               ),
               const SizedBox(width: 32),
               _buildSummaryItem(
-                'Cash',
+                AppLocalizations.of(context)?.cash ?? 'Cash',
                 AppCurrency.format(cashTotal),
                 Icons.money,
               ),
               const SizedBox(width: 32),
               _buildSummaryItem(
-                'Card',
+                AppLocalizations.of(context)?.card ?? 'Card',
                 AppCurrency.format(cardTotal),
                 Icons.credit_card,
               ),
@@ -545,10 +571,10 @@ class _ReportsScreenState extends State<ReportsScreen>
               // Payment filter
               Row(
                 children: [
-                  Text('Filter: ', style: TextStyle(color: AppColors.textSecondary)),
+                  Text('${AppLocalizations.of(context)?.filter ?? 'Filter'}: ', style: TextStyle(color: AppColors.textSecondary)),
                   const SizedBox(width: 8),
                   ChoiceChip(
-                    label: const Text('All'),
+                    label: Text(AppLocalizations.of(context)?.all ?? 'All'),
                     selected: _sessionPaymentFilter == 'all',
                     onSelected: (selected) {
                       if (selected) setState(() => _sessionPaymentFilter = 'all');
@@ -560,7 +586,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
-                    label: const Text('Cash'),
+                    label: Text(AppLocalizations.of(context)?.cash ?? 'Cash'),
                     selected: _sessionPaymentFilter == 'cash',
                     onSelected: (selected) {
                       if (selected) setState(() => _sessionPaymentFilter = 'cash');
@@ -572,7 +598,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
-                    label: const Text('Card'),
+                    label: Text(AppLocalizations.of(context)?.card ?? 'Card'),
                     selected: _sessionPaymentFilter == 'card',
                     onSelected: (selected) {
                       if (selected) setState(() => _sessionPaymentFilter = 'card');
@@ -591,11 +617,11 @@ class _ReportsScreenState extends State<ReportsScreen>
         // Session orders list
         Expanded(
           child: activeSession == null
-              ? _buildEmptyState('No active session')
+              ? _buildEmptyState(AppLocalizations.of(context)?.noActiveSessionMessage ?? 'No active session')
               : _sessionLoading
                   ? const Center(child: CircularProgressIndicator())
                   : filteredOrders.isEmpty
-                      ? _buildEmptyState('No transactions yet')
+                      ? _buildEmptyState(AppLocalizations.of(context)?.noTransactionsYet ?? 'No transactions yet')
                       : _buildSessionOrdersList(filteredOrders),
         ),
       ],
@@ -603,15 +629,16 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildSessionOrdersList(List<dynamic> orders) {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       child: DataTable(
         headingRowColor: WidgetStateProperty.all(AppColors.surface),
-        columns: const [
-          DataColumn(label: Text('Order #')),
-          DataColumn(label: Text('Customer')),
-          DataColumn(label: Text('Total'), numeric: true),
-          DataColumn(label: Text('Mode')),
-          DataColumn(label: Text('Status')),
+        columns: [
+          DataColumn(label: Text(l10n?.orderNumber ?? 'Order #')),
+          DataColumn(label: Text(l10n?.customer ?? 'Customer')),
+          DataColumn(label: Text(l10n?.total ?? 'Total'), numeric: true),
+          DataColumn(label: Text(l10n?.mode ?? 'Mode')),
+          DataColumn(label: Text(l10n?.status ?? 'Status')),
         ],
         rows: orders.map((order) {
           return DataRow(
@@ -620,7 +647,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 order['code']?.toString() ?? '-',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               )),
-              DataCell(Text(order['customer_name']?.toString() ?? 'Walk-in')),
+              DataCell(Text(order['customer_name']?.toString() ?? (AppLocalizations.of(context)?.walkIn ?? 'Walk-in'))),
               DataCell(Text(
                 AppCurrency.format((order['amount'] as num?)?.toDouble() ?? 0),
                 style: const TextStyle(fontWeight: FontWeight.w600),
@@ -663,17 +690,17 @@ class _ReportsScreenState extends State<ReportsScreen>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildSummaryItem(
-                'Orders',
+                AppLocalizations.of(context)?.orders ?? 'Orders',
                 '${_ordersSummary['total_orders'] ?? _orders.length}',
                 Icons.receipt_long,
               ),
               _buildSummaryItem(
-                'Revenue',
+                AppLocalizations.of(context)?.revenue ?? 'Revenue',
                 AppCurrency.format((_ordersSummary['total_revenue'] as num?)?.toDouble() ?? 0),
                 Icons.attach_money,
               ),
               _buildSummaryItem(
-                'Avg Order',
+                AppLocalizations.of(context)?.avgOrder ?? 'Avg Order',
                 AppCurrency.format((_ordersSummary['average_order'] as num?)?.toDouble() ?? 0),
                 Icons.trending_up,
               ),
@@ -686,7 +713,7 @@ class _ReportsScreenState extends State<ReportsScreen>
           child: _ordersLoading
               ? const Center(child: CircularProgressIndicator())
               : _orders.isEmpty
-                  ? _buildEmptyState('No orders found')
+                  ? _buildEmptyState(AppLocalizations.of(context)?.noOrdersFound ?? 'No orders found')
                   : _buildOrdersList(),
         ),
       ],
@@ -694,17 +721,18 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildOrdersList() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       child: DataTable(
         headingRowColor: WidgetStateProperty.all(AppColors.surface),
-        columns: const [
-          DataColumn(label: Text('Order #')),
-          DataColumn(label: Text('Date/Time')),
-          DataColumn(label: Text('Customer')),
-          DataColumn(label: Text('Items'), numeric: true),
-          DataColumn(label: Text('Total'), numeric: true),
-          DataColumn(label: Text('Payment')),
-          DataColumn(label: Text('Status')),
+        columns: [
+          DataColumn(label: Text(l10n?.orderNumber ?? 'Order #')),
+          DataColumn(label: Text(l10n?.dateTime ?? 'Date/Time')),
+          DataColumn(label: Text(l10n?.customer ?? 'Customer')),
+          DataColumn(label: Text(l10n?.items ?? 'Items'), numeric: true),
+          DataColumn(label: Text(l10n?.total ?? 'Total'), numeric: true),
+          DataColumn(label: Text(l10n?.payment ?? 'Payment')),
+          DataColumn(label: Text(l10n?.status ?? 'Status')),
         ],
         rows: _orders.map((order) {
           final createdAt = order['created_at'] != null
@@ -722,7 +750,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                     ? DateFormat('MMM d, HH:mm').format(createdAt)
                     : '-',
               )),
-              DataCell(Text(order['customer_name']?.toString() ?? 'Walk-in')),
+              DataCell(Text(order['customer_name']?.toString() ?? (AppLocalizations.of(context)?.walkIn ?? 'Walk-in'))),
               DataCell(Text('${order['items_count'] ?? 0}')),
               DataCell(Text(
                 AppCurrency.format((order['amount'] as num?)?.toDouble() ?? 0),
@@ -738,6 +766,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildProductsTab() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         // Summary bar with sort
@@ -747,19 +776,19 @@ class _ReportsScreenState extends State<ReportsScreen>
           child: Row(
             children: [
               _buildSummaryItem(
-                'Products',
+                l10n?.products ?? 'Products',
                 '${_productsSummary['total_products'] ?? _products.length}',
                 Icons.inventory,
               ),
               const SizedBox(width: 24),
               _buildSummaryItem(
-                'Units Sold',
+                l10n?.unitsSold ?? 'Units Sold',
                 '${_productsSummary['total_quantity'] ?? 0}',
                 Icons.shopping_cart,
               ),
               const SizedBox(width: 24),
               _buildSummaryItem(
-                'Revenue',
+                l10n?.revenue ?? 'Revenue',
                 AppCurrency.format((_productsSummary['total_revenue'] as num?)?.toDouble() ?? 0),
                 Icons.attach_money,
               ),
@@ -767,14 +796,14 @@ class _ReportsScreenState extends State<ReportsScreen>
               // Sort dropdown
               Row(
                 children: [
-                  Text('Sort by: ', style: TextStyle(color: AppColors.textSecondary)),
+                  Text('${l10n?.sortBy ?? 'Sort by'}: ', style: TextStyle(color: AppColors.textSecondary)),
                   DropdownButton<String>(
                     value: _productsSortBy,
                     underline: const SizedBox(),
-                    items: const [
-                      DropdownMenuItem(value: 'quantity', child: Text('Quantity')),
-                      DropdownMenuItem(value: 'revenue', child: Text('Revenue')),
-                      DropdownMenuItem(value: 'name', child: Text('Name')),
+                    items: [
+                      DropdownMenuItem(value: 'quantity', child: Text(l10n?.quantity ?? 'Quantity')),
+                      DropdownMenuItem(value: 'revenue', child: Text(l10n?.revenue ?? 'Revenue')),
+                      DropdownMenuItem(value: 'name', child: Text(l10n?.name ?? 'Name')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -797,7 +826,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                       });
                       _loadProductsReport();
                     },
-                    tooltip: _productsSortOrder == 'desc' ? 'Descending' : 'Ascending',
+                    tooltip: _productsSortOrder == 'desc' ? (l10n?.descending ?? 'Descending') : (l10n?.ascending ?? 'Ascending'),
                   ),
                 ],
               ),
@@ -810,7 +839,7 @@ class _ReportsScreenState extends State<ReportsScreen>
           child: _productsLoading
               ? const Center(child: CircularProgressIndicator())
               : _products.isEmpty
-                  ? _buildEmptyState('No products sold')
+                  ? _buildEmptyState(l10n?.noProductsSold ?? 'No products sold')
                   : _buildProductsList(),
         ),
       ],
@@ -818,15 +847,16 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildProductsList() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       child: DataTable(
         headingRowColor: WidgetStateProperty.all(AppColors.surface),
-        columns: const [
-          DataColumn(label: Text('Product')),
-          DataColumn(label: Text('SKU')),
-          DataColumn(label: Text('Variation')),
-          DataColumn(label: Text('Qty Sold'), numeric: true),
-          DataColumn(label: Text('Revenue'), numeric: true),
+        columns: [
+          DataColumn(label: Text(l10n?.product ?? 'Product')),
+          DataColumn(label: Text(l10n?.sku ?? 'SKU')),
+          DataColumn(label: Text(l10n?.variation ?? 'Variation')),
+          DataColumn(label: Text(l10n?.qtySold ?? 'Qty Sold'), numeric: true),
+          DataColumn(label: Text(l10n?.revenue ?? 'Revenue'), numeric: true),
         ],
         rows: _products.map((product) {
           return DataRow(

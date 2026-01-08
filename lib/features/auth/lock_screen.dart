@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Lock screen shown after inactivity timeout
 /// User must enter password to unlock
@@ -41,9 +42,10 @@ class _LockScreenState extends State<LockScreen> {
     if (success) {
       widget.onUnlock();
     } else {
+      final l10n = AppLocalizations.of(context);
       setState(() {
         _isLoading = false;
-        _error = 'Invalid password. Please try again.';
+        _error = l10n?.invalidPassword ?? 'Invalid password. Please try again.';
       });
       _passwordController.clear();
     }
@@ -53,6 +55,7 @@ class _LockScreenState extends State<LockScreen> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final userName = authProvider.user?.name ?? 'User';
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.primary.withOpacity(0.95),
@@ -92,9 +95,9 @@ class _LockScreenState extends State<LockScreen> {
                 const SizedBox(height: 24),
 
                 // Title
-                const Text(
-                  'Session Locked',
-                  style: TextStyle(
+                Text(
+                  l10n?.sessionLocked ?? 'Session Locked',
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -103,7 +106,7 @@ class _LockScreenState extends State<LockScreen> {
 
                 // Subtitle with user name
                 Text(
-                  'Locked due to inactivity',
+                  l10n?.lockedDueToInactivity ?? 'Locked due to inactivity',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -143,7 +146,7 @@ class _LockScreenState extends State<LockScreen> {
                               ),
                             ),
                             Text(
-                              'Enter password to unlock',
+                              l10n?.enterPasswordToUnlock ?? 'Enter password to unlock',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textSecondary,
@@ -163,8 +166,8 @@ class _LockScreenState extends State<LockScreen> {
                   obscureText: _obscurePassword,
                   autofocus: true,
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'Enter your password',
+                    labelText: l10n?.password ?? 'Password',
+                    hintText: l10n?.enterPassword ?? 'Enter your password',
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -182,7 +185,7 @@ class _LockScreenState extends State<LockScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                      return l10n?.pleaseEnterPassword ?? 'Please enter your password';
                     }
                     return null;
                   },
@@ -207,9 +210,9 @@ class _LockScreenState extends State<LockScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
-                            'Unlock',
-                            style: TextStyle(fontSize: 16),
+                        : Text(
+                            l10n?.unlock ?? 'Unlock',
+                            style: const TextStyle(fontSize: 16),
                           ),
                   ),
                 ),
@@ -220,24 +223,25 @@ class _LockScreenState extends State<LockScreen> {
                   onPressed: _isLoading
                       ? null
                       : () async {
+                          final l10nDialog = AppLocalizations.of(context);
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('Logout?'),
-                              content: const Text(
-                                'Are you sure you want to logout? Your session will remain open and you can continue later.',
+                              title: Text(l10nDialog?.logoutQuestion ?? 'Logout?'),
+                              content: Text(
+                                l10nDialog?.logoutConfirmWithSession ?? 'Are you sure you want to logout? Your session will remain open and you can continue later.',
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
+                                  child: Text(l10nDialog?.cancel ?? 'Cancel'),
                                 ),
                                 ElevatedButton(
                                   onPressed: () => Navigator.pop(context, true),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.error,
                                   ),
-                                  child: const Text('Logout'),
+                                  child: Text(l10nDialog?.logout ?? 'Logout'),
                                 ),
                               ],
                             ),
@@ -248,7 +252,7 @@ class _LockScreenState extends State<LockScreen> {
                           }
                         },
                   child: Text(
-                    'Logout Instead',
+                    l10n?.logoutInstead ?? 'Logout Instead',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),

@@ -106,17 +106,18 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Check if session is open
     if (sessionProvider.hasActiveSession) {
+      final l10n = AppLocalizations.of(context);
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Close Session First'),
-          content: const Text(
-            'You have an active session. Please close your session before logging out.',
+          title: Text(l10n?.closeSessionFirst ?? 'Close Session First'),
+          content: Text(
+            l10n?.closeSessionFirstMessage ?? 'You have an active session. Please close your session before logging out.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text(l10n?.cancel ?? 'Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -125,7 +126,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),
-              child: const Text('View Session'),
+              child: Text(l10n?.viewSession ?? 'View Session'),
             ),
           ],
         ),
@@ -267,8 +268,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         Consumer<SessionProvider>(
                           builder: (context, session, _) {
                             final hasSession = session.hasActiveSession;
+                            final l10n = AppLocalizations.of(context);
                             return Tooltip(
-                              message: hasSession ? 'View Active Session' : 'No Active Session',
+                              message: hasSession ? (l10n?.viewActiveSession ?? 'View Active Session') : (l10n?.noActiveSession ?? 'No Active Session'),
                               child: InkWell(
                                 onTap: _showSessionModal,
                                 borderRadius: BorderRadius.circular(8),
@@ -298,7 +300,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
-                                        hasSession ? 'Session' : 'No Session',
+                                        hasSession ? (l10n?.session ?? 'Session') : (l10n?.noSession ?? 'No Session'),
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           fontSize: 13,
@@ -373,8 +375,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         // Language Selector
                         Consumer<LocaleProvider>(
                           builder: (context, localeProvider, _) {
+                            final l10n = AppLocalizations.of(context);
                             return PopupMenuButton<Locale>(
-                              tooltip: 'Change Language',
+                              tooltip: l10n?.changeLanguage ?? 'Change Language',
                               offset: const Offset(0, 40),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -434,32 +437,47 @@ class _DashboardScreenState extends State<DashboardScreen>
                         const SizedBox(width: 12),
 
                         // Recent Bills Button
-                        IconButton(
-                          icon: const Icon(Icons.receipt_long_outlined),
-                          tooltip: 'Recent Bills',
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => const RecentBillsDialog(),
+                        Builder(
+                          builder: (context) {
+                            final l10n = AppLocalizations.of(context);
+                            return IconButton(
+                              icon: const Icon(Icons.receipt_long_outlined),
+                              tooltip: l10n?.recentBills ?? 'Recent Bills',
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => const RecentBillsDialog(),
+                                );
+                              },
                             );
                           },
                         ),
 
                         // Calculator Button
-                        IconButton(
-                          icon: const Icon(Icons.calculate_outlined),
-                          tooltip: 'Calculator',
-                          onPressed: _showCalculator,
+                        Builder(
+                          builder: (context) {
+                            final l10n = AppLocalizations.of(context);
+                            return IconButton(
+                              icon: const Icon(Icons.calculate_outlined),
+                              tooltip: l10n?.calculator ?? 'Calculator',
+                              onPressed: _showCalculator,
+                            );
+                          },
                         ),
 
                         // Full Screen Button
-                        IconButton(
-                          icon: Icon(_isFullScreen
-                              ? Icons.fullscreen_exit
-                              : Icons.fullscreen),
-                          tooltip:
-                              _isFullScreen ? 'Exit Full Screen' : 'Full Screen',
-                          onPressed: _toggleFullScreen,
+                        Builder(
+                          builder: (context) {
+                            final l10n = AppLocalizations.of(context);
+                            return IconButton(
+                              icon: Icon(_isFullScreen
+                                  ? Icons.fullscreen_exit
+                                  : Icons.fullscreen),
+                              tooltip:
+                                  _isFullScreen ? (l10n?.exitFullScreen ?? 'Exit Full Screen') : (l10n?.fullScreen ?? 'Full Screen'),
+                              onPressed: _toggleFullScreen,
+                            );
+                          },
                         ),
                         const SizedBox(width: 12),
 
@@ -519,6 +537,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     builder: (context, connectivity, _) {
                       if (connectivity.isOnline) return const SizedBox.shrink();
 
+                      final l10n = AppLocalizations.of(context);
                       return Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
@@ -533,7 +552,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Working Offline - Changes will sync when online',
+                              l10n?.workingOffline ?? 'Working Offline - Changes will sync when online',
                               style: TextStyle(
                                 color: AppColors.warning,
                                 fontWeight: FontWeight.w600,
@@ -750,6 +769,7 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 320,
@@ -760,9 +780,9 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
             // Header
             Row(
               children: [
-                const Text(
-                  'Calculator',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  l10n?.calculator ?? 'Calculator',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 IconButton(
@@ -911,6 +931,7 @@ class SessionModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<SessionProvider>(
       builder: (context, session, _) {
         if (!session.hasActiveSession) {
@@ -925,13 +946,13 @@ class SessionModal extends StatelessWidget {
                       size: 64, color: AppColors.textSecondary),
                   const SizedBox(height: 16),
                   Text(
-                    'No active session',
+                    l10n?.noActiveSession ?? 'No active session',
                     style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
+                    child: Text(l10n?.close ?? 'Close'),
                   ),
                 ],
               ),
@@ -1001,7 +1022,7 @@ class SessionModal extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'OPEN',
+                            l10n?.sessionOpen ?? 'OPEN',
                             style: TextStyle(
                               color: AppColors.success,
                               fontWeight: FontWeight.bold,
@@ -1021,20 +1042,20 @@ class SessionModal extends StatelessWidget {
                 const Divider(height: 32),
 
                 // Session Info
-                _buildInfoRow('Opened At', dateFormat.format(openedAt)),
-                _buildInfoRow('Duration', '${hours}h ${minutes}m'),
+                _buildInfoRow(l10n?.openedAt ?? 'Opened At', dateFormat.format(openedAt)),
+                _buildInfoRow(l10n?.duration ?? 'Duration', '${hours}h ${minutes}m'),
                 _buildInfoRow(
-                    'Opened By', activeSession['user_name'] as String? ?? 'User'),
+                    l10n?.openedBy ?? 'Opened By', activeSession['user_name'] as String? ?? 'User'),
                 _buildInfoRow(
-                  'Opening Cash',
+                  l10n?.openingCash ?? 'Opening Cash',
                   AppCurrency.format((activeSession['opening_cash'] as num).toDouble()),
                 ),
 
                 if (activeSession['opening_notes'] != null &&
                     (activeSession['opening_notes'] as String).isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  const Text('Notes:',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(l10n?.notes ?? 'Notes:',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text(
                     activeSession['opening_notes'] as String,
@@ -1053,7 +1074,7 @@ class SessionModal extends StatelessWidget {
                       _closeSession(context);
                     },
                     icon: const Icon(Icons.logout_rounded),
-                    label: const Text('Close Session'),
+                    label: Text(l10n?.closeSession ?? 'Close Session'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error,
                       padding: const EdgeInsets.symmetric(vertical: 16),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AddCustomerDialog extends StatefulWidget {
   final Future<void> Function(String name, String phone, String? email) onSave;
@@ -53,6 +54,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 400,
@@ -66,9 +68,9 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
               // Header
               Row(
                 children: [
-                  const Text(
-                    'Create New Customer',
-                    style: TextStyle(
+                  Text(
+                    l10n?.createNewCustomer ?? 'Create New Customer',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -92,7 +94,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                       children: [
                         RichText(
                           text: TextSpan(
-                            text: 'Customer Name ',
+                            text: '${l10n?.customerName ?? 'Customer Name'} ',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               color: AppColors.textPrimary,
@@ -108,12 +110,12 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _nameController,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter name',
+                          decoration: InputDecoration(
+                            hintText: l10n?.enterName ?? 'Enter name',
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Name is required';
+                              return l10n?.enterName ?? 'Name is required';
                             }
                             return null;
                           },
@@ -128,7 +130,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                       children: [
                         RichText(
                           text: TextSpan(
-                            text: 'Phone ',
+                            text: '${l10n?.phone ?? 'Phone'} ',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               color: AppColors.textPrimary,
@@ -144,13 +146,13 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _phoneController,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter phone',
+                          decoration: InputDecoration(
+                            hintText: l10n?.enterPhone ?? 'Enter phone',
                           ),
                           keyboardType: TextInputType.phone,
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Phone is required';
+                              return l10n?.enterPhone ?? 'Phone is required';
                             }
                             return null;
                           },
@@ -167,7 +169,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Email',
+                    l10n?.email ?? 'Email',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       color: AppColors.textPrimary,
@@ -176,14 +178,14 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter email (optional)',
+                    decoration: InputDecoration(
+                      hintText: l10n?.enterEmailOptional ?? 'Enter email (optional)',
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
                       if (value != null && value.isNotEmpty) {
                         if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                          return 'Enter a valid email';
+                          return l10n?.enterEmail ?? 'Enter a valid email';
                         }
                       }
                       return null;
@@ -199,7 +201,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                 children: [
                   OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
+                    child: Text(l10n?.cancel ?? 'Cancel'),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -214,7 +216,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(l10n?.save ?? 'Save'),
                   ),
                 ],
               ),

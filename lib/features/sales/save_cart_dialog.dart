@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../sales/sales_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SaveCartDialog extends StatefulWidget {
   const SaveCartDialog({super.key});
@@ -78,6 +79,7 @@ class _SaveCartDialogState extends State<SaveCartDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 500,
@@ -91,9 +93,9 @@ class _SaveCartDialogState extends State<SaveCartDialog> {
               children: [
                 Icon(Icons.save_rounded, color: AppColors.primary, size: 28),
                 const SizedBox(width: 12),
-                const Text(
-                  'Save Cart',
-                  style: TextStyle(
+                Text(
+                  l10n?.saveCart ?? 'Save Cart',
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -111,10 +113,10 @@ class _SaveCartDialogState extends State<SaveCartDialog> {
             // Cart Name
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Cart Name',
-                prefixIcon: Icon(Icons.label_outline),
-                hintText: 'Enter cart name...',
+              decoration: InputDecoration(
+                labelText: l10n?.cartName ?? 'Cart Name',
+                prefixIcon: const Icon(Icons.label_outline),
+                hintText: l10n?.enterCartName ?? 'Enter cart name...',
               ),
               enabled: !_isSaving,
               autofocus: true,
@@ -141,9 +143,9 @@ class _SaveCartDialogState extends State<SaveCartDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Save to online',
-                          style: TextStyle(
+                        Text(
+                          l10n?.online ?? 'Save to online',
+                          style: const TextStyle(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -173,7 +175,7 @@ class _SaveCartDialogState extends State<SaveCartDialog> {
                 Expanded(
                   child: TextButton(
                     onPressed: _isSaving ? null : () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text(l10n?.cancel ?? 'Cancel'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -194,9 +196,9 @@ class _SaveCartDialogState extends State<SaveCartDialog> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
-                            'Save Cart',
-                            style: TextStyle(
+                        : Text(
+                            l10n?.saveCart ?? 'Save Cart',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),

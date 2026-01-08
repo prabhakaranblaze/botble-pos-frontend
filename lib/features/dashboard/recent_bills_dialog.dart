@@ -159,7 +159,7 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by order code...',
+                hintText: l10n?.searchByOrderCode ?? 'Search by order code...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -374,7 +374,7 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
 
               // Items
               Text(
-                'Items (${order.items.length})',
+                '${l10n?.items ?? 'Items'} (${order.items.length})',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -401,7 +401,7 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
               if (order.discountAmount > 0)
                 _buildDetailRow(l10n?.discount ?? 'Discount', '-${AppCurrency.format(order.discountAmount)}'),
               if (order.shippingAmount > 0)
-                _buildDetailRow('Shipping', AppCurrency.format(order.shippingAmount)),
+                _buildDetailRow(l10n?.shipping ?? 'Shipping', AppCurrency.format(order.shippingAmount)),
               const Divider(height: 16),
               _buildDetailRow(
                 l10n?.total ?? 'Total',
@@ -452,13 +452,14 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
   }
 
   String _formatPaymentMethod(String method) {
+    final l10n = AppLocalizations.of(context);
     switch (method.toLowerCase()) {
       case 'pos_cash':
       case 'cash':
-        return 'Cash';
+        return l10n?.cash ?? 'Cash';
       case 'pos_card':
       case 'card':
-        return 'Card';
+        return l10n?.card ?? 'Card';
       default:
         return method;
     }

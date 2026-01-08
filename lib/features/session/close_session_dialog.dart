@@ -5,6 +5,7 @@ import 'session_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../shared/widgets/app_toast.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CloseSessionDialog extends StatefulWidget {
   const CloseSessionDialog({super.key});
@@ -77,6 +78,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 500,
@@ -108,10 +110,10 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                   children: [
                     Icon(Icons.close_rounded, color: AppColors.error, size: 28),
                     const SizedBox(width: 12),
-                    const Text(
-                      'Close Session',
+                    Text(
+                      l10n?.closeSession ?? 'Close Session',
                       style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -127,7 +129,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Opening Cash:'),
+                          Text('${l10n?.openingCash ?? 'Opening Cash'}:'),
                           Text(
                             AppCurrency.format(openingCash),
                             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -138,7 +140,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Cash Sales:'),
+                          Text('${l10n?.cashSales ?? 'Cash Sales'}:'),
                           Text(
                             '+ ${AppCurrency.format(cashSales)}',
                             style: const TextStyle(
@@ -152,9 +154,9 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Expected Cash:',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                          Text(
+                            '${l10n?.expectedCash ?? 'Expected Cash'}:',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Text(
                             AppCurrency.format(expectedCash),
@@ -172,7 +174,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                 TextField(
                   controller: _closingCashController,
                   decoration: InputDecoration(
-                    labelText: 'Closing Cash Amount',
+                    labelText: l10n?.closingCashAmount ?? 'Closing Cash Amount',
                     prefixText: '${AppConstants.currencyCode} ',
                     hintText: '0.00',
                   ),
@@ -225,7 +227,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                 const SizedBox(height: 16),
                 if (session.denominations.isNotEmpty) ...[
                   ExpansionTile(
-                    title: const Text('Count Denominations (Optional)'),
+                    title: Text(l10n?.countDenominations ?? 'Count Denominations (Optional)'),
                     children: [
                       ...session.denominations.map((denom) {
                         return Padding(
@@ -290,9 +292,9 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                 ],
                 TextField(
                   controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (Optional)',
-                    hintText: 'Add any notes...',
+                  decoration: InputDecoration(
+                    labelText: l10n?.notesOptional ?? 'Notes (Optional)',
+                    hintText: l10n?.addNotes ?? 'Add any notes...',
                   ),
                   maxLines: 3,
                   enabled: !_isClosing,
@@ -304,7 +306,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                       child: TextButton(
                         onPressed:
                             _isClosing ? null : () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: Text(l10n?.cancel ?? 'Cancel'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -325,7 +327,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Close Session'),
+                            : Text(l10n?.closeSession ?? 'Close Session'),
                       ),
                     ),
                   ],

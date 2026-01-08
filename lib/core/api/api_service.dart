@@ -1042,4 +1042,27 @@ class ApiService {
       return null;
     }
   }
+
+  // Update APIs
+
+  /// Check for app updates
+  Future<Map<String, dynamic>?> checkForUpdate(String currentVersion) async {
+    debugPrint('📦 API SERVICE: checkForUpdate called - Version: $currentVersion');
+
+    try {
+      final response = await _dio.post('/updates/check', data: {
+        'version': currentVersion,
+      });
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Update check successful');
+        return response.data['data'] as Map<String, dynamic>;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: checkForUpdate error: $e');
+      return null;
+    }
+  }
 }

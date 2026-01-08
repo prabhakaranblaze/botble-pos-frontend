@@ -6,6 +6,8 @@ import 'package:flutter_thermal_printer/utils/printer.dart';
 import 'package:intl/intl.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../core/services/thermal_print_service.dart';
+import '../../core/services/update_service.dart';
+import '../../core/providers/update_provider.dart';
 import '../../core/database/database_service.dart';
 import '../../core/database/saved_cart_database.dart';
 import '../auth/auth_provider.dart';
@@ -71,7 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Two column layout: Data Management | About
+            // Two column layout: Data Management | Updates & About
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -84,12 +86,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(width: 24),
-                // App Info
+                // Updates & App Info
                 Expanded(
-                  child: _buildSection(
-                    title: 'About',
-                    icon: Icons.info_outline,
-                    child: _buildAboutCard(),
+                  child: Column(
+                    children: [
+                      _buildUpdateSection(),
+                      const SizedBox(height: 24),
+                      _buildSection(
+                        title: 'About',
+                        icon: Icons.info_outline,
+                        child: _buildAboutCard(),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -127,6 +135,233 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildUpdateSection() {
+    return Consumer<UpdateProvider>(
+      builder: (context, updateProvider, child) {
+        final hasUpdate = updateProvider.hasUpdate;
+        final updateInfo = updateProvider.updateInfo;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.system_update, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Software Update',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (hasUpdate) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'NEW',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Current version info
+                    Row(
+                      children: [
+                        Icon(
+                          hasUpdate ? Icons.update : Icons.check_circle,
+                          color: hasUpdate ? AppColors.warning : AppColors.success,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                hasUpdate ? 'Update Available' : 'App is up to date',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Current: v${UpdateService.appVersion}',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (hasUpdate && updateInfo != null)
+                                Text(
+                                  'Latest: v${updateInfo.latestVersion}',
+                                  style: TextStyle(
+                                    color: AppColors.success,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // Check/Download button
+                        if (updateProvider.isChecking)
+                          const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else if (updateProvider.isDownloading)
+                          Column(
+                            children: [
+                              SizedBox(
+                                width: 80,
+                                child: LinearProgressIndicator(
+                                  value: updateProvider.downloadProgress,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${(updateProvider.downloadProgress * 100).toInt()}%',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          )
+                        else if (hasUpdate)
+                          ElevatedButton.icon(
+                            onPressed: () => _downloadAndInstallUpdate(updateProvider),
+                            icon: const Icon(Icons.download, size: 18),
+                            label: const Text('Update'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                            ),
+                          )
+                        else
+                          OutlinedButton.icon(
+                            onPressed: () => updateProvider.checkForUpdate(),
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('Check'),
+                          ),
+                      ],
+                    ),
+
+                    // Release notes
+                    if (hasUpdate && updateInfo != null && updateInfo.releaseNotes.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'What\'s New:',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      ...updateInfo.releaseNotes.map((note) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('• ', style: TextStyle(color: AppColors.textSecondary)),
+                                Expanded(
+                                  child: Text(
+                                    note,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                      if (updateInfo.fileSize != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Download size: ${updateInfo.fileSize}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadAndInstallUpdate(UpdateProvider updateProvider) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.system_update, color: AppColors.primary),
+            const SizedBox(width: 12),
+            const Text('Install Update'),
+          ],
+        ),
+        content: Text(
+          'Download and install version ${updateProvider.updateInfo?.latestVersion}?\n\n'
+          'The app will restart after installation.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+            ),
+            child: const Text('Update Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Download update
+    final success = await updateProvider.downloadUpdate();
+
+    if (success && mounted) {
+      // Install update
+      await updateProvider.installUpdate();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(updateProvider.error ?? 'Download failed'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   Widget _buildAboutCard() {
     return Card(
       child: Padding(
@@ -136,7 +371,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             _buildInfoRow('App Name', AppConstants.appName),
             const Divider(),
-            _buildInfoRow('Version', '1.0.0'),
+            _buildInfoRow('Version', UpdateService.appVersion),
             const Divider(),
             _buildInfoRow('Currency', AppConstants.currencyCode),
           ],

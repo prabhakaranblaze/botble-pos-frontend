@@ -450,6 +450,10 @@ class _SalesScreenState extends State<SalesScreen> {
 
     debugPrint('💳 CHECKOUT: Processing checkout...');
 
+    // Update payment method from dialog result
+    salesProvider.updatePaymentMethod(result['payment_method']);
+    debugPrint('💳 CHECKOUT: Payment method set to: ${result['payment_method']}');
+
     // Process checkout
     final order = await salesProvider.checkout(
       paymentDetails: result['payment_details'],

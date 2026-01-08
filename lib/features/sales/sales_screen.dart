@@ -1526,79 +1526,79 @@ class _SalesScreenState extends State<SalesScreen> {
                       ),
                       // Order Summary
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Column(
-                    children: [
-                      // Items count
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${cart.items.length} ${cart.items.length == 1 ? 'item' : 'items'}',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
+                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                        child: Column(
+                          children: [
+                            // Items count
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${cart.items.length} ${cart.items.length == 1 ? 'item' : 'items'}',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  '${cart.totalQuantity} units',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '${cart.totalQuantity} units',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
+                            const SizedBox(height: 12),
+                            _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
+                            if (cart.discount > 0)
+                              _buildSummaryRow(
+                                l10n?.discount ?? 'Discount',
+                                -cart.discount,
+                                color: AppColors.success,
+                              ),
+                            _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                            if (cart.shipping > 0)
+                              _buildSummaryRow('Shipping', cart.shipping),
+                            const Divider(height: 24),
+                            _buildSummaryRow(
+                              l10n?.total ?? 'Total',
+                              cart.total,
+                              isTotal: true,
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
-                      if (cart.discount > 0)
-                        _buildSummaryRow(
-                          l10n?.discount ?? 'Discount',
-                          -cart.discount,
-                          color: AppColors.success,
-                        ),
-                      _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
-                      if (cart.shipping > 0)
-                        _buildSummaryRow('Shipping', cart.shipping),
-                      const Divider(height: 24),
-                      _buildSummaryRow(
-                        l10n?.total ?? 'Total',
-                        cart.total,
-                        isTotal: true,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Hold Button (Quick Save)
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _handleQuickHold,
-                          icon: const Icon(Icons.pause_circle_outline),
-                          label: const Text('Hold'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(color: AppColors.primary),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Checkout Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _handleCheckout,
-                          icon: const Icon(Icons.payment),
-                          label: Text(
-                            '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            const SizedBox(height: 16),
+                            // Hold Button (Quick Save)
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _handleQuickHold,
+                                icon: const Icon(Icons.pause_circle_outline),
+                                label: const Text('Hold'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  side: BorderSide(color: AppColors.primary),
+                                ),
+                              ),
                             ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            backgroundColor: AppColors.success,
-                          ),
+                            const SizedBox(height: 12),
+                            // Checkout Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _handleCheckout,
+                                icon: const Icon(Icons.payment),
+                                label: Text(
+                                  '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

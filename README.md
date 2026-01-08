@@ -51,12 +51,13 @@ cd pos_desktop
 
 ### 2. Environment Configuration
 
-The app supports multiple environments (dev/prod) via compile-time configuration:
+The app supports multiple environments via compile-time configuration:
 
 | Environment | Backend | Base URL |
 |-------------|---------|----------|
-| `dev` | Node.js | `http://localhost:3001/api/v1/pos` |
-| `prod` | Laravel | `https://stampsmart.test/api/v1/pos` |
+| `dev` | Local Node.js | `http://localhost:3001/api/v1/pos` |
+| `uat` | UAT Server | `https://seypost-posapi-uat.stampsm.art/api/v1/pos` |
+| `prod` | Production | `https://stampsmart.test/api/v1/pos` |
 
 Configuration is in `lib/core/config/env_config.dart`. The API key can also be overridden at build time.
 
@@ -78,14 +79,17 @@ flutter config --enable-windows-desktop
 # Development mode (uses Node.js backend at localhost:3001)
 flutter run -d windows --dart-define=ENV=dev
 
+# UAT mode (uses UAT server)
+flutter run -d windows --dart-define=ENV=uat
+
 # Production mode (uses Laravel backend)
 flutter run -d windows --dart-define=ENV=prod
 
 # With custom API key
 flutter run -d windows --dart-define=ENV=dev --dart-define=API_KEY=your-key
 
-# Release mode (faster, production backend)
-flutter run -d windows --release --dart-define=ENV=prod
+# Release mode (faster)
+flutter run -d windows --release --dart-define=ENV=uat
 ```
 
 ### 6. Build Executable
@@ -94,11 +98,75 @@ flutter run -d windows --release --dart-define=ENV=prod
 # Build for Development (Node.js backend)
 flutter build windows --release --dart-define=ENV=dev
 
+# Build for UAT (Staging server)
+flutter build windows --release --dart-define=ENV=uat
+
 # Build for Production (Laravel backend)
 flutter build windows --release --dart-define=ENV=prod
 
-# The executable will be in: build/windows/runner/Release/
+# The executable will be in: build/windows/x64/runner/Release/
 ```
+
+## Building Windows Installer
+
+Create a self-contained `.exe` installer with all dependencies bundled.
+
+### Prerequisites
+
+1. **Inno Setup 6** - Download from https://jrsoftware.org/isinfo.php
+
+### Build Steps
+
+#### Option 1: Using Build Script (Recommended)
+
+```batch
+# Run the automated build script
+build_installer.bat uat
+```
+
+This will:
+1. Build Flutter Windows release
+2. Copy VC++ runtime DLLs
+3. Create installer with Inno Setup
+
+Output: `installer_output/StampSmartPOS_Setup_1.0.0.exe`
+
+#### Option 2: Manual Steps
+
+```batch
+# Step 1: Build Flutter release
+flutter build windows --release --dart-define=ENV=uat
+
+# Step 2: Copy VC++ DLLs to installer/dlls/
+copy "C:\Windows\System32\vcruntime140.dll" "installer\dlls\"
+copy "C:\Windows\System32\vcruntime140_1.dll" "installer\dlls\"
+
+# Step 3: Run Inno Setup
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
+```
+
+### Required VC++ DLLs
+
+Place these 2 files in `installer/dlls/`:
+
+| File | Size | Source |
+|------|------|--------|
+| `vcruntime140.dll` | ~100 KB | `C:\Windows\System32\` |
+| `vcruntime140_1.dll` | ~40 KB | `C:\Windows\System32\` |
+
+### Installer Output
+
+The installer will be created at:
+```
+installer_output/StampSmartPOS_Setup_1.0.0.exe
+```
+
+This is a self-contained installer that:
+- Includes all Flutter dependencies
+- Bundles VC++ runtime DLLs (no separate install required)
+- Creates desktop shortcut
+- Adds to Start Menu
+- Includes uninstaller
 
 ## Project Structure
 

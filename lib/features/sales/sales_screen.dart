@@ -1144,6 +1144,8 @@ class _SalesScreenState extends State<SalesScreen> {
                       setState(() {});
                       _handleSearch(value);
                     },
+                      );
+                    },
                   ),
                 ),
 

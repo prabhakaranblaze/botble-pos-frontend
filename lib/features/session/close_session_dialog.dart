@@ -101,7 +101,10 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                 double.tryParse(_closingCashController.text) ?? 0;
             final openingCash =
                 (activeSession['opening_cash'] as num).toDouble();
-            final difference = closingAmount - openingCash;
+            final cashSales =
+                (activeSession['cash_sales'] as num?)?.toDouble() ?? 0;
+            final expectedCash = openingCash + cashSales;
+            final difference = closingAmount - expectedCash;
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -125,13 +128,48 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                     color: AppColors.background,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
                     children: [
-                      const Text('Opening Cash:'),
-                      Text(
-                        '\$${openingCash.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Opening Cash:'),
+                          Text(
+                            AppCurrency.format(openingCash),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Cash Sales:'),
+                          Text(
+                            '+ ${AppCurrency.format(cashSales)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Expected Cash:',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            AppCurrency.format(expectedCash),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -406,13 +406,11 @@ class SalesProvider with ChangeNotifier {
   // Customer operations
   void selectCustomer(Customer customer) {
     _selectedCustomer = customer;
-    // Reset address when customer changes
-    _customerAddresses = [];
-    _selectedAddress = null;
+    // Use addresses from customer object (already loaded with customer)
+    _customerAddresses = customer.addresses;
+    _selectedAddress = customer.defaultAddress;
     _deliveryType = DeliveryType.pickup;
     notifyListeners();
-    // Load addresses for the new customer
-    loadCustomerAddresses(customer.id);
   }
 
   void clearCustomer() {

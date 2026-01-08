@@ -20,6 +20,12 @@ class CustomersService {
           { phone: { contains: keyword } },
         ],
       },
+      include: {
+        addresses: {
+          where: { deleted_at: null },
+          orderBy: [{ is_default: 'desc' }, { created_at: 'desc' }],
+        },
+      },
       take: 20,
       orderBy: { name: 'asc' },
     });
@@ -70,6 +76,12 @@ class CustomersService {
         id: BigInt(id),
         deleted_at: null,
       },
+      include: {
+        addresses: {
+          where: { deleted_at: null },
+          orderBy: [{ is_default: 'desc' }, { created_at: 'desc' }],
+        },
+      },
     });
 
     return customer ? this.formatCustomer(customer) : null;
@@ -84,6 +96,9 @@ class CustomersService {
       name: customer.name,
       email: customer.email,
       phone: customer.phone,
+      addresses: customer.addresses
+        ? customer.addresses.map((a) => this.formatAddress(a))
+        : [],
     };
   }
 

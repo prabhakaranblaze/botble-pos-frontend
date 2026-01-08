@@ -137,22 +137,18 @@ Output: `installer_output/StampSmartPOS_Setup_1.0.0.exe`
 # Step 1: Build Flutter release
 flutter build windows --release --dart-define=ENV=uat
 
-# Step 2: Copy VC++ DLLs to installer/dlls/
-copy "C:\Windows\System32\vcruntime140.dll" "installer\dlls\"
-copy "C:\Windows\System32\vcruntime140_1.dll" "installer\dlls\"
-
-# Step 3: Run Inno Setup
+# Step 2: Run Inno Setup (DLLs are already in installer/dlls/)
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
 ```
 
-### Required VC++ DLLs
+### Bundled VC++ DLLs
 
-Place these 2 files in `installer/dlls/`:
+The following DLLs are included in `installer/dlls/`:
 
-| File | Size | Source |
-|------|------|--------|
-| `vcruntime140.dll` | ~100 KB | `C:\Windows\System32\` |
-| `vcruntime140_1.dll` | ~40 KB | `C:\Windows\System32\` |
+| File | Size |
+|------|------|
+| `vcruntime140.dll` | ~100 KB |
+| `vcruntime140_1.dll` | ~40 KB |
 
 ### Installer Output
 

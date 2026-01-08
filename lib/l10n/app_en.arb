@@ -320,5 +320,23 @@
   "dataManagement": "Data Management",
   "about": "About",
   "receiptPreview": "Receipt Preview",
-  "version": "Version"
+  "version": "Version",
+
+  "closeSessionFirst": "Close Session First",
+  "closeSessionFirstMessage": "You have an active session. Please close your session before logging out.",
+  "viewSession": "View Session",
+  "viewActiveSession": "View Active Session",
+  "noSession": "No Session",
+  "sessionOpen": "OPEN",
+  "openedAt": "Opened At",
+  "openedBy": "Opened By",
+  "searchByOrderCode": "Search by order code...",
+  "productNotFound": "Product not found",
+  "userNotLoggedIn": "User not logged in",
+  "cartHeldSuccess": "Cart held successfully!",
+  "cartLoadedSuccess": "Cart loaded!",
+  "searchProductsHint": "Scan barcode, SKU, or search products...",
+  "useArrowKeys": "Use arrow keys to select product",
+  "refreshProducts": "Refresh products",
+  "currentCart": "Current"
 }

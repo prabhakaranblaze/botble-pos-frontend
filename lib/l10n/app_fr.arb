@@ -319,5 +319,23 @@
   "dataManagement": "Gestion des données",
   "about": "À propos",
   "receiptPreview": "Aperçu du reçu",
-  "version": "Version"
+  "version": "Version",
+
+  "closeSessionFirst": "Fermez la session d'abord",
+  "closeSessionFirstMessage": "Vous avez une session active. Veuillez fermer votre session avant de vous déconnecter.",
+  "viewSession": "Voir la session",
+  "viewActiveSession": "Voir la session active",
+  "noSession": "Pas de session",
+  "sessionOpen": "OUVERT",
+  "openedAt": "Ouvert le",
+  "openedBy": "Ouvert par",
+  "searchByOrderCode": "Rechercher par code de commande...",
+  "productNotFound": "Produit non trouvé",
+  "userNotLoggedIn": "Utilisateur non connecté",
+  "cartHeldSuccess": "Panier mis en attente!",
+  "cartLoadedSuccess": "Panier chargé!",
+  "searchProductsHint": "Scanner le code-barres, SKU ou rechercher des produits...",
+  "useArrowKeys": "Utilisez les flèches pour sélectionner le produit",
+  "refreshProducts": "Actualiser les produits",
+  "currentCart": "Actuel"
 }

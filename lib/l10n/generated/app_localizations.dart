@@ -376,6 +376,23 @@ abstract class AppLocalizations {
   String get about;
   String get receiptPreview;
   String get version;
+
+  // Dashboard Session
+  String get closeSessionFirst;
+  String get closeSessionFirstMessage;
+  String get viewSession;
+  String get viewActiveSession;
+  String get noSession;
+  String get sessionOpen;
+  String get openedAt;
+  String get openedBy;
+  String get searchByOrderCode;
+  String get userNotLoggedIn;
+  String get cartHeldSuccess;
+  String get cartLoadedSuccess;
+  String get searchProductsHint;
+  String get refreshProducts;
+  String get currentCart;
 }
 
 class _AppLocalizationsDelegate

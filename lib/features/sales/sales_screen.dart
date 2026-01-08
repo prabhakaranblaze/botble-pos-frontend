@@ -106,8 +106,9 @@ class _SalesScreenState extends State<SalesScreen> {
         _searchFocusNode.requestFocus();
       } else {
         debugPrint('📱 BARCODE: Product not found');
+        final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product not found')),
+          SnackBar(content: Text(l10n?.productNotFound ?? 'Product not found')),
         );
       }
     } catch (e) {
@@ -315,8 +316,9 @@ class _SalesScreenState extends State<SalesScreen> {
     final salesProvider = context.read<SalesProvider>();
 
     if (salesProvider.cart.items.isEmpty) {
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty')),
+        SnackBar(content: Text(l10n?.emptyCart ?? 'Cart is empty')),
       );
       return;
     }
@@ -336,17 +338,18 @@ class _SalesScreenState extends State<SalesScreen> {
   Future<void> _handleQuickHold() async {
     final salesProvider = context.read<SalesProvider>();
     final authProvider = context.read<AuthProvider>();
+    final l10n = AppLocalizations.of(context);
 
     if (salesProvider.cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty')),
+        SnackBar(content: Text(l10n?.emptyCart ?? 'Cart is empty')),
       );
       return;
     }
 
     if (authProvider.user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not logged in')),
+        SnackBar(content: Text(l10n?.userNotLoggedIn ?? 'User not logged in')),
       );
       return;
     }
@@ -363,10 +366,10 @@ class _SalesScreenState extends State<SalesScreen> {
       await salesProvider.loadSavedCarts(authProvider.user!.id);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cart held successfully!'),
+        SnackBar(
+          content: Text(l10n?.cartHeldSuccess ?? 'Cart held successfully!'),
           backgroundColor: AppColors.success,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
       _searchFocusNode.requestFocus();
@@ -384,10 +387,11 @@ class _SalesScreenState extends State<SalesScreen> {
   Future<void> _handleQuickLoad(String cartId) async {
     final salesProvider = context.read<SalesProvider>();
     final authProvider = context.read<AuthProvider>();
+    final l10n = AppLocalizations.of(context);
 
     if (authProvider.user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not logged in')),
+        SnackBar(content: Text(l10n?.userNotLoggedIn ?? 'User not logged in')),
       );
       return;
     }
@@ -403,10 +407,10 @@ class _SalesScreenState extends State<SalesScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cart loaded!'),
+        SnackBar(
+          content: Text(l10n?.cartLoadedSuccess ?? 'Cart loaded!'),
           backgroundColor: AppColors.success,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
       _searchFocusNode.requestFocus();
@@ -423,11 +427,12 @@ class _SalesScreenState extends State<SalesScreen> {
   Future<void> _handleCheckout() async {
     debugPrint('💳 CHECKOUT: _handleCheckout called');
     final salesProvider = context.read<SalesProvider>();
+    final l10n = AppLocalizations.of(context);
 
     if (salesProvider.cart.items.isEmpty) {
       debugPrint('⚠️ CHECKOUT: Cart is empty');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty')),
+        SnackBar(content: Text(l10n?.emptyCart ?? 'Cart is empty')),
       );
       return;
     }
@@ -471,7 +476,7 @@ class _SalesScreenState extends State<SalesScreen> {
             children: [
               const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 12),
-              Text('Order ${order.code} completed! Printing...'),
+              Text(l10n?.orderCompletedPrinting(order.code) ?? 'Order ${order.code} completed! Printing...'),
             ],
           ),
           backgroundColor: AppColors.success,
@@ -563,6 +568,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       }
 
                       if (sales.products.isEmpty) {
+                        final l10n = AppLocalizations.of(context);
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -574,7 +580,7 @@ class _SalesScreenState extends State<SalesScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'No products found',
+                                l10n?.noProductsFound ?? 'No products found',
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: AppColors.textSecondary,
@@ -644,6 +650,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         child: Consumer<SalesProvider>(
                           builder: (context, sales, _) {
                             final cart = sales.cart;
+                            final l10n = AppLocalizations.of(context);
 
                             if (cart.items.isEmpty) {
                               return Center(
@@ -657,7 +664,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                     ),
                                     const SizedBox(height: 24),
                                     Text(
-                                      'Scan products to add to cart',
+                                      l10n?.scanProductsToAdd ?? 'Scan products to add to cart',
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w500,
@@ -666,7 +673,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Use barcode scanner or search above',
+                                      l10n?.useBarcodeScanner ?? 'Use barcode scanner or search above',
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: AppColors.textSecondary,
@@ -845,22 +852,25 @@ class _SalesScreenState extends State<SalesScreen> {
                     }
                     return KeyEventResult.ignored;
                   },
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Scan barcode, SKU, or search products...',
-                      prefixIcon: Icon(
-                        Icons.qr_code_scanner_rounded,
-                        color: AppColors.primary,
-                      ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: _clearSearch,
-                            )
-                          : null,
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      final l10n = AppLocalizations.of(context);
+                      return TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        decoration: InputDecoration(
+                          hintText: l10n?.searchProductsHint ?? 'Scan barcode, SKU, or search products...',
+                          prefixIcon: Icon(
+                            Icons.qr_code_scanner_rounded,
+                            color: AppColors.primary,
+                          ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: _clearSearch,
+                                )
+                              : null,
+                        ),
                     onSubmitted: (value) async {
                       debugPrint('⏎ ENTER: Submitted with value: "$value"');
 
@@ -894,13 +904,15 @@ class _SalesScreenState extends State<SalesScreen> {
                       } else {
                         debugPrint('⏎ ENTER: Product not found');
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Product not found')),
+                          SnackBar(content: Text(l10n?.productNotFound ?? 'Product not found')),
                         );
                       }
                     },
                     onChanged: (value) {
                       setState(() {});
                       _handleSearch(value);
+                    },
+                      );
                     },
                   ),
                 ),
@@ -1066,22 +1078,25 @@ class _SalesScreenState extends State<SalesScreen> {
               children: [
                 Focus(
                   onKeyEvent: (node, event) => _handleSearchKeyEvent(event),
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Scan barcode, SKU, or search products...',
-                      prefixIcon: Icon(
-                        Icons.qr_code_scanner_rounded,
-                        color: AppColors.primary,
-                      ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: _clearSearch,
-                            )
-                          : null,
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      final l10n = AppLocalizations.of(context);
+                      return TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        decoration: InputDecoration(
+                          hintText: l10n?.searchProductsHint ?? 'Scan barcode, SKU, or search products...',
+                          prefixIcon: Icon(
+                            Icons.qr_code_scanner_rounded,
+                            color: AppColors.primary,
+                          ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: _clearSearch,
+                                )
+                              : null,
+                        ),
                     onSubmitted: (value) async {
                       debugPrint('⏎ ENTER: Submitted with value: "$value"');
 

@@ -635,4 +635,36 @@ class AppLocalizationsFr extends AppLocalizations {
   String get receiptPreview => 'Aperçu du reçu';
   @override
   String get version => 'Version';
+
+  // Dashboard Session
+  @override
+  String get closeSessionFirst => 'Fermez la session d\'abord';
+  @override
+  String get closeSessionFirstMessage => 'Vous avez une session active. Veuillez fermer votre session avant de vous déconnecter.';
+  @override
+  String get viewSession => 'Voir la session';
+  @override
+  String get viewActiveSession => 'Voir la session active';
+  @override
+  String get noSession => 'Pas de session';
+  @override
+  String get sessionOpen => 'OUVERT';
+  @override
+  String get openedAt => 'Ouvert le';
+  @override
+  String get openedBy => 'Ouvert par';
+  @override
+  String get searchByOrderCode => 'Rechercher par code de commande...';
+  @override
+  String get userNotLoggedIn => 'Utilisateur non connecté';
+  @override
+  String get cartHeldSuccess => 'Panier mis en attente!';
+  @override
+  String get cartLoadedSuccess => 'Panier chargé!';
+  @override
+  String get searchProductsHint => 'Scanner le code-barres, SKU ou rechercher des produits...';
+  @override
+  String get refreshProducts => 'Actualiser les produits';
+  @override
+  String get currentCart => 'Actuel';
 }

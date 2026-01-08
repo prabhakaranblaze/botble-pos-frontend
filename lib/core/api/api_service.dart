@@ -933,23 +933,12 @@ class ApiService {
     debugPrint('📊 API SERVICE: Date range: $fromDate to $toDate');
 
     try {
-      // Fetch all recent orders (backend may not support date filtering)
-      final allOrders = await getRecentOrders(limit: 500);
-
-      // Filter by date client-side
-      List<Order> orders = allOrders;
-      if (fromDate != null || toDate != null) {
-        orders = allOrders.where((order) {
-          if (fromDate != null && order.createdAt.isBefore(fromDate)) {
-            return false;
-          }
-          if (toDate != null && order.createdAt.isAfter(toDate)) {
-            return false;
-          }
-          return true;
-        }).toList();
-        debugPrint('📊 API SERVICE: Filtered ${allOrders.length} -> ${orders.length} orders');
-      }
+      // Fetch orders with date filtering from backend
+      final orders = await getRecentOrders(
+        limit: 500,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
 
       // Calculate summary
       double totalRevenue = 0;
@@ -1002,23 +991,12 @@ class ApiService {
     debugPrint('📊 API SERVICE: Date range: $fromDate to $toDate');
 
     try {
-      // Fetch all recent orders (backend may not support date filtering)
-      final allOrders = await getRecentOrders(limit: 500);
-
-      // Filter by date client-side
-      List<Order> orders = allOrders;
-      if (fromDate != null || toDate != null) {
-        orders = allOrders.where((order) {
-          if (fromDate != null && order.createdAt.isBefore(fromDate)) {
-            return false;
-          }
-          if (toDate != null && order.createdAt.isAfter(toDate)) {
-            return false;
-          }
-          return true;
-        }).toList();
-        debugPrint('📊 API SERVICE: Filtered ${allOrders.length} -> ${orders.length} orders for products');
-      }
+      // Fetch orders with date filtering from backend
+      final orders = await getRecentOrders(
+        limit: 500,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
 
       // Aggregate products from all orders
       final Map<String, Map<String, dynamic>> productMap = {};

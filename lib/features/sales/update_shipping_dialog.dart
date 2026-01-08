@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 import 'sales_provider.dart';
 
 class UpdateShippingDialog extends StatefulWidget {
@@ -55,6 +56,7 @@ class _UpdateShippingDialogState extends State<UpdateShippingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 400,
@@ -68,9 +70,9 @@ class _UpdateShippingDialogState extends State<UpdateShippingDialog> {
               children: [
                 Icon(Icons.local_shipping_rounded, color: AppColors.primary, size: 28),
                 const SizedBox(width: 12),
-                const Text(
-                  'Update Shipping',
-                  style: TextStyle(
+                Text(
+                  l10n?.updateShipping ?? 'Update Shipping',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -88,15 +90,14 @@ class _UpdateShippingDialogState extends State<UpdateShippingDialog> {
             TextField(
               controller: _amountController,
               decoration: InputDecoration(
-                labelText: 'Shipping Amount',
-                hintText: 'Enter shipping amount',
+                labelText: l10n?.shippingAmount ?? 'Shipping Amount',
+                hintText: l10n?.enterShippingAmount ?? 'Enter shipping amount',
                 prefixIcon: const Icon(Icons.attach_money),
                 suffixText: 'Rs',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 errorText: _errorMessage,
-                helperText: 'Leave empty to remove shipping',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
@@ -119,7 +120,7 @@ class _UpdateShippingDialogState extends State<UpdateShippingDialog> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(l10n?.cancel ?? 'Cancel'),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -134,7 +135,7 @@ class _UpdateShippingDialogState extends State<UpdateShippingDialog> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Update'),
+                    child: Text(l10n?.update ?? 'Update'),
                   ),
                 ),
               ],

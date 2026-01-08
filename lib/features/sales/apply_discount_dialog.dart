@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../l10n/generated/app_localizations.dart';
 import 'sales_provider.dart';
 
 class ApplyDiscountDialog extends StatefulWidget {
@@ -79,6 +80,7 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       child: Container(
         width: 400,
@@ -92,9 +94,9 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
               children: [
                 Icon(Icons.discount_rounded, color: AppColors.primary, size: 28),
                 const SizedBox(width: 12),
-                const Text(
-                  'Apply Discount',
-                  style: TextStyle(
+                Text(
+                  l10n?.applyDiscount ?? 'Apply Discount',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -129,7 +131,7 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
                         ),
                         child: Center(
                           child: Text(
-                            'Fixed Amount',
+                            l10n?.fixed ?? 'Fixed Amount',
                             style: TextStyle(
                               color: _discountType == 'amount'
                                   ? Colors.white
@@ -154,7 +156,7 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
                         ),
                         child: Center(
                           child: Text(
-                            'Percentage',
+                            l10n?.percentage ?? 'Percentage',
                             style: TextStyle(
                               color: _discountType == 'percentage'
                                   ? Colors.white
@@ -175,8 +177,8 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
             TextField(
               controller: _valueController,
               decoration: InputDecoration(
-                labelText: _discountType == 'amount' ? 'Amount' : 'Percentage',
-                hintText: _discountType == 'amount' ? 'Enter amount' : 'Enter percentage',
+                labelText: _discountType == 'amount' ? (l10n?.amount ?? 'Amount') : (l10n?.percentage ?? 'Percentage'),
+                hintText: _discountType == 'amount' ? (l10n?.amount ?? 'Enter amount') : (l10n?.percentage ?? 'Enter percentage'),
                 prefixIcon: Icon(
                   _discountType == 'amount' ? Icons.attach_money : Icons.percent,
                 ),
@@ -199,8 +201,8 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
             TextField(
               controller: _descriptionController,
               decoration: InputDecoration(
-                labelText: 'Description (Optional)',
-                hintText: 'e.g., Staff discount, Loyalty reward',
+                labelText: l10n?.discountDescription ?? 'Description (Optional)',
+                hintText: l10n?.discountDescriptionHint ?? 'e.g., Staff discount, Loyalty reward',
                 prefixIcon: const Icon(Icons.notes),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -222,7 +224,7 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(l10n?.cancel ?? 'Cancel'),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -237,7 +239,7 @@ class _ApplyDiscountDialogState extends State<ApplyDiscountDialog> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Apply'),
+                    child: Text(l10n?.apply ?? 'Apply'),
                   ),
                 ),
               ],

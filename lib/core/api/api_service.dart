@@ -107,7 +107,9 @@ class ApiService {
         }
 
         // Handle 401 Unauthorized - trigger automatic logout
-        if (error.response?.statusCode == 401) {
+        // Skip for logout endpoint to prevent infinite loop
+        final isLogoutRequest = error.requestOptions.path.contains('/auth/logout');
+        if (error.response?.statusCode == 401 && !isLogoutRequest) {
           debugPrint('🔐 API ERROR: 401 Unauthorized - triggering auto-logout');
           // Clear token immediately to prevent further 401 loops
           await _storage.removeToken();

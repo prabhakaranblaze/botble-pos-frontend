@@ -121,9 +121,9 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
                 // Opening Cash Amount
                 TextField(
                   controller: _openingCashController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Opening Cash Amount',
-                    prefixIcon: Icon(Icons.attach_money),
+                    prefixText: '${AppConstants.currencyCode} ',
                     hintText: '0.00',
                     helperText: 'Enter the cash in your drawer',
                   ),

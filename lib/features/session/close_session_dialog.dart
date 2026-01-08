@@ -171,9 +171,9 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _closingCashController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Closing Cash Amount',
-                    prefixIcon: Icon(Icons.attach_money),
+                    prefixText: '${AppConstants.currencyCode} ',
                     hintText: '0.00',
                   ),
                   keyboardType:

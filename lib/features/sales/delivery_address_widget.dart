@@ -56,13 +56,13 @@ class _DeliveryAddressWidgetState extends State<DeliveryAddressWidget> {
                 const Spacer(),
                 // Inline radio-style toggle (right-aligned)
                 _buildInlineToggle(
-                  label: 'Pickup',
+                  label: 'Walk in',
                   isSelected: widget.deliveryType == DeliveryType.pickup,
                   onTap: () => widget.onDeliveryTypeChanged(DeliveryType.pickup),
                 ),
                 const SizedBox(width: 12),
                 _buildInlineToggle(
-                  label: 'Ship',
+                  label: 'Deliver',
                   isSelected: widget.deliveryType == DeliveryType.ship,
                   onTap: () => widget.onDeliveryTypeChanged(DeliveryType.ship),
                 ),

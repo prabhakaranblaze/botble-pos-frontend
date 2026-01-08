@@ -1470,17 +1470,17 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
               ),
 
-              // Fixed bottom section: Action tabs + Order Summary
-              if (cart.items.isNotEmpty)
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    border: Border(top: BorderSide(color: AppColors.border)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Action tabs (Coupon | Discount | Shipping)
+              // Fixed bottom section: Action tabs + Order Summary (always visible)
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Action tabs (Coupon | Discount | Shipping)
+                    if (cart.items.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                         child: Row(
@@ -1507,124 +1507,113 @@ class _SalesScreenState extends State<SalesScreen> {
                               ),
                             if (!sales.hasCouponDiscount)
                               const SizedBox(width: 8),
-                            // Shipping tab
-                            Expanded(
-                              child: _buildActionTab(
-                                icon: Icons.local_shipping_outlined,
-                                label: 'Shipping',
-                                isActive: sales.shippingAmount > 0,
-                                onTap: () => _showUpdateShippingDialog(),
+                            // Shipping tab (only for Deliver)
+                            if (sales.deliveryType == DeliveryType.ship)
+                              Expanded(
+                                child: _buildActionTab(
+                                  icon: Icons.local_shipping_outlined,
+                                  label: 'Shipping',
+                                  isActive: sales.shippingAmount > 0,
+                                  onTap: () => _showUpdateShippingDialog(),
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
-                      // Order Summary
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: Column(
-                          children: [
-                            // Items count
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  '${cart.items.length} ${cart.items.length == 1 ? 'item' : 'items'}',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                  ),
+                    // Order Summary
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      child: Column(
+                        children: [
+                          // Items count
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${cart.items.length} ${cart.items.length == 1 ? 'item' : 'items'}',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
                                 ),
-                                Text(
-                                  '${cart.totalQuantity} units',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
-                            if (cart.discount > 0)
-                              _buildSummaryRow(
-                                l10n?.discount ?? 'Discount',
-                                -cart.discount,
-                                color: AppColors.success,
                               ),
-                            _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
-                            if (cart.shipping > 0)
-                              _buildSummaryRow('Shipping', cart.shipping),
-                            const Divider(height: 24),
+                              Text(
+                                '${cart.totalQuantity} units',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', cart.subtotal),
+                          if (cart.discount > 0)
                             _buildSummaryRow(
-                              l10n?.total ?? 'Total',
-                              cart.total,
-                              isTotal: true,
+                              l10n?.discount ?? 'Discount',
+                              -cart.discount,
+                              color: AppColors.success,
                             ),
-                            const SizedBox(height: 16),
-                            // Hold + Checkout Row
-                            Row(
-                              children: [
-                                // Hold icon button
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: AppColors.primary),
-                                    borderRadius: BorderRadius.circular(8),
+                          _buildSummaryRow(l10n?.tax ?? 'Tax', cart.tax),
+                          if (cart.shipping > 0)
+                            _buildSummaryRow('Shipping', cart.shipping),
+                          const Divider(height: 24),
+                          _buildSummaryRow(
+                            l10n?.total ?? 'Total',
+                            cart.total,
+                            isTotal: true,
+                          ),
+                          const SizedBox(height: 16),
+                          // Hold + Checkout Row
+                          Row(
+                            children: [
+                              // Hold icon button
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: cart.items.isEmpty
+                                        ? AppColors.textSecondary.withOpacity(0.3)
+                                        : AppColors.primary,
                                   ),
-                                  child: IconButton(
-                                    onPressed: _handleQuickHold,
-                                    icon: Icon(Icons.pause_circle_outline, color: AppColors.primary),
-                                    tooltip: 'Hold',
-                                    padding: const EdgeInsets.all(14),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: IconButton(
+                                  onPressed: cart.items.isEmpty ? null : _handleQuickHold,
+                                  icon: Icon(
+                                    Icons.pause_circle_outline,
+                                    color: cart.items.isEmpty
+                                        ? AppColors.textSecondary.withOpacity(0.3)
+                                        : AppColors.primary,
+                                  ),
+                                  tooltip: 'Hold',
+                                  padding: const EdgeInsets.all(14),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Checkout Button
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: cart.items.isEmpty ? null : _handleCheckout,
+                                  icon: const Icon(Icons.payment),
+                                  label: Text(
+                                    '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 18),
+                                    backgroundColor: AppColors.success,
+                                    disabledBackgroundColor: AppColors.success.withOpacity(0.3),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                // Checkout Button
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: _handleCheckout,
-                                    icon: const Icon(Icons.payment),
-                                    label: Text(
-                                      '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 18),
-                                      backgroundColor: AppColors.success,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-
-              // Empty state for checkout panel
-              if (cart.items.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.shopping_cart_outlined,
-                        size: 48,
-                        color: AppColors.textSecondary.withOpacity(0.5),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Cart is empty',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              ),
             ],
           ),
         );
@@ -1912,20 +1901,21 @@ class _SalesScreenState extends State<SalesScreen> {
                               ? () => sales.clearManualDiscount()
                               : null,
                         ),
-                      // Shipping
-                      _buildActionRow(
-                        icon: Icons.local_shipping_outlined,
-                        label: sales.shippingAmount > 0
-                            ? 'Shipping'
-                            : 'Add Shipping',
-                        value: sales.shippingAmount > 0
-                            ? AppCurrency.format(sales.shippingAmount)
-                            : null,
-                        onTap: () => _showUpdateShippingDialog(),
-                        onClear: sales.shippingAmount > 0
-                            ? () => sales.clearShippingAmount()
-                            : null,
-                      ),
+                      // Shipping (only for Deliver)
+                      if (sales.deliveryType == DeliveryType.ship)
+                        _buildActionRow(
+                          icon: Icons.local_shipping_outlined,
+                          label: sales.shippingAmount > 0
+                              ? 'Shipping'
+                              : 'Add Shipping',
+                          value: sales.shippingAmount > 0
+                              ? AppCurrency.format(sales.shippingAmount)
+                              : null,
+                          onTap: () => _showUpdateShippingDialog(),
+                          onClear: sales.shippingAmount > 0
+                              ? () => sales.clearShippingAmount()
+                              : null,
+                        ),
                     ],
                   ),
                 ),

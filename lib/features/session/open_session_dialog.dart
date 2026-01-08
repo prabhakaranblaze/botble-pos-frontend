@@ -39,7 +39,54 @@ class _OpenSessionDialogState extends State<OpenSessionDialog> {
     if (success && mounted) {
       Navigator.pop(context, true);
     } else if (session.error != null && mounted) {
-      AppToast.error(context, session.error!);
+      // Check if error is "already have open register"
+      if (session.error!.toLowerCase().contains('already have an open')) {
+        _showRecoverSessionDialog();
+      } else {
+        AppToast.error(context, session.error!);
+      }
+    }
+  }
+
+  Future<void> _showRecoverSessionDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+            const SizedBox(width: 12),
+            const Text('Session Found'),
+          ],
+        ),
+        content: const Text(
+          'You already have an open session. Would you like to continue with that session?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Continue Session'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      // Retry fetching active session
+      final session = context.read<SessionProvider>();
+      await session.checkActiveSession();
+
+      if (session.hasActiveSession && mounted) {
+        Navigator.pop(context, true); // Close dialog and proceed
+      } else if (mounted) {
+        AppToast.error(context, 'Could not recover session. Please try again.');
+      }
     }
   }
 

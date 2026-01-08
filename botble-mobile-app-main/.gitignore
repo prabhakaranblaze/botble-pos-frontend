@@ -1,0 +1,29 @@
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub-cache/
+build/
+generated_plugin_registrant.dart
+
+# Plugin files
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# VS Code settings
+.vscode/
+
+# IntelliJ IDE settings
+.idea/
+
+# MacOS
+.DS_Store
+
+# Other
+*.iml
+.env
+
+node_modules/
+
+android/app/google-services.json
+
+ios/Runner/GoogleService-Info.plist

@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MartFury Flutter App - Documentation</title>
+    <link rel="shortcut icon" href="https://botble.com/storage/general/favicon.png" type="image/x-icon">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8fafc;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #fff;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .sidebar-header p {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+
+        .nav-section {
+            margin-bottom: 1rem;
+        }
+
+        .nav-section-title {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 0.75rem 1.5rem;
+            color: #475569;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: #f1f5f9;
+            color: #334155;
+        }
+
+        .nav-item.active {
+            background-color: #e0e7ff;
+            color: #3730a3;
+            border-left-color: #6366f1;
+            font-weight: 500;
+        }
+
+        .nav-subsection {
+            padding-left: 2rem;
+        }
+
+        .nav-subsection .nav-item {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+            max-width: calc(100vw - 280px);
+        }
+
+        .content-section {
+            display: none;
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .content-section h1 {
+            color: #1e293b;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .content-section h2 {
+            color: #334155;
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem 0;
+        }
+
+        .content-section h3 {
+            color: #475569;
+            font-size: 1.25rem;
+            margin: 1.5rem 0 0.75rem 0;
+        }
+
+        .content-section p {
+            margin-bottom: 1rem;
+            color: #64748b;
+        }
+
+        .content-section code {
+            background: #f1f5f9;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            color: #e11d48;
+        }
+
+        .content-section pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .content-section pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        .content-section img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .content-section a {
+            color: #6366f1;
+            text-decoration: none;
+        }
+
+        .content-section a:hover {
+            text-decoration: underline;
+        }
+
+        .content-section ul, .content-section ol {
+            margin: 1rem 0;
+            padding-left: 2rem;
+        }
+
+        .content-section li {
+            margin-bottom: 0.5rem;
+            color: #64748b;
+        }
+
+        .content-section blockquote {
+            border-left: 4px solid #6366f1;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            font-style: italic;
+            color: #64748b;
+        }
+
+        /* Mobile overlay */
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .mobile-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1002;
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            transition: all 0.2s ease;
+            width: 48px;
+            height: 48px;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        /* Hide mobile menu button when sidebar is open */
+        .mobile-menu-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(-100px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mobile-menu-btn:hover {
+            background: #4f46e5;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .mobile-menu-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Close button inside sidebar */
+        .sidebar-close-btn {
+            display: none;
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            z-index: 1003;
+            transition: background 0.2s ease;
+        }
+
+        .sidebar-close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Desktop - hide mobile menu button */
+        @media (min-width: 769px) {
+            .mobile-menu-btn {
+                display: none !important;
+            }
+
+            .sidebar-close-btn {
+                display: none !important;
+            }
+
+            .mobile-overlay {
+                display: none !important;
+            }
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            .sidebar-close-btn {
+                display: block;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                z-index: 1001;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                max-width: 100vw;
+                padding: 1rem;
+                padding-top: 5rem; /* Account for mobile menu button */
+            }
+
+            .content-section {
+                padding: 1.5rem;
+            }
+
+            .content-section h1 {
+                font-size: 1.75rem;
+            }
+
+            .content-section h2 {
+                font-size: 1.375rem;
+            }
+
+            .content-section h3 {
+                font-size: 1.125rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .feature-card {
+                padding: 1rem;
+            }
+        }
+
+        /* Tablet responsiveness */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .sidebar {
+                width: 260px;
+            }
+
+            .main-content {
+                margin-left: 260px;
+                max-width: calc(100vw - 260px);
+            }
+        }
+
+        /* Small mobile devices */
+        @media (max-width: 480px) {
+            .mobile-menu-btn {
+                top: 0.75rem;
+                left: 0.75rem;
+                width: 44px;
+                height: 44px;
+            }
+
+            .main-content {
+                padding: 0.75rem;
+                padding-top: 4.5rem;
+            }
+
+            .content-section {
+                padding: 1rem;
+                border-radius: 6px;
+            }
+
+            .sidebar-header {
+                padding: 1rem;
+            }
+
+            .sidebar-header h1 {
+                font-size: 1.125rem;
+            }
+
+            .search-box {
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        /* Search functionality */
+        .search-box {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Feature highlights */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .feature-card h3 {
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        /* Print styles */
+        @media print {
+            .sidebar {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+            }
+
+            .mobile-menu-btn {
+                display: none;
+            }
+
+            .content-section {
+                display: block !important;
+                page-break-after: always;
+            }
+        }
+
+        /* Accessibility improvements */
+        .nav-item:focus {
+            outline: 2px solid #6366f1;
+            outline-offset: 2px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .mobile-menu-btn:focus {
+            outline: 2px solid #ffffff;
+            outline-offset: 2px;
+        }
+
+        .sidebar-close-btn:focus {
+            outline: 2px solid #ffffff;
+            outline-offset: 2px;
+        }
+
+        /* Enhanced animations */
+        .sidebar {
+            will-change: transform;
+        }
+
+        .mobile-overlay {
+            will-change: opacity;
+        }
+
+        /* Smooth scrolling for better UX */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Prevent text selection on mobile menu button */
+        .mobile-menu-btn {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .sidebar-close-btn {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        /* Back to top button */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 3rem;
+            height: 3rem;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile menu button -->
+    <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Open navigation menu">
+        <span id="menu-icon">☰</span>
+    </button>
+
+    <!-- Mobile overlay -->
+    <div class="mobile-overlay" id="mobile-overlay" onclick="closeSidebar()"></div>
+
+    <div class="container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar" role="navigation" aria-label="Documentation navigation">
+            <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close navigation menu">×</button>
+            <div class="sidebar-header">
+                <h1>MartFury Flutter</h1>
+                <p>Complete Documentation</p>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="Search documentation..." onkeyup="searchContent(this.value)">
+            </div>
+            
+            <div class="sidebar-nav" id="sidebar-nav">
+                <!-- Navigation will be populated by JavaScript -->
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div id="content-container">
+                <!-- Content sections will be populated by JavaScript -->
+                <div class="loading">
+                    <p>Loading documentation...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Back to top button -->
+    <button class="back-to-top" onclick="scrollToTop()" title="Back to top">↑</button>
+
+    <script src="js/docs-data.js"></script>
+    <script src="js/docs-app.js"></script>
+</body>
+</html>

@@ -466,37 +466,47 @@ class _DashboardScreenState extends State<DashboardScreen>
                         // User Info
                         Consumer<AuthProvider>(
                           builder: (context, auth, _) {
-                            return Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor:
-                                      AppColors.primary.withOpacity(0.1),
-                                  child: Icon(
-                                    Icons.person,
-                                    color: AppColors.primary,
+                            return ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 180),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor:
+                                        AppColors.primary.withOpacity(0.1),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      auth.user?.name ?? '',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  const SizedBox(width: 12),
+                                  Flexible(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          auth.user?.name ?? '',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          auth.user?.storeName ?? '',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      auth.user?.storeName ?? '',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         ),

@@ -1426,104 +1426,110 @@ class _SalesScreenState extends State<SalesScreen> {
           color: AppColors.surface,
           child: Column(
             children: [
-              // Customer Selection (no header - moved delete to left panel)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: CustomerSearchWidget(
-                  selectedCustomer: sales.selectedCustomer,
-                  onCustomerSelected: (customer) {
-                    sales.selectCustomer(customer);
-                  },
-                  onCustomerRemoved: () {
-                    sales.clearCustomer();
-                  },
-                  onAddNewCustomer: () {
-                    _showAddCustomerDialog(sales);
-                  },
-                  onSearch: (query) async {
-                    return await context.read<SalesProvider>().searchCustomers(query);
-                  },
-                ),
-              ),
-
-              // Delivery & Address (only show when customer is selected)
-              if (sales.selectedCustomer != null)
-                DeliveryAddressWidget(
-                  customer: sales.selectedCustomer!,
-                  deliveryType: sales.deliveryType,
-                  selectedAddress: sales.selectedAddress,
-                  addresses: sales.customerAddresses,
-                  isLoadingAddresses: sales.isLoadingAddresses,
-                  onDeliveryTypeChanged: (type) {
-                    sales.setDeliveryType(type);
-                  },
-                  onAddressSelected: (address) {
-                    sales.selectAddress(address);
-                  },
-                  onAddNewAddress: () {
-                    _showAddAddressDialog(sales);
-                  },
-                ),
-
-              // Discount/Coupon/Shipping Actions
-              if (cart.items.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              // Scrollable top section (Customer, Delivery, Actions)
+              Expanded(
+                child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      // Apply Coupon
-                      _buildActionRow(
-                        icon: Icons.local_offer_outlined,
-                        label: sales.hasCouponDiscount
-                            ? 'Coupon: ${sales.couponCode}'
-                            : 'Apply Coupon',
-                        value: sales.hasCouponDiscount
-                            ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
-                            : null,
-                        valueColor: AppColors.success,
-                        onTap: () => _showApplyCouponDialog(),
-                        onClear: sales.hasCouponDiscount
-                            ? () => sales.clearCouponDiscount()
-                            : null,
-                      ),
-                      // Apply Discount (only if no coupon)
-                      if (!sales.hasCouponDiscount)
-                        _buildActionRow(
-                          icon: Icons.discount_outlined,
-                          label: sales.hasManualDiscount
-                              ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
-                              : 'Apply Discount',
-                          value: sales.hasManualDiscount
-                              ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
-                              : null,
-                          valueColor: AppColors.success,
-                          onTap: () => _showApplyDiscountDialog(),
-                          onClear: sales.hasManualDiscount
-                              ? () => sales.clearManualDiscount()
-                              : null,
+                      // Customer Selection
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: CustomerSearchWidget(
+                          selectedCustomer: sales.selectedCustomer,
+                          onCustomerSelected: (customer) {
+                            sales.selectCustomer(customer);
+                          },
+                          onCustomerRemoved: () {
+                            sales.clearCustomer();
+                          },
+                          onAddNewCustomer: () {
+                            _showAddCustomerDialog(sales);
+                          },
+                          onSearch: (query) async {
+                            return await context.read<SalesProvider>().searchCustomers(query);
+                          },
                         ),
-                      // Shipping
-                      _buildActionRow(
-                        icon: Icons.local_shipping_outlined,
-                        label: sales.shippingAmount > 0
-                            ? 'Shipping'
-                            : 'Add Shipping',
-                        value: sales.shippingAmount > 0
-                            ? AppCurrency.format(sales.shippingAmount)
-                            : null,
-                        onTap: () => _showUpdateShippingDialog(),
-                        onClear: sales.shippingAmount > 0
-                            ? () => sales.clearShippingAmount()
-                            : null,
                       ),
+
+                      // Delivery & Address (only show when customer is selected)
+                      if (sales.selectedCustomer != null)
+                        DeliveryAddressWidget(
+                          customer: sales.selectedCustomer!,
+                          deliveryType: sales.deliveryType,
+                          selectedAddress: sales.selectedAddress,
+                          addresses: sales.customerAddresses,
+                          isLoadingAddresses: sales.isLoadingAddresses,
+                          onDeliveryTypeChanged: (type) {
+                            sales.setDeliveryType(type);
+                          },
+                          onAddressSelected: (address) {
+                            sales.selectAddress(address);
+                          },
+                          onAddNewAddress: () {
+                            _showAddAddressDialog(sales);
+                          },
+                        ),
+
+                      // Discount/Coupon/Shipping Actions
+                      if (cart.items.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: [
+                              // Apply Coupon
+                              _buildActionRow(
+                                icon: Icons.local_offer_outlined,
+                                label: sales.hasCouponDiscount
+                                    ? 'Coupon: ${sales.couponCode}'
+                                    : 'Apply Coupon',
+                                value: sales.hasCouponDiscount
+                                    ? '-${AppCurrency.format(sales.couponDiscountAmount)}'
+                                    : null,
+                                valueColor: AppColors.success,
+                                onTap: () => _showApplyCouponDialog(),
+                                onClear: sales.hasCouponDiscount
+                                    ? () => sales.clearCouponDiscount()
+                                    : null,
+                              ),
+                              // Apply Discount (only if no coupon)
+                              if (!sales.hasCouponDiscount)
+                                _buildActionRow(
+                                  icon: Icons.discount_outlined,
+                                  label: sales.hasManualDiscount
+                                      ? 'Discount${sales.discountDescription != null ? ': ${sales.discountDescription}' : ''}'
+                                      : 'Apply Discount',
+                                  value: sales.hasManualDiscount
+                                      ? '-${AppCurrency.format(sales.manualDiscountAmount)}'
+                                      : null,
+                                  valueColor: AppColors.success,
+                                  onTap: () => _showApplyDiscountDialog(),
+                                  onClear: sales.hasManualDiscount
+                                      ? () => sales.clearManualDiscount()
+                                      : null,
+                                ),
+                              // Shipping
+                              _buildActionRow(
+                                icon: Icons.local_shipping_outlined,
+                                label: sales.shippingAmount > 0
+                                    ? 'Shipping'
+                                    : 'Add Shipping',
+                                value: sales.shippingAmount > 0
+                                    ? AppCurrency.format(sales.shippingAmount)
+                                    : null,
+                                onTap: () => _showUpdateShippingDialog(),
+                                onClear: sales.shippingAmount > 0
+                                    ? () => sales.clearShippingAmount()
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
+              ),
 
-              // Spacer to push summary to bottom
-              const Spacer(),
-
-              // Order Summary
+              // Order Summary (fixed at bottom)
               if (cart.items.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(16),

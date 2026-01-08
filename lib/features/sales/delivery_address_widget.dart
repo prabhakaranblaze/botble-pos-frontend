@@ -53,8 +53,8 @@ class _DeliveryAddressWidgetState extends State<DeliveryAddressWidget> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 16),
-                // Inline radio-style toggle
+                const Spacer(),
+                // Inline radio-style toggle (right-aligned)
                 _buildInlineToggle(
                   label: 'Pickup',
                   isSelected: widget.deliveryType == DeliveryType.pickup,

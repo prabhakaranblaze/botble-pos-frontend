@@ -15,7 +15,6 @@ import '../sales/add_address_dialog.dart';
 import '../auth/auth_provider.dart';
 import '../../core/models/product.dart';
 import '../../core/services/auto_print_service.dart';
-import '../../core/providers/pos_mode_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
 import '../sales/save_cart_dialog.dart';
@@ -530,16 +529,7 @@ class _SalesScreenState extends State<SalesScreen> {
   @override
   Widget build(BuildContext context) {
     debugPrint('🎨 BUILD: SalesScreen build called');
-
-    return Consumer<PosModeProvider>(
-      builder: (context, modeProvider, _) {
-        if (modeProvider.isKiosk) {
-          return _buildKioskLayout();
-        } else {
-          return _buildQuickSelectLayout();
-        }
-      },
-    );
+    return _buildKioskLayout();
   }
 
   /// Quick Select Mode - Product grid on left, cart on right

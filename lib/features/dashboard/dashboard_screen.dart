@@ -1,20 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import '../auth/auth_provider.dart';
 import '../session/session_provider.dart';
+import '../session/close_session_dialog.dart';
 import '../sales/sales_screen.dart';
-import '../session/session_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/services/connectivity_provider.dart';
 import '../../core/providers/locale_provider.dart';
-import '../../core/providers/pos_mode_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
-import '../sales/saved_carts_screen.dart';
 import 'recent_bills_dialog.dart';
 
 /// Dashboard Screen - Main application screen
@@ -39,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // Sale, Reports, Settings
     _startClock();
     _initWindowManager();
   }
@@ -125,15 +124,15 @@ class _DashboardScreenState extends State<DashboardScreen>
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),
-              child: const Text('Go to Session'),
+              child: const Text('View Session'),
             ),
           ],
         ),
       );
 
       if (confirm == true && mounted) {
-        // Navigate to session tab (index 1)
-        _tabController.animateTo(2);
+        // Show session modal
+        _showSessionModal();
       }
       return;
     }
@@ -141,6 +140,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     // No active session - safe to logout
     final auth = context.read<AuthProvider>();
     await auth.logout();
+  }
+
+  void _showSessionModal() {
+    showDialog(
+      context: context,
+      builder: (context) => const SessionModal(),
+    );
   }
 
   @override
@@ -175,10 +181,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                           return Column(
                             children: [
                               _buildMenuItem(Icons.shopping_cart_rounded, l10n?.sales ?? 'Sale', 0),
-                              _buildMenuItem(Icons.bookmark_rounded, l10n?.savedCarts ?? 'Saved', 1),
-                              _buildMenuItem(Icons.schedule_rounded, l10n?.session ?? 'Session', 2),
-                              _buildMenuItem(Icons.bar_chart_rounded, l10n?.reports ?? 'Reports', 3),
-                              _buildMenuItem(Icons.settings_rounded, l10n?.settings ?? 'Settings', 4),
+                              _buildMenuItem(Icons.bar_chart_rounded, l10n?.reports ?? 'Reports', 1),
+                              _buildMenuItem(Icons.settings_rounded, l10n?.settings ?? 'Settings', 2),
                             ],
                           );
                         },
@@ -258,25 +262,26 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                         const Spacer(),
 
-                        // POS Mode Toggle
-                        Consumer<PosModeProvider>(
-                          builder: (context, modeProvider, _) {
+                        // Session Button (Register Icon)
+                        Consumer<SessionProvider>(
+                          builder: (context, session, _) {
+                            final hasSession = session.hasActiveSession;
                             return Tooltip(
-                              message: 'Switch to ${modeProvider.isQuickSelect ? 'Kiosk' : 'Quick Select'} mode',
+                              message: hasSession ? 'View Active Session' : 'No Active Session',
                               child: InkWell(
-                                onTap: () => modeProvider.toggleMode(),
+                                onTap: _showSessionModal,
                                 borderRadius: BorderRadius.circular(8),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: modeProvider.isKiosk
-                                        ? AppColors.primary.withOpacity(0.1)
+                                    color: hasSession
+                                        ? AppColors.success.withOpacity(0.1)
                                         : AppColors.background,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: modeProvider.isKiosk
-                                          ? AppColors.primary
+                                      color: hasSession
+                                          ? AppColors.success
                                           : AppColors.border,
                                     ),
                                   ),
@@ -284,23 +289,34 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        modeProvider.modeIcon,
+                                        Icons.point_of_sale_rounded,
                                         size: 18,
-                                        color: modeProvider.isKiosk
-                                            ? AppColors.primary
+                                        color: hasSession
+                                            ? AppColors.success
                                             : AppColors.textSecondary,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
-                                        modeProvider.modeName,
+                                        hasSession ? 'Session' : 'No Session',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           fontSize: 13,
-                                          color: modeProvider.isKiosk
-                                              ? AppColors.primary
-                                              : AppColors.textPrimary,
+                                          color: hasSession
+                                              ? AppColors.success
+                                              : AppColors.textSecondary,
                                         ),
                                       ),
+                                      if (hasSession) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.success,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -523,17 +539,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: TabBarView(
                       controller: _tabController,
                       physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        const SalesScreen(), // Index 0 - Sale
-                        SavedCartsScreen(
-                          onCartLoaded: () {
-                            debugPrint('🔄 DASHBOARD: Switching to Sale tab');
-                            _tabController.animateTo(0);
-                          },
-                        ), // Index 1 - Saved Cart
-                        const SessionScreen(), // Index 2 - Session
-                        const ReportsScreen(), // Index 3 - Reports
-                        const SettingsScreen(), // Index 4 - Settings
+                      children: const [
+                        SalesScreen(), // Index 0 - Sale
+                        ReportsScreen(), // Index 1 - Reports
+                        SettingsScreen(), // Index 2 - Settings
                       ],
                     ),
                   ),
@@ -837,5 +846,196 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
       default:
         _onDigit(btn);
     }
+  }
+}
+
+/// Session Modal Dialog
+class SessionModal extends StatelessWidget {
+  const SessionModal({super.key});
+
+  Future<void> _closeSession(BuildContext context) async {
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const CloseSessionDialog(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SessionProvider>(
+      builder: (context, session, _) {
+        if (!session.hasActiveSession) {
+          return Dialog(
+            child: Container(
+              width: 400,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule_rounded,
+                      size: 64, color: AppColors.textSecondary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No active session',
+                    style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final activeSession = session.activeSession!;
+        final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
+
+        // Parse the opened_at timestamp
+        final openedAt = DateTime.parse(activeSession['opened_at'] as String);
+        final duration = DateTime.now().difference(openedAt);
+        final hours = duration.inHours;
+        final minutes = duration.inMinutes.remainder(60);
+
+        return Dialog(
+          child: Container(
+            width: 450,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Icon(Icons.point_of_sale_rounded,
+                        color: AppColors.primary, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            activeSession['cash_register_name'] as String? ??
+                                'Cash Register',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Session #${activeSession['id']}',
+                            style: TextStyle(
+                                fontSize: 13, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Status badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'OPEN',
+                            style: TextStyle(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const Divider(height: 32),
+
+                // Session Info
+                _buildInfoRow('Opened At', dateFormat.format(openedAt)),
+                _buildInfoRow('Duration', '${hours}h ${minutes}m'),
+                _buildInfoRow(
+                    'Opened By', activeSession['user_name'] as String? ?? 'User'),
+                _buildInfoRow(
+                  'Opening Cash',
+                  '\$${(activeSession['opening_cash'] as num).toStringAsFixed(2)}',
+                ),
+
+                if (activeSession['opening_notes'] != null &&
+                    (activeSession['opening_notes'] as String).isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Notes:',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(
+                    activeSession['opening_notes'] as String,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+
+                // Close Session Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _closeSession(context);
+                    },
+                    icon: const Icon(Icons.logout_rounded),
+                    label: const Text('Close Session'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
   }
 }

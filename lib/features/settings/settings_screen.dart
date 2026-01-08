@@ -997,49 +997,57 @@ class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
             const Divider(height: 24),
 
             // Scan for Printers
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 const Text(
                   'Select Printer',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                const Spacer(),
-                SegmentedButton<ConnectionType>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ConnectionType.USB,
-                      label: Text('USB'),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SegmentedButton<ConnectionType>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ConnectionType.USB,
+                          label: Text('USB'),
+                        ),
+                        ButtonSegment(
+                          value: ConnectionType.BLE,
+                          label: Text('BT'),
+                        ),
+                        ButtonSegment(
+                          value: ConnectionType.NETWORK,
+                          label: Text('WiFi'),
+                        ),
+                      ],
+                      selected: {_selectedConnectionType},
+                      onSelectionChanged: (types) {
+                        setState(() {
+                          _selectedConnectionType = types.first;
+                        });
+                      },
                     ),
-                    ButtonSegment(
-                      value: ConnectionType.BLE,
-                      label: Text('BT'),
-                    ),
-                    ButtonSegment(
-                      value: ConnectionType.NETWORK,
-                      label: Text('WiFi'),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: _isScanning ? null : _startScan,
+                      icon: _isScanning
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.search),
+                      label: Text(_isScanning ? 'Scanning...' : 'Scan'),
                     ),
                   ],
-                  selected: {_selectedConnectionType},
-                  onSelectionChanged: (types) {
-                    setState(() {
-                      _selectedConnectionType = types.first;
-                    });
-                  },
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _isScanning ? null : _startScan,
-                  icon: _isScanning
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.search),
-                  label: Text(_isScanning ? 'Scanning...' : 'Scan'),
                 ),
               ],
             ),

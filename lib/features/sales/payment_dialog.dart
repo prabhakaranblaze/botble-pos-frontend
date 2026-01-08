@@ -292,7 +292,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                       ),
                     ),
                     Text(
-                      '\$${_change.abs().toStringAsFixed(2)}',
+                      AppCurrency.format(_change.abs()),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,

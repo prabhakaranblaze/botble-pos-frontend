@@ -119,7 +119,7 @@ class SessionScreen extends StatelessWidget {
                           activeSession['user_name'] as String? ?? 'User'),
                       _buildInfoRow(
                         'Opening Cash',
-                        '\$${(activeSession['opening_cash'] as num).toStringAsFixed(2)}',
+                        AppCurrency.format((activeSession['opening_cash'] as num).toDouble()),
                       ),
                       if (activeSession['opening_notes'] != null &&
                           (activeSession['opening_notes'] as String)

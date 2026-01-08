@@ -209,7 +209,7 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
                           ),
                         ),
                         Text(
-                          '\$${difference.abs().toStringAsFixed(2)}',
+                          AppCurrency.format(difference.abs()),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

@@ -23,6 +23,7 @@ const denominationsRoutes = require('./modules/denominations/denominations.route
 const printerRoutes = require('./modules/printer/printer.routes');
 const settingsRoutes = require('./modules/settings/settings.routes');
 const discountsRoutes = require('./modules/discounts/discounts.routes');
+const reportsRoutes = require('./modules/reports/reports.routes');
 
 // Initialize Express
 const app = express();
@@ -85,6 +86,7 @@ apiRouter.use('/denominations', denominationsRoutes);
 apiRouter.use('/printer', printerRoutes);
 apiRouter.use('/settings', settingsRoutes);
 apiRouter.use('/discounts', discountsRoutes);
+apiRouter.use('/reports', reportsRoutes);
 
 // Mount API router
 app.use('/api/v1/pos', apiRouter);

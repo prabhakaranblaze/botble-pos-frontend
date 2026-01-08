@@ -1526,7 +1526,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       ),
                       // Order Summary
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         child: Column(
                           children: [
                             // Items count
@@ -2110,12 +2110,15 @@ class _SalesScreenState extends State<SalesScreen> {
               color: isActive ? AppColors.primary : AppColors.textSecondary,
             ),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive ? AppColors.primary : AppColors.textSecondary,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  color: isActive ? AppColors.primary : AppColors.textSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

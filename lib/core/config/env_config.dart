@@ -1,11 +1,17 @@
 /// Environment Configuration
 ///
 /// Usage:
-/// Development (Node.js backend):
+/// Development (Local Node.js backend):
 ///   flutter run --dart-define=ENV=dev
+///
+/// UAT (Staging server):
+///   flutter run --dart-define=ENV=uat
 ///
 /// Production (Laravel backend):
 ///   flutter run --dart-define=ENV=prod
+///
+/// Build for UAT:
+///   flutter build windows --dart-define=ENV=uat
 ///
 /// Build for production:
 ///   flutter build windows --dart-define=ENV=prod
@@ -18,6 +24,7 @@ class EnvConfig {
   );
 
   static bool get isDev => environment == 'dev';
+  static bool get isUat => environment == 'uat';
   static bool get isProd => environment == 'prod';
 
   // API Configuration per environment
@@ -25,6 +32,8 @@ class EnvConfig {
     switch (environment) {
       case 'prod':
         return 'https://stampsmart.test/api/v1/pos';
+      case 'uat':
+        return 'https://seypost-posapi-uat.stampsm.art/api/v1/pos';
       case 'dev':
       default:
         return 'http://localhost:3001/api/v1/pos';
@@ -44,15 +53,36 @@ class EnvConfig {
   );
 
   // Debug logging
-  static bool get enableDebugLogs => isDev;
+  static bool get enableDebugLogs => isDev || isUat;
 
   // Feature flags
   static bool get enableOfflineMode => true;
   static bool get enablePrinterSupport => true;
 
   // Display info
-  static String get environmentName => isDev ? 'Development' : 'Production';
-  static String get environmentBadge => isDev ? '[DEV]' : '';
+  static String get environmentName {
+    switch (environment) {
+      case 'prod':
+        return 'Production';
+      case 'uat':
+        return 'UAT';
+      case 'dev':
+      default:
+        return 'Development';
+    }
+  }
+
+  static String get environmentBadge {
+    switch (environment) {
+      case 'prod':
+        return '';
+      case 'uat':
+        return '[UAT]';
+      case 'dev':
+      default:
+        return '[DEV]';
+    }
+  }
 
   /// Get full image URL from relative path
   /// Handles both relative paths and already-full URLs

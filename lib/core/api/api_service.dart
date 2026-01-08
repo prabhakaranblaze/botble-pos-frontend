@@ -20,6 +20,10 @@ class ApiService {
   final CookieJar _cookieJar = CookieJar(); // ← ADD THIS
   bool _isOnline = true;
 
+  /// Callback triggered on 401 Unauthorized errors
+  /// Used to trigger automatic logout when token is invalid
+  void Function()? onUnauthorized;
+
   ApiService(this._db, this._storage) {
     debugPrint('🟢 API SERVICE: Constructor called');
 
@@ -101,6 +105,18 @@ class ApiService {
             error.type == DioExceptionType.connectionError) {
           _isOnline = false;
         }
+
+        // Handle 401 Unauthorized - trigger automatic logout
+        // Skip for logout endpoint to prevent infinite loop
+        final isLogoutRequest = error.requestOptions.path.contains('/auth/logout');
+        if (error.response?.statusCode == 401 && !isLogoutRequest) {
+          debugPrint('🔐 API ERROR: 401 Unauthorized - triggering auto-logout');
+          // Clear token immediately to prevent further 401 loops
+          await _storage.removeToken();
+          // Trigger the unauthorized callback (will call AuthProvider.logout)
+          onUnauthorized?.call();
+        }
+
         return handler.next(error);
       },
     ));

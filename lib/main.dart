@@ -52,8 +52,17 @@ void main() async {
   await audioService.preload(); // preload beep sound for instant playback
 
   final inactivityProvider = InactivityProvider(
-    lockTimeout: const Duration(minutes: 1), // Change to 30 for production
+    lockTimeout: const Duration(minutes: 60),
   );
+
+  // Create AuthProvider first so we can connect the 401 handler
+  final authProvider = AuthProvider(apiService, storageService);
+
+  // Connect API 401 handler to trigger automatic logout
+  apiService.onUnauthorized = () {
+    debugPrint('🔐 AUTO-LOGOUT: 401 detected, logging out user');
+    authProvider.logout();
+  };
 
   runApp(
     MultiProvider(
@@ -64,8 +73,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => PosModeProvider()),
         ChangeNotifierProvider.value(value: inactivityProvider),
         Provider.value(value: apiService),
-        ChangeNotifierProvider(
-            create: (_) => AuthProvider(apiService, storageService)),
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(
             create: (_) => SalesProvider(apiService, audioService)),
         ChangeNotifierProvider(

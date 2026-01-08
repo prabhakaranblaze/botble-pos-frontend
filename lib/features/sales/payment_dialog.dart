@@ -72,6 +72,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
       Navigator.pop(context, {
         'payment_method': 'pos_cash',
         'payment_details': 'Cash: \$${_cashReceived.toStringAsFixed(2)}, Change: \$${_change.toStringAsFixed(2)}',
+        'payment_metadata': {
+          'cash_received': _cashReceived,
+          'change_given': _change,
+        },
       });
     } else {
       if (_cardDigitsController.text.length != 4) {
@@ -82,6 +86,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
       Navigator.pop(context, {
         'payment_method': 'pos_card',
         'payment_details': 'Card ending in ${_cardDigitsController.text}',
+        'payment_metadata': {
+          'card_last_four': _cardDigitsController.text,
+        },
       });
     }
   }

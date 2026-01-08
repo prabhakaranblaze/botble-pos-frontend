@@ -16,6 +16,7 @@ const checkoutSchema = z.object({
   })).min(1, 'Cart is empty'),
   payment_method: z.enum(['cash', 'card', 'pos_cash', 'pos_card']).default('pos_cash'),
   payment_details: z.string().optional().nullable(),
+  payment_metadata: z.record(z.any()).optional().nullable(), // JSON object for cash/card details
   customer_id: z.number().int().positive().optional().nullable(),
   // Discount parameters
   discount_id: z.number().int().positive().optional().nullable(),
@@ -79,6 +80,7 @@ class OrdersController {
         items: data.items,
         paymentMethod: data.payment_method,
         paymentDetails: data.payment_details,
+        paymentMetadata: data.payment_metadata,
         customerId: data.customer_id,
         // Discount parameters
         discountId: data.discount_id,

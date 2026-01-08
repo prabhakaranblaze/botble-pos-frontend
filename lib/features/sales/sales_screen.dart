@@ -454,9 +454,10 @@ class _SalesScreenState extends State<SalesScreen> {
     salesProvider.updatePaymentMethod(result['payment_method']);
     debugPrint('💳 CHECKOUT: Payment method set to: ${result['payment_method']}');
 
-    // Process checkout
+    // Process checkout with payment metadata
     final order = await salesProvider.checkout(
       paymentDetails: result['payment_details'],
+      paymentMetadata: result['payment_metadata'],
     );
 
     if (order != null && mounted) {

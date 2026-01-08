@@ -537,6 +537,7 @@ class ApiService {
     required List<Map<String, dynamic>> items,
     required String paymentMethod,
     String? paymentDetails,
+    Map<String, dynamic>? paymentMetadata,
     int? customerId,
     // Discount parameters
     int? discountId,
@@ -585,6 +586,7 @@ class ApiService {
 
       // Add optional fields
       if (paymentDetails != null) requestData['payment_details'] = paymentDetails;
+      if (paymentMetadata != null) requestData['payment_metadata'] = paymentMetadata;
       if (customerId != null) requestData['customer_id'] = customerId;
       if (discountId != null) requestData['discount_id'] = discountId;
       if (couponCode != null) requestData['coupon_code'] = couponCode;

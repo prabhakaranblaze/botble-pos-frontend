@@ -13,6 +13,7 @@ import '../../core/database/saved_cart_database.dart';
 import '../auth/auth_provider.dart';
 import '../sales/sales_provider.dart';
 import '../../core/models/user.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,6 +25,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
     final hasSettingsPermission = user?.hasPermission(PosPermissions.posSettings) ??
@@ -36,9 +38,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Settings',
-              style: TextStyle(
+            Text(
+              l10n?.settings ?? 'Settings',
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -53,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(
                   flex: 3,
                   child: _buildSection(
-                    title: 'Printer Settings',
+                    title: l10n?.printerSettings ?? 'Printer Settings',
                     icon: Icons.print,
                     child: const PrinterSettingsCard(),
                   ),
@@ -63,7 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(
                   flex: 2,
                   child: _buildSection(
-                    title: 'Receipt Preview',
+                    title: l10n?.receiptPreview ?? 'Receipt Preview',
                     icon: Icons.receipt_long,
                     child: const ReceiptPreviewCard(),
                   ),
@@ -80,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Data Management
                 Expanded(
                   child: _buildSection(
-                    title: 'Data Management',
+                    title: l10n?.dataManagement ?? 'Data Management',
                     icon: Icons.storage,
                     child: _buildDataManagementCard(),
                   ),
@@ -93,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _buildUpdateSection(),
                       const SizedBox(height: 24),
                       _buildSection(
-                        title: 'About',
+                        title: l10n?.about ?? 'About',
                         icon: Icons.info_outline,
                         child: _buildAboutCard(),
                       ),
@@ -363,17 +365,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildAboutCard() {
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoRow('App Name', AppConstants.appName),
+            _buildInfoRow(l10n?.appTitle ?? 'App Name', AppConstants.appName),
             const Divider(),
-            _buildInfoRow('Version', UpdateService.appVersion),
+            _buildInfoRow(l10n?.version ?? 'Version', UpdateService.appVersion),
             const Divider(),
-            _buildInfoRow('Currency', AppConstants.currencyCode),
+            _buildInfoRow(l10n?.currency ?? 'Currency', AppConstants.currencyCode),
           ],
         ),
       ),
@@ -400,6 +403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildDataManagementCard() {
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -417,9 +421,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: Icon(Icons.sync, color: AppColors.warning),
               ),
-              title: const Text(
-                'Clear & Resync Products',
-                style: TextStyle(fontWeight: FontWeight.w600),
+              title: Text(
+                l10n?.clearAndResyncProducts ?? 'Clear & Resync Products',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: const Text(
                 'Clear local product cache and download fresh data from server',
@@ -431,7 +435,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   backgroundColor: AppColors.warning,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Resync'),
+                child: Text(l10n?.resync ?? 'Resync'),
               ),
             ),
 
@@ -448,9 +452,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: Icon(Icons.delete_forever, color: AppColors.error),
               ),
-              title: const Text(
-                'Clear All Local Data',
-                style: TextStyle(fontWeight: FontWeight.w600),
+              title: Text(
+                l10n?.clearAllData ?? 'Clear All Local Data',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: const Text(
                 'Remove all cached data including products, saved carts, and pending orders',
@@ -462,7 +466,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   foregroundColor: AppColors.error,
                   side: BorderSide(color: AppColors.error),
                 ),
-                child: const Text('Clear'),
+                child: Text(l10n?.clear ?? 'Clear'),
               ),
             ),
           ],

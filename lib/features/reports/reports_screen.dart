@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import '../../core/api/api_service.dart';
 import '../../shared/constants/app_constants.dart';
 import '../session/session_provider.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -368,42 +369,57 @@ class _ReportsScreenState extends State<ReportsScreen>
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                   child: Row(
                     children: [
-                      const Text(
-                        'Reports',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context);
+                          return Text(
+                            l10n?.reports ?? 'Reports',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
                       ),
                       const Spacer(),
                       // Export button (hide for Session tab for now)
                       if (_tabController.index != 0)
-                        ElevatedButton.icon(
-                          onPressed: _tabController.index == 1
-                              ? _exportOrdersToExcel
-                              : _exportProductsToExcel,
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('Export CSV'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final l10n = AppLocalizations.of(context);
+                            return ElevatedButton.icon(
+                              onPressed: _tabController.index == 1
+                                  ? _exportOrdersToExcel
+                                  : _exportProductsToExcel,
+                              icon: const Icon(Icons.download, size: 18),
+                              label: Text(l10n?.exportCsv ?? 'Export CSV'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       // Refresh button for Session tab
                       if (_tabController.index == 0)
-                        ElevatedButton.icon(
-                          onPressed: _loadSessionOrders,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('Refresh'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final l10n = AppLocalizations.of(context);
+                            return ElevatedButton.icon(
+                              onPressed: _loadSessionOrders,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: Text(l10n?.refresh ?? 'Refresh'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),
@@ -458,16 +474,21 @@ class _ReportsScreenState extends State<ReportsScreen>
                 if (_tabController.index != 0) const SizedBox(height: 16),
 
                 // Tabs
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  indicatorColor: AppColors.primary,
-                  tabs: const [
-                    Tab(text: 'Session'),
-                    Tab(text: 'Orders'),
-                    Tab(text: 'Products Sold'),
-                  ],
+                Builder(
+                  builder: (context) {
+                    final l10n = AppLocalizations.of(context);
+                    return TabBar(
+                      controller: _tabController,
+                      labelColor: AppColors.primary,
+                      unselectedLabelColor: AppColors.textSecondary,
+                      indicatorColor: AppColors.primary,
+                      tabs: [
+                        Tab(text: l10n?.session ?? 'Session'),
+                        Tab(text: l10n?.orders ?? 'Orders'),
+                        Tab(text: l10n?.products ?? 'Products Sold'),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

@@ -7,8 +7,8 @@
 
 // Hardcoded version info - update these when releasing new versions
 const CURRENT_VERSION = {
-  version: '1.0.0',
-  build_number: 1,
+  version: '1.0.1',
+  build_number: 2,
   release_date: '2026-01-08',
   download_url: 'https://pub-1664f164de65435e943bd597c050e247.r2.dev/releases/StampSmartPOS_Setup_1.0.0.exe',
   release_notes: [

@@ -135,24 +135,24 @@ class _SalesScreenState extends State<SalesScreen> {
 
     List<Product> results = [];
 
-    // API-first approach when online (for queries >= 2 chars)
-    if (salesProvider.isOnline && query.length >= 2) {
-      debugPrint('🔍 SEARCH: Online - using API search (auto-syncs to DB)');
-      results = await salesProvider.searchProductsOnline(query);
-      debugPrint('🔍 SEARCH: API found ${results.length} results');
-    } else {
-      // Offline: search local database only
-      debugPrint('🔍 SEARCH: Offline - using local search');
-      results = salesProvider.products.where((p) {
-        final searchLower = query.toLowerCase();
-        final matchName = p.name.toLowerCase().contains(searchLower);
-        final matchSku = p.sku?.toLowerCase().contains(searchLower) ?? false;
-        final matchBarcode =
-            p.barcode?.toLowerCase().contains(searchLower) ?? false;
-
-        return matchName || matchSku || matchBarcode;
-      }).toList();
-      debugPrint('🔍 SEARCH: Local found ${results.length} results');
+    // Online only - API search (no local fallback)
+    if (query.length >= 2) {
+      if (salesProvider.isOnline) {
+        debugPrint('🔍 SEARCH: Online - using API search');
+        results = await salesProvider.searchProductsOnline(query);
+        debugPrint('🔍 SEARCH: API found ${results.length} results');
+      } else {
+        debugPrint('🔍 SEARCH: Offline - cannot search');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You are offline. Please check your connection.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        results = [];
+      }
     }
 
     // Update state with results

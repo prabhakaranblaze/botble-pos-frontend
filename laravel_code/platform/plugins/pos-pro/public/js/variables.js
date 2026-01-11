@@ -1,0 +1,1 @@
+window.BotbleVariables=window.BotbleVariables||{languages:{notices_msg:{success:"",error:"",info:"",warning:""}}},window.currency=window.currency||"USD";

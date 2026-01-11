@@ -1,0 +1,7 @@
+{
+    "name": "@botble/pos-pro",
+    "version": "1.0.0",
+    "devDependencies": {
+        "@zxing/library": "^0.21.3"
+    }
+}

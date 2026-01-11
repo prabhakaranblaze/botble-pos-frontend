@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart'; // ← ADD THIS
-import 'package:cookie_jar/cookie_jar.dart'; // ← ADD THIS
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/constants/app_constants.dart';
@@ -10,21 +10,22 @@ import '../models/cart.dart';
 import '../models/customer.dart';
 import '../models/customer_address.dart';
 import '../models/session.dart';
-import '../database/database_service.dart';
 import '../services/storage_service.dart';
 
 class ApiService {
   late final Dio _dio;
-  final DatabaseService _db;
   final StorageService _storage;
-  final CookieJar _cookieJar = CookieJar(); // ← ADD THIS
+  final CookieJar _cookieJar = CookieJar();
   bool _isOnline = true;
 
   /// Callback triggered on 401 Unauthorized errors
   /// Used to trigger automatic logout when token is invalid
   void Function()? onUnauthorized;
 
-  ApiService(this._db, this._storage) {
+  /// Callback triggered when offline - UI should show toast
+  void Function(String message)? onOffline;
+
+  ApiService(this._storage) {
     debugPrint('🟢 API SERVICE: Constructor called');
 
     _dio = Dio(BaseOptions(
@@ -125,9 +126,6 @@ class ApiService {
     Connectivity().onConnectivityChanged.listen((result) {
       _isOnline = result != ConnectivityResult.none;
       debugPrint('🌐 API SERVICE: Connectivity changed - Online: $_isOnline');
-      if (_isOnline) {
-        _syncPendingData();
-      }
     });
   }
 
@@ -200,13 +198,13 @@ class ApiService {
         '📦 API SERVICE: getProducts called - Page: $page, Search: "$search"');
     debugPrint('📦 API SERVICE: Online: $_isOnline');
 
-    try {
-      if (!_isOnline) {
-        debugPrint('⚠️ API SERVICE: Offline, loading from database');
-        return await _db.getProducts(
-            search: search, limit: AppConstants.itemsPerPage);
-      }
+    if (!_isOnline) {
+      debugPrint('⚠️ API SERVICE: Offline, cannot load products');
+      onOffline?.call('You are offline. Please check your connection.');
+      return [];
+    }
 
+    try {
       final response = await _dio.get('/products', queryParameters: {
         'page': page,
         'per_page': AppConstants.itemsPerPage,
@@ -229,11 +227,6 @@ class ApiService {
             productsData.map((json) => Product.fromJson(json)).toList();
 
         debugPrint('✅ API SERVICE: Products parsed successfully');
-
-        // Save to local database
-        await _db.saveProducts(products);
-        debugPrint('✅ API SERVICE: Products saved to database');
-
         return products;
       } else {
         debugPrint(
@@ -242,23 +235,20 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('❌ API SERVICE: getProducts error: $e');
-      debugPrint('❌ API SERVICE: Attempting to load from database');
-
-      // If online request fails, try local database
-      return await _db.getProducts(
-          search: search, limit: AppConstants.itemsPerPage);
+      rethrow;
     }
   }
 
   Future<Product?> scanBarcode(String barcode) async {
     debugPrint('📷 API SERVICE: scanBarcode called - Barcode: "$barcode"');
 
-    try {
-      if (!_isOnline) {
-        debugPrint('⚠️ API SERVICE: Offline, searching database');
-        return await _db.getProductByBarcode(barcode);
-      }
+    if (!_isOnline) {
+      debugPrint('⚠️ API SERVICE: Offline, cannot scan barcode');
+      onOffline?.call('You are offline. Please check your connection.');
+      return null;
+    }
 
+    try {
       final response = await _dio.post('/products/scan-barcode', data: {
         'barcode': barcode,
       });
@@ -273,7 +263,7 @@ class ApiService {
       return null;
     } catch (e) {
       debugPrint('❌ API SERVICE: Barcode scan error: $e');
-      return await _db.getProductByBarcode(barcode);
+      return null;
     }
   }
 
@@ -583,11 +573,13 @@ class ApiService {
     debugPrint('💳 API SERVICE: Customer ID: $customerId');
     debugPrint('💳 API SERVICE: Address ID: $addressId');
 
+    if (!_isOnline) {
+      debugPrint('❌ API SERVICE: Cannot checkout while offline');
+      onOffline?.call('You are offline. Cannot complete checkout.');
+      throw Exception('Cannot checkout while offline');
+    }
+
     try {
-      if (!_isOnline) {
-        debugPrint('❌ API SERVICE: Cannot checkout while offline');
-        throw Exception('Cannot checkout while offline');
-      }
 
       // Build request data explicitly to debug what's being sent
       final requestData = {
@@ -732,29 +724,6 @@ class ApiService {
     } catch (e) {
       debugPrint('❌ API SERVICE: getDenominations error: $e');
       return [];
-    }
-  }
-
-  // Sync pending data when back online
-  Future<void> _syncPendingData() async {
-    debugPrint('🔄 API SERVICE: _syncPendingData called');
-
-    try {
-      final pendingOrders = await _db.getPendingOrders();
-      debugPrint('🔄 API SERVICE: Pending orders: ${pendingOrders.length}');
-
-      for (var order in pendingOrders) {
-        try {
-          await _dio.post('/orders', data: order);
-          await _db.markOrderAsSynced(order['id'] as int);
-          debugPrint('✅ API SERVICE: Order synced - ID: ${order['id']}');
-        } catch (e) {
-          debugPrint('⚠️ API SERVICE: Failed to sync order ${order['id']}: $e');
-          continue;
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ API SERVICE: _syncPendingData error: $e');
     }
   }
 

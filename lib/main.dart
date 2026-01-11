@@ -5,7 +5,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 import 'l10n/generated/app_localizations.dart';
 
-import 'core/database/database_service.dart';
 import 'core/api/api_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/audio_service.dart';
@@ -47,8 +46,7 @@ void main() async {
   final storageService = StorageService();
   await storageService.init();
 
-  final databaseService = DatabaseService();
-  final apiService = ApiService(databaseService, storageService);
+  final apiService = ApiService(storageService);
   final audioService = AudioService();
   await audioService.preload(); // preload beep sound for instant playback
 

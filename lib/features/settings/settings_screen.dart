@@ -8,10 +8,7 @@ import '../../shared/constants/app_constants.dart';
 import '../../core/services/thermal_print_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/providers/update_provider.dart';
-import '../../core/database/database_service.dart';
-import '../../core/database/saved_cart_database.dart';
 import '../auth/auth_provider.dart';
-import '../sales/sales_provider.dart';
 import '../../core/models/user.dart';
 import '../../l10n/generated/app_localizations.dart';
 
@@ -75,31 +72,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Two column layout: Data Management | Updates & About
+            // Updates & About section
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Data Management
+                // Updates
                 Expanded(
-                  child: _buildSection(
-                    title: l10n?.dataManagement ?? 'Data Management',
-                    icon: Icons.storage,
-                    child: _buildDataManagementCard(),
-                  ),
+                  child: _buildUpdateSection(),
                 ),
                 const SizedBox(width: 24),
-                // Updates & App Info
+                // About
                 Expanded(
-                  child: Column(
-                    children: [
-                      _buildUpdateSection(),
-                      const SizedBox(height: 24),
-                      _buildSection(
-                        title: l10n?.about ?? 'About',
-                        icon: Icons.info_outline,
-                        child: _buildAboutCard(),
-                      ),
-                    ],
+                  child: _buildSection(
+                    title: l10n?.about ?? 'About',
+                    icon: Icons.info_outline,
+                    child: _buildAboutCard(),
                   ),
                 ),
               ],
@@ -405,270 +392,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDataManagementCard() {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Clear & Resync Products
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.sync, color: AppColors.warning),
-              ),
-              title: Text(
-                l10n?.clearAndResyncProducts ?? 'Clear & Resync Products',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                l10n?.clearLocalCacheDescription ?? 'Clear local product cache and download fresh data from server',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: ElevatedButton(
-                onPressed: () => _showClearAndResyncDialog(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.warning,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(l10n?.resync ?? 'Resync'),
-              ),
-            ),
-
-            const Divider(height: 24),
-
-            // Clear All Local Data
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.delete_forever, color: AppColors.error),
-              ),
-              title: Text(
-                l10n?.clearAllData ?? 'Clear All Local Data',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                l10n?.clearAllLocalDataDescription ?? 'Remove all cached data including products, saved carts, and pending orders',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: OutlinedButton(
-                onPressed: () => _showClearAllDataDialog(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: BorderSide(color: AppColors.error),
-                ),
-                child: Text(l10n?.clear ?? 'Clear'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showClearAndResyncDialog() async {
-    final l10n = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.sync, color: AppColors.warning),
-            const SizedBox(width: 12),
-            Text(l10n?.clearAndResyncTitle ?? 'Clear & Resync Products'),
-          ],
-        ),
-        content: Text(
-          l10n?.clearAndResyncContent ??
-          'This will:\n'
-          '• Delete all locally cached products\n'
-          '• Download fresh product data from server\n'
-          '• Update product images and prices\n\n'
-          'Your saved carts and pending orders will NOT be affected.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(l10n?.resyncNow ?? 'Resync Now'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await _performResync();
-    }
-  }
-
-  Future<void> _performResync() async {
-    final l10n = AppLocalizations.of(context);
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 24),
-            Text(l10n?.resyncing ?? 'Resyncing products...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final db = DatabaseService();
-      final salesProvider = context.read<SalesProvider>();
-
-      // Clear products table
-      final database = await db.database;
-      await database.delete('products');
-      debugPrint('🗑️ RESYNC: Products table cleared');
-
-      // Reload products from API
-      await salesProvider.loadProducts(refresh: true);
-      debugPrint('✅ RESYNC: Products reloaded from API');
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n?.resyncSuccess ?? 'Products resynced successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ RESYNC: Error - $e');
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${l10n?.resyncFailed ?? 'Resync failed'}: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _showClearAllDataDialog() async {
-    final l10n = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: AppColors.error),
-            const SizedBox(width: 12),
-            Text(l10n?.clearAllDataTitle ?? 'Clear All Data'),
-          ],
-        ),
-        content: Text(
-          l10n?.clearAllDataWarning ??
-          '⚠️ WARNING: This will permanently delete:\n\n'
-          '• All cached products\n'
-          '• All saved/held carts\n'
-          '• All pending offline orders\n'
-          '• Session history\n\n'
-          'This action cannot be undone!',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(l10n?.clearAll ?? 'Clear All'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await _performClearAll();
-    }
-  }
-
-  Future<void> _performClearAll() async {
-    final l10n = AppLocalizations.of(context);
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 24),
-            Text(l10n?.clearingData ?? 'Clearing all data...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final db = DatabaseService();
-      final savedCartDb = SavedCartDatabase();
-      final salesProvider = context.read<SalesProvider>();
-
-      // Clear all tables
-      await db.clearAllData();
-      await savedCartDb.clearAll();
-      debugPrint('🗑️ CLEAR ALL: All local data cleared');
-
-      // Reload fresh data
-      await salesProvider.loadProducts(refresh: true);
-      debugPrint('✅ CLEAR ALL: Fresh data loaded');
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n?.dataCleared ?? 'All local data cleared and resynced!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ CLEAR ALL: Error - $e');
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${l10n?.clearFailed ?? 'Clear failed'}: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
 }
 
 /// Printer Settings Card

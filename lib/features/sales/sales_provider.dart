@@ -672,30 +672,49 @@ class SalesProvider with ChangeNotifier {
         customerAddressStr = _selectedAddress!.displayText;
       }
 
-      // Direct checkout with discount, shipping, and address
-      final order = await _apiService.checkoutDirect(
+      // Build tax details for Laravel
+      final taxDetails = _cartItems.map((item) => {
+        'product_id': item.productId,
+        'product_name': item.name,
+        'tax_rate': item.taxRate,
+        'tax_amount': (item.price * item.quantity * (item.taxRate / 100)).round(),
+      }).toList();
+
+      // Build address object for Laravel
+      final addressPayload = {
+        'address_id': _selectedAddress?.id != null ? _selectedAddress!.id.toString() : 'new',
+        'name': _selectedCustomer?.name ?? 'Guest',
+        'email': _selectedCustomer?.email ?? 'guest@example.com',
+        'phone': _selectedCustomer?.phone ?? 'N/A',
+        'country': _selectedAddress?.country ?? 'SC',
+        'state': _selectedAddress?.state,
+        'city': _selectedAddress?.city,
+        'address': customerAddressStr ?? 'Pickup at Store',
+        'zip_code': _selectedAddress?.zipCode,
+      };
+
+      // Checkout via Laravel API
+      final order = await _apiService.checkoutViaLaravel(
         items: items,
         paymentMethod: _paymentMethod,
-        paymentDetails: paymentDetails,
-        paymentMetadata: paymentMetadata,
-        customerId: _selectedCustomer?.id,
-        // Discount parameters
-        discountId: _couponDiscountId,
-        couponCode: _couponCode,
-        discountAmount: totalDiscountAmount,
-        discountDescription: _discountDescription,
-        // Shipping & Delivery
-        shippingAmount: _shippingAmount,
-        deliveryType: _deliveryType == DeliveryType.ship ? 'ship' : 'pickup',
-        // Tax (calculated from cart)
+        subtotal: cart.subtotal,
+        total: cart.total,
         taxAmount: cart.tax,
-        // Customer info for invoice
-        customerName: _selectedCustomer?.name,
-        customerEmail: _selectedCustomer?.email,
-        customerPhone: _selectedCustomer?.phone,
-        // Address info (for delivery)
-        addressId: _selectedAddress?.id,
-        customerAddress: customerAddressStr,
+        taxDetails: taxDetails.cast<Map<String, dynamic>>(),
+        discountAmount: totalDiscountAmount,
+        shippingAmount: _shippingAmount,
+        couponCode: _couponCode,
+        customerId: _selectedCustomer?.id,
+        customer: _selectedCustomer != null ? {
+          'id': _selectedCustomer!.id,
+          'name': _selectedCustomer!.name,
+          'email': _selectedCustomer!.email,
+          'phone': _selectedCustomer!.phone,
+        } : null,
+        address: addressPayload,
+        deliveryOption: _deliveryType == DeliveryType.ship ? 'ship' : 'pickup',
+        notes: null,
+        cashReceived: paymentMetadata?['cash_received']?.toDouble(),
       );
 
       // Clear local cart and all state

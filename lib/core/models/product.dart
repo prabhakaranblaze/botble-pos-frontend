@@ -9,9 +9,13 @@ class Product {
   final double price;
   final double? salePrice;
   final String? image;
-  final int? quantity;
+  final int quantity;
+  final String? stockStatus;
   final String? description;
   final bool isAvailable;
+  final bool isAvailableInPos;
+  final bool allowCheckoutWhenOutOfStock;
+  final bool withStorehouseManagement;
   final bool hasVariants;
   final List<ProductVariant>? variants;
   final ProductTax? tax;
@@ -24,13 +28,43 @@ class Product {
     required this.price,
     this.salePrice,
     this.image,
-    this.quantity,
+    this.quantity = 0,
+    this.stockStatus,
     this.description,
     this.isAvailable = true,
+    this.isAvailableInPos = true,
+    this.allowCheckoutWhenOutOfStock = false,
+    this.withStorehouseManagement = false,
     this.hasVariants = false,
     this.variants,
     this.tax,
   });
+
+  /// Check if product is in stock
+  bool get isInStock => quantity > 0 || stockStatus == 'in_stock';
+
+  /// Check if product can be added to cart
+  /// Returns true if: not tracking stock, has stock, or allows checkout when out of stock
+  bool canAddToCart(int requestedQty, int currentCartQty) {
+    // If not available in POS, cannot add
+    if (!isAvailableInPos) return false;
+
+    // If allows checkout when out of stock, always allow
+    if (allowCheckoutWhenOutOfStock) return true;
+
+    // If not tracking stock (no storehouse management), allow
+    if (!withStorehouseManagement) return true;
+
+    // Check if enough stock for requested + already in cart
+    return (currentCartQty + requestedQty) <= quantity;
+  }
+
+  /// Get available quantity (considering what's already in cart)
+  int availableQuantity(int currentCartQty) {
+    if (!withStorehouseManagement) return 999999; // Unlimited
+    if (allowCheckoutWhenOutOfStock) return 999999; // Unlimited
+    return (quantity - currentCartQty).clamp(0, quantity);
+  }
 
   double get finalPrice => salePrice ?? price;
 
@@ -58,9 +92,13 @@ class Product {
           ? double.parse(json['sale_price'].toString())
           : null,
       image: json['image'] as String?,
-      quantity: json['quantity'] as int?,
+      quantity: (json['quantity'] as int?) ?? 0,
+      stockStatus: json['stock_status'] as String?,
       description: json['description'] as String?,
       isAvailable: json['is_available'] ?? true,
+      isAvailableInPos: (json['is_available_in_pos'] == 1 || json['is_available_in_pos'] == true),
+      allowCheckoutWhenOutOfStock: (json['allow_checkout_when_out_of_stock'] == 1 || json['allow_checkout_when_out_of_stock'] == true),
+      withStorehouseManagement: (json['with_storehouse_management'] == 1 || json['with_storehouse_management'] == true),
       hasVariants: json['has_variants'] ?? false,
       variants: json['variants'] != null
           ? (json['variants'] as List)
@@ -82,8 +120,12 @@ class Product {
       'sale_price': salePrice,
       'image': image,
       'quantity': quantity,
+      'stock_status': stockStatus,
       'description': description,
       'is_available': isAvailable,
+      'is_available_in_pos': isAvailableInPos,
+      'allow_checkout_when_out_of_stock': allowCheckoutWhenOutOfStock,
+      'with_storehouse_management': withStorehouseManagement,
       'has_variants': hasVariants,
       'variants': variants?.map((v) => v.toJson()).toList(),
       'tax': tax?.toJson(),
@@ -101,8 +143,12 @@ class Product {
       'sale_price': salePrice,
       'image': image,
       'quantity': quantity,
+      'stock_status': stockStatus,
       'description': description,
       'is_available': isAvailable ? 1 : 0,
+      'is_available_in_pos': isAvailableInPos ? 1 : 0,
+      'allow_checkout_when_out_of_stock': allowCheckoutWhenOutOfStock ? 1 : 0,
+      'with_storehouse_management': withStorehouseManagement ? 1 : 0,
       'has_variants': hasVariants ? 1 : 0,
       'variants_json': variants != null
           ? jsonEncode(variants!.map((v) => v.toJson()).toList())
@@ -147,9 +193,19 @@ class Product {
           ? (json['sale_price'] as num).toDouble()
           : null,
       image: json['image'] as String?,
-      quantity: json['quantity'] as int?,
+      quantity: (json['quantity'] as int?) ?? 0,
+      stockStatus: json['stock_status'] as String?,
       description: json['description'] as String?,
       isAvailable: (json['is_available'] as int) == 1,
+      isAvailableInPos: json['is_available_in_pos'] != null
+          ? (json['is_available_in_pos'] as int) == 1
+          : true,
+      allowCheckoutWhenOutOfStock: json['allow_checkout_when_out_of_stock'] != null
+          ? (json['allow_checkout_when_out_of_stock'] as int) == 1
+          : false,
+      withStorehouseManagement: json['with_storehouse_management'] != null
+          ? (json['with_storehouse_management'] as int) == 1
+          : false,
       hasVariants: json['has_variants'] != null
           ? (json['has_variants'] as int) == 1
           : false,

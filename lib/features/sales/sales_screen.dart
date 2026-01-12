@@ -233,6 +233,7 @@ class _SalesScreenState extends State<SalesScreen> {
     debugPrint('➕ ADD TO CART: Has Variants: ${product.hasVariants}');
     debugPrint(
         '➕ ADD TO CART: Has Selectable Variants: ${product.hasSelectableVariants}');
+    debugPrint('➕ ADD TO CART: Stock: ${product.quantity}, Available in POS: ${product.isAvailableInPos}');
 
     final salesProvider = context.read<SalesProvider>();
 
@@ -281,6 +282,14 @@ class _SalesScreenState extends State<SalesScreen> {
           debugPrint('➕ ADD TO CART: Unit Price: $unitPrice');
           debugPrint('➕ ADD TO CART: Options: $optionsStr');
 
+          // Validate stock before adding
+          final stockError = salesProvider.validateStock(productForCart, qty);
+          if (stockError != null) {
+            debugPrint('❌ ADD TO CART: Stock validation failed - $stockError');
+            _showStockErrorDialog(stockError);
+            return;
+          }
+
           await salesProvider.addProductToCart(productForCart,
               quantity: qty, priceOverride: unitPrice, options: optionsStr);
 
@@ -290,6 +299,14 @@ class _SalesScreenState extends State<SalesScreen> {
         }
       } else {
         debugPrint('➕ ADD TO CART: Product has no variants, direct add...');
+
+        // Validate stock before adding
+        final stockError = salesProvider.validateStock(productForCart, 1);
+        if (stockError != null) {
+          debugPrint('❌ ADD TO CART: Stock validation failed - $stockError');
+          _showStockErrorDialog(stockError);
+          return;
+        }
 
         await salesProvider.addProductToCart(productForCart, quantity: 1);
 
@@ -310,6 +327,68 @@ class _SalesScreenState extends State<SalesScreen> {
     }
 
     _searchFocusNode.requestFocus();
+  }
+
+  /// Show stock error popup dialog
+  void _showStockErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(Icons.inventory_outlined, color: AppColors.error, size: 48),
+        title: const Text('Insufficient Stock'),
+        content: Text(message),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show stock issues dialog (multiple items)
+  void _showStockIssuesDialog(Map<int, String> stockIssues) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 48),
+        title: const Text('Stock Issues'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('The following items have stock issues:'),
+              const SizedBox(height: 12),
+              ...stockIssues.values.map((message) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(message)),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 12),
+              const Text(
+                'Please update quantities or remove these items before checkout.',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleSaveCart() async {
@@ -436,6 +515,36 @@ class _SalesScreenState extends State<SalesScreen> {
       );
       return;
     }
+
+    // Refresh stock before checkout
+    debugPrint('💳 CHECKOUT: Refreshing stock levels...');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text('Checking stock availability...'),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    final stockIssues = await salesProvider.refreshCartStock();
+    if (stockIssues.isNotEmpty) {
+      debugPrint('❌ CHECKOUT: Stock issues found: $stockIssues');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        _showStockIssuesDialog(stockIssues);
+      }
+      return;
+    }
+    debugPrint('✅ CHECKOUT: Stock validation passed');
 
     debugPrint('💳 CHECKOUT: Showing payment dialog...');
 
@@ -787,6 +896,9 @@ class _SalesScreenState extends State<SalesScreen> {
                                         ],
                                       ),
                                     ),
+                                    // Stock badge
+                                    _buildStockBadge(product),
+                                    const SizedBox(width: 8),
                                     // Selection indicator
                                     if (isSelected)
                                       Icon(
@@ -1716,26 +1828,35 @@ class _SalesScreenState extends State<SalesScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Stock Badge & SKU
-              if (product.sku != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    product.sku!,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.success,
-                      fontWeight: FontWeight.w600,
+              // Stock Badge & SKU Row
+              Row(
+                children: [
+                  // SKU badge
+                  if (product.sku != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        product.sku!,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                    const SizedBox(width: 4),
+                  ],
+                  // Stock badge
+                  _buildStockBadge(product),
+                ],
+              ),
 
               const SizedBox(height: 4),
 
@@ -2270,5 +2391,64 @@ class _SalesScreenState extends State<SalesScreen> {
         ),
       );
     }
+  }
+
+  /// Build stock badge widget for product
+  Widget _buildStockBadge(Product product) {
+    // If not tracking stock, show unlimited
+    if (!product.withStorehouseManagement || product.allowCheckoutWhenOutOfStock) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.success.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          'In Stock',
+          style: TextStyle(
+            fontSize: 10,
+            color: AppColors.success,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    // Check if out of stock
+    if (product.quantity <= 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.error.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          'Out of Stock',
+          style: TextStyle(
+            fontSize: 10,
+            color: AppColors.error,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    // Low stock warning (less than 5)
+    final color = product.quantity <= 5 ? AppColors.warning : AppColors.success;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        'Qty: ${product.quantity}',
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }

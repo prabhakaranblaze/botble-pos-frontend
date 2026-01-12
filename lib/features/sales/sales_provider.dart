@@ -916,4 +916,92 @@ class SalesProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  // ========== STOCK VALIDATION ==========
+
+  /// Get current quantity of a product in the cart
+  int getCartQuantity(int productId) {
+    final item = _cartItems.firstWhere(
+      (item) => item.productId == productId,
+      orElse: () => SavedCartItem(productId: 0, name: '', price: 0, quantity: 0),
+    );
+    return item.quantity;
+  }
+
+  /// Check if a product can be added to cart with the given quantity
+  /// Returns null if OK, or an error message if not
+  String? validateStock(Product product, int requestedQty) {
+    final currentCartQty = getCartQuantity(product.id);
+
+    // Check if product is available in POS
+    if (!product.isAvailableInPos) {
+      return '${product.name} is not available for POS sales';
+    }
+
+    // If allows checkout when out of stock, always allow
+    if (product.allowCheckoutWhenOutOfStock) {
+      return null;
+    }
+
+    // If not tracking stock (no storehouse management), allow
+    if (!product.withStorehouseManagement) {
+      return null;
+    }
+
+    // Check if product is completely out of stock
+    if (product.quantity <= 0) {
+      return '${product.name} is out of stock';
+    }
+
+    // Check if enough stock for requested + already in cart
+    final totalRequested = currentCartQty + requestedQty;
+    if (totalRequested > product.quantity) {
+      if (currentCartQty > 0) {
+        return 'Insufficient stock for ${product.name}. Only ${product.quantity} available (${currentCartQty} already in cart)';
+      } else {
+        return 'Insufficient stock for ${product.name}. Only ${product.quantity} available';
+      }
+    }
+
+    return null;
+  }
+
+  /// Refresh stock levels for all cart items before checkout
+  /// Returns map of productId -> error message for items with stock issues
+  Future<Map<int, String>> refreshCartStock() async {
+    final stockIssues = <int, String>{};
+
+    for (final item in _cartItems) {
+      try {
+        final product = await _apiService.getProductDetails(item.productId);
+        if (product == null) {
+          stockIssues[item.productId] = '${item.name} is no longer available';
+          continue;
+        }
+
+        final error = validateStock(product, 0);
+        if (error != null) {
+          // Product is completely unavailable
+          stockIssues[item.productId] = error;
+          continue;
+        }
+
+        // Check if cart quantity exceeds current stock
+        if (product.withStorehouseManagement &&
+            !product.allowCheckoutWhenOutOfStock &&
+            item.quantity > product.quantity) {
+          if (product.quantity <= 0) {
+            stockIssues[item.productId] = '${item.name} is now out of stock';
+          } else {
+            stockIssues[item.productId] = '${item.name} only has ${product.quantity} in stock (you have ${item.quantity} in cart)';
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ STOCK CHECK: Error checking ${item.name}: $e');
+        // Don't block checkout for API errors
+      }
+    }
+
+    return stockIssues;
+  }
 }

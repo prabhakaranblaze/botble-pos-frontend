@@ -725,9 +725,48 @@ class ApiService {
             '❌ API SERVICE: Laravel Checkout error - ${response.data['message']}');
         throw Exception(response.data['message']);
       }
+    } on DioException catch (e) {
+      debugPrint('❌ API SERVICE: checkoutViaLaravel DioException: $e');
+
+      // Extract friendly error message
+      String friendlyMessage = 'Checkout failed. Please try again.';
+
+      if (e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map) {
+          // Try to get message from response
+          if (data['message'] != null) {
+            final message = data['message'].toString().toLowerCase();
+            // Map common errors to friendly messages
+            if (message.contains('token') || message.contains('unauthorized')) {
+              friendlyMessage = 'Authentication error. Please log in again.';
+            } else if (message.contains('network') || message.contains('connection')) {
+              friendlyMessage = 'Network error. Please check your connection.';
+            } else if (message.contains('timeout')) {
+              friendlyMessage = 'Request timed out. Please try again.';
+            } else if (message.contains('certificate')) {
+              friendlyMessage = 'Server connection error. Please contact support.';
+            } else {
+              // Use the message if it's not too technical
+              final msg = data['message'].toString();
+              if (msg.length < 100 && !msg.contains('Exception') && !msg.contains('Error:')) {
+                friendlyMessage = msg;
+              }
+            }
+          }
+        }
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+                 e.type == DioExceptionType.receiveTimeout ||
+                 e.type == DioExceptionType.sendTimeout) {
+        friendlyMessage = 'Connection timed out. Please try again.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        friendlyMessage = 'Unable to connect to server. Please check your network.';
+      }
+
+      throw Exception(friendlyMessage);
     } catch (e) {
       debugPrint('❌ API SERVICE: checkoutViaLaravel exception: $e');
-      throw Exception('Laravel checkout failed: ${e.toString()}');
+      throw Exception('Checkout failed. Please try again.');
     }
   }
 

@@ -263,7 +263,7 @@ class OrdersController {
           headers: {
             'Content-Type': 'application/json',
             'X-API-KEY': laravelApiKey,
-            'POS-API-TOKEN': posApiToken,
+            'Token': posApiToken,
           },
           timeout: 30000, // 30 second timeout
         }

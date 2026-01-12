@@ -8,13 +8,14 @@ import '../../core/models/customer_address.dart';
 import '../../core/models/saved_cart.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/audio_service.dart';
-import '../../core/database/saved_cart_database.dart';
+import '../../core/database/saved_cart_storage.dart';
+import '../../core/database/saved_cart_storage_factory.dart';
 import 'delivery_address_widget.dart';
 
 class SalesProvider with ChangeNotifier {
   final ApiService _apiService;
   final AudioService _audioService;
-  final SavedCartDatabase _savedCartDb = SavedCartDatabase();
+  final SavedCartStorage _savedCartDb = SavedCartStorageFactory.getInstance();
   final Uuid _uuid = const Uuid();
 
   List<Product> _products = [];

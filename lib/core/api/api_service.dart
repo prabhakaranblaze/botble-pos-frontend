@@ -653,6 +653,26 @@ class ApiService {
     }
 
     try {
+      // Helper to parse options string to Laravel attributes array
+      // Converts "Color: Brown • Weight: 1KG • Size: S" to [{"set": "Color", "value": "Brown"}, ...]
+      List<Map<String, String>>? parseOptionsToAttributes(dynamic options) {
+        if (options == null) return null;
+        if (options is List) return options.cast<Map<String, String>>();
+        if (options is! String || options.isEmpty) return null;
+
+        final attributes = <Map<String, String>>[];
+        final parts = options.split(' • ');
+        for (final part in parts) {
+          final colonIndex = part.indexOf(':');
+          if (colonIndex > 0) {
+            final set = part.substring(0, colonIndex).trim();
+            final value = part.substring(colonIndex + 1).trim();
+            attributes.add({'set': set, 'value': value});
+          }
+        }
+        return attributes.isEmpty ? null : attributes;
+      }
+
       // Build Laravel-compatible cart payload
       final cartPayload = {
         'items': items.map((item) => {
@@ -663,7 +683,7 @@ class ApiService {
           'price': item['price'],
           'quantity': item['quantity'],
           'tax_rate': item['tax_rate'] ?? 0,
-          'attributes': item['attributes'] ?? item['options'],
+          'attributes': parseOptionsToAttributes(item['attributes'] ?? item['options']),
           'image_url': item['image_url'],
         }).toList(),
         'subtotal': subtotal,

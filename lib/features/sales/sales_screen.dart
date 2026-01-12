@@ -1607,8 +1607,8 @@ class _SalesScreenState extends State<SalesScreen> {
                               // Checkout Button
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: cart.items.isEmpty || salesProvider.isCheckingOut ? null : _handleCheckout,
-                                  icon: salesProvider.isCheckingOut
+                                  onPressed: cart.items.isEmpty || sales.isCheckingOut ? null : _handleCheckout,
+                                  icon: sales.isCheckingOut
                                       ? const SizedBox(
                                           width: 20,
                                           height: 20,
@@ -1619,7 +1619,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                         )
                                       : const Icon(Icons.payment),
                                   label: Text(
-                                    salesProvider.isCheckingOut
+                                    sales.isCheckingOut
                                         ? 'Processing...'
                                         : '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
                                     style: const TextStyle(

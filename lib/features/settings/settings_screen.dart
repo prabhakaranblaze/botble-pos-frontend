@@ -1,19 +1,15 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
-import 'package:flutter_thermal_printer/utils/printer.dart';
 import 'package:intl/intl.dart';
 import '../../shared/constants/app_constants.dart';
-import '../../core/services/thermal_print_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/providers/update_provider.dart';
-import '../../core/database/database_service.dart';
-import '../../core/database/saved_cart_database.dart';
 import '../auth/auth_provider.dart';
-import '../sales/sales_provider.dart';
 import '../../core/models/user.dart';
 import '../../l10n/generated/app_localizations.dart';
+import 'printer_settings_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -75,31 +71,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Two column layout: Data Management | Updates & About
+            // Updates & About section
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Data Management
+                // Updates
                 Expanded(
-                  child: _buildSection(
-                    title: l10n?.dataManagement ?? 'Data Management',
-                    icon: Icons.storage,
-                    child: _buildDataManagementCard(),
-                  ),
+                  child: _buildUpdateSection(),
                 ),
                 const SizedBox(width: 24),
-                // Updates & App Info
+                // About
                 Expanded(
-                  child: Column(
-                    children: [
-                      _buildUpdateSection(),
-                      const SizedBox(height: 24),
-                      _buildSection(
-                        title: l10n?.about ?? 'About',
-                        icon: Icons.info_outline,
-                        child: _buildAboutCard(),
-                      ),
-                    ],
+                  child: _buildSection(
+                    title: l10n?.about ?? 'About',
+                    icon: Icons.info_outline,
+                    child: _buildAboutCard(),
                   ),
                 ),
               ],
@@ -158,7 +144,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (hasUpdate) ...[
+                // Show NEW badge only on desktop when update available
+                if (hasUpdate && !kIsWeb) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -189,8 +176,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       children: [
                         Icon(
-                          hasUpdate ? Icons.update : Icons.check_circle,
-                          color: hasUpdate ? AppColors.warning : AppColors.success,
+                          kIsWeb ? Icons.info_outline : (hasUpdate ? Icons.update : Icons.check_circle),
+                          color: kIsWeb ? AppColors.primary : (hasUpdate ? AppColors.warning : AppColors.success),
                           size: 40,
                         ),
                         const SizedBox(width: 16),
@@ -199,7 +186,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                hasUpdate ? (l10n?.updateAvailable ?? 'Update Available') : (l10n?.appUpToDate ?? 'App is up to date'),
+                                kIsWeb
+                                    ? (l10n?.version ?? 'Version')
+                                    : (hasUpdate ? (l10n?.updateAvailable ?? 'Update Available') : (l10n?.appUpToDate ?? 'App is up to date')),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 16,
@@ -207,13 +196,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${l10n?.currentVersionLabel ?? 'Current:'} v${UpdateService.appVersion}',
+                                kIsWeb
+                                    ? 'v${UpdateService.appVersion}'
+                                    : '${l10n?.currentVersionLabel ?? 'Current:'} v${UpdateService.appVersion}',
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,
                                 ),
                               ),
-                              if (hasUpdate && updateInfo != null)
+                              // Show latest version only on desktop
+                              if (!kIsWeb && hasUpdate && updateInfo != null)
                                 Text(
                                   '${l10n?.latestVersionLabel ?? 'Latest:'} v${updateInfo.latestVersion}',
                                   style: TextStyle(
@@ -225,49 +217,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                         ),
-                        // Check/Download button
-                        if (updateProvider.isChecking)
-                          const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else if (updateProvider.isDownloading)
-                          Column(
-                            children: [
-                              SizedBox(
-                                width: 80,
-                                child: LinearProgressIndicator(
-                                  value: updateProvider.downloadProgress,
+                        // Check/Download button (desktop only)
+                        if (!kIsWeb) ...[
+                          if (updateProvider.isChecking)
+                            const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else if (updateProvider.isDownloading)
+                            Column(
+                              children: [
+                                SizedBox(
+                                  width: 80,
+                                  child: LinearProgressIndicator(
+                                    value: updateProvider.downloadProgress,
+                                  ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${(updateProvider.downloadProgress * 100).toInt()}%',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            )
+                          else if (hasUpdate)
+                            ElevatedButton.icon(
+                              onPressed: () => _downloadAndInstallUpdate(updateProvider),
+                              icon: const Icon(Icons.download, size: 18),
+                              label: Text(l10n?.update ?? 'Update'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${(updateProvider.downloadProgress * 100).toInt()}%',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          )
-                        else if (hasUpdate)
-                          ElevatedButton.icon(
-                            onPressed: () => _downloadAndInstallUpdate(updateProvider),
-                            icon: const Icon(Icons.download, size: 18),
-                            label: Text(l10n?.update ?? 'Update'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.success,
+                            )
+                          else
+                            OutlinedButton.icon(
+                              onPressed: () => updateProvider.checkForUpdate(),
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: Text(l10n?.check ?? 'Check'),
                             ),
-                          )
-                        else
-                          OutlinedButton.icon(
-                            onPressed: () => updateProvider.checkForUpdate(),
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(l10n?.check ?? 'Check'),
-                          ),
+                        ],
                       ],
                     ),
 
-                    // Release notes
-                    if (hasUpdate && updateInfo != null && updateInfo.releaseNotes.isNotEmpty) ...[
+                    // Release notes (desktop only)
+                    if (!kIsWeb && hasUpdate && updateInfo != null && updateInfo.releaseNotes.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 8),
@@ -405,778 +399,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDataManagementCard() {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Clear & Resync Products
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.sync, color: AppColors.warning),
-              ),
-              title: Text(
-                l10n?.clearAndResyncProducts ?? 'Clear & Resync Products',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                l10n?.clearLocalCacheDescription ?? 'Clear local product cache and download fresh data from server',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: ElevatedButton(
-                onPressed: () => _showClearAndResyncDialog(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.warning,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(l10n?.resync ?? 'Resync'),
-              ),
-            ),
-
-            const Divider(height: 24),
-
-            // Clear All Local Data
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.delete_forever, color: AppColors.error),
-              ),
-              title: Text(
-                l10n?.clearAllData ?? 'Clear All Local Data',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                l10n?.clearAllLocalDataDescription ?? 'Remove all cached data including products, saved carts, and pending orders',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: OutlinedButton(
-                onPressed: () => _showClearAllDataDialog(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: BorderSide(color: AppColors.error),
-                ),
-                child: Text(l10n?.clear ?? 'Clear'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showClearAndResyncDialog() async {
-    final l10n = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.sync, color: AppColors.warning),
-            const SizedBox(width: 12),
-            Text(l10n?.clearAndResyncTitle ?? 'Clear & Resync Products'),
-          ],
-        ),
-        content: Text(
-          l10n?.clearAndResyncContent ??
-          'This will:\n'
-          '• Delete all locally cached products\n'
-          '• Download fresh product data from server\n'
-          '• Update product images and prices\n\n'
-          'Your saved carts and pending orders will NOT be affected.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(l10n?.resyncNow ?? 'Resync Now'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await _performResync();
-    }
-  }
-
-  Future<void> _performResync() async {
-    final l10n = AppLocalizations.of(context);
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 24),
-            Text(l10n?.resyncing ?? 'Resyncing products...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final db = DatabaseService();
-      final salesProvider = context.read<SalesProvider>();
-
-      // Clear products table
-      final database = await db.database;
-      await database.delete('products');
-      debugPrint('🗑️ RESYNC: Products table cleared');
-
-      // Reload products from API
-      await salesProvider.loadProducts(refresh: true);
-      debugPrint('✅ RESYNC: Products reloaded from API');
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n?.resyncSuccess ?? 'Products resynced successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ RESYNC: Error - $e');
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${l10n?.resyncFailed ?? 'Resync failed'}: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _showClearAllDataDialog() async {
-    final l10n = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: AppColors.error),
-            const SizedBox(width: 12),
-            Text(l10n?.clearAllDataTitle ?? 'Clear All Data'),
-          ],
-        ),
-        content: Text(
-          l10n?.clearAllDataWarning ??
-          '⚠️ WARNING: This will permanently delete:\n\n'
-          '• All cached products\n'
-          '• All saved/held carts\n'
-          '• All pending offline orders\n'
-          '• Session history\n\n'
-          'This action cannot be undone!',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(l10n?.clearAll ?? 'Clear All'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await _performClearAll();
-    }
-  }
-
-  Future<void> _performClearAll() async {
-    final l10n = AppLocalizations.of(context);
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 24),
-            Text(l10n?.clearingData ?? 'Clearing all data...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final db = DatabaseService();
-      final savedCartDb = SavedCartDatabase();
-      final salesProvider = context.read<SalesProvider>();
-
-      // Clear all tables
-      await db.clearAllData();
-      await savedCartDb.clearAll();
-      debugPrint('🗑️ CLEAR ALL: All local data cleared');
-
-      // Reload fresh data
-      await salesProvider.loadProducts(refresh: true);
-      debugPrint('✅ CLEAR ALL: Fresh data loaded');
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n?.dataCleared ?? 'All local data cleared and resynced!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ CLEAR ALL: Error - $e');
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${l10n?.clearFailed ?? 'Clear failed'}: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
 }
 
-/// Printer Settings Card
-class PrinterSettingsCard extends StatefulWidget {
-  const PrinterSettingsCard({super.key});
-
-  @override
-  State<PrinterSettingsCard> createState() => _PrinterSettingsCardState();
-}
-
-class _PrinterSettingsCardState extends State<PrinterSettingsCard> {
-  static const String _printerNameKey = 'default_printer_name';
-  static const String _printerAddressKey = 'default_printer_address';
-  static const String _printerConnectionTypeKey = 'default_printer_connection_type';
-  static const String _autoPrintKey = 'auto_print_enabled';
-
-  final ThermalPrintService _printService = ThermalPrintService();
-
-  String? _savedPrinterName;
-  String? _savedPrinterAddress;
-  bool _autoPrintEnabled = true;
-  bool _isScanning = false;
-  bool _isTesting = false;
-  List<Printer> _availablePrinters = [];
-  ConnectionType _selectedConnectionType = ConnectionType.USB;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSavedPrinter();
-    // Don't auto-scan - only scan when user clicks "Scan" button
-  }
-
-  @override
-  void dispose() {
-    // Stop scanning when leaving settings page
-    _printService.stopScan();
-    super.dispose();
-  }
-
-  Future<void> _loadSavedPrinter() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.reload(); // Ensure we get fresh data
-
-    final savedAutoPrint = prefs.getBool(_autoPrintKey);
-    debugPrint('🔧 SETTINGS: Loading auto-print: $savedAutoPrint (raw), using: ${savedAutoPrint ?? true}');
-    debugPrint('🔧 SETTINGS: Loading printer: ${prefs.getString(_printerNameKey)}');
-
-    setState(() {
-      _savedPrinterName = prefs.getString(_printerNameKey);
-      _savedPrinterAddress = prefs.getString(_printerAddressKey);
-      _autoPrintEnabled = savedAutoPrint ?? true;
-    });
-  }
-
-  Future<void> _savePrinter(Printer printer) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_printerNameKey, printer.name ?? 'Unknown');
-    await prefs.setString(_printerAddressKey, printer.address ?? '');
-    await prefs.setString(_printerConnectionTypeKey, printer.connectionType?.name ?? 'USB');
-
-    debugPrint('🔧 SETTINGS: Saved printer: ${printer.name} (${printer.address})');
-
-    setState(() {
-      _savedPrinterName = printer.name;
-      _savedPrinterAddress = printer.address;
-    });
-
-    if (mounted) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n?.defaultPrinterSetTo(printer.name ?? '') ?? 'Default printer set to: ${printer.name}'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    }
-  }
-
-  Future<void> _toggleAutoPrint(bool value) async {
-    debugPrint('🔧 SETTINGS: Toggling auto-print to: $value');
-
-    final prefs = await SharedPreferences.getInstance();
-    final success = await prefs.setBool(_autoPrintKey, value);
-    debugPrint('🔧 SETTINGS: setBool result: $success');
-
-    // Verify it was saved
-    await prefs.reload();
-    final savedValue = prefs.getBool(_autoPrintKey);
-    debugPrint('🔧 SETTINGS: Verified saved auto-print: $savedValue');
-
-    setState(() {
-      _autoPrintEnabled = value;
-    });
-  }
-
-  Future<void> _clearPrinter() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_printerNameKey);
-    await prefs.remove(_printerAddressKey);
-    await prefs.remove(_printerConnectionTypeKey);
-
-    setState(() {
-      _savedPrinterName = null;
-      _savedPrinterAddress = null;
-    });
-
-    if (mounted) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n?.defaultPrinterCleared ?? 'Default printer cleared')),
-      );
-    }
-  }
-
-  void _startScan() {
-    setState(() {
-      _isScanning = true;
-      _availablePrinters = [];
-    });
-
-    _printService.startScan(
-      connectionTypes: [_selectedConnectionType],
-    );
-
-    // Update printer list after delay
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _availablePrinters = _filterVirtualPrinters(_printService.availablePrinters);
-        });
-      }
-    });
-
-    // Keep scanning for a few seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _availablePrinters = _filterVirtualPrinters(_printService.availablePrinters);
-          _isScanning = false;
-        });
-      }
-    });
-  }
-
-  /// Filter out virtual printers (PDF, OneNote, Fax, etc.)
-  List<Printer> _filterVirtualPrinters(List<Printer> printers) {
-    final virtualKeywords = [
-      'pdf', 'onenote', 'fax', 'xps', 'microsoft', 'virtual',
-      'adobe', 'print to', 'document', 'send to'
-    ];
-
-    return printers.where((printer) {
-      final name = (printer.name ?? '').toLowerCase();
-      // Keep printer if it doesn't contain any virtual printer keywords
-      return !virtualKeywords.any((keyword) => name.contains(keyword));
-    }).toList();
-  }
-
-  Future<void> _testPrint() async {
-    final l10n = AppLocalizations.of(context);
-    if (_savedPrinterAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n?.selectPrinterFirst ?? 'Please select a printer first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isTesting = true);
-
-    try {
-      // Find the saved printer in available printers
-      await _printService.startScan(connectionTypes: [ConnectionType.USB, ConnectionType.BLE, ConnectionType.NETWORK]);
-      await Future.delayed(const Duration(seconds: 2));
-
-      final printers = _printService.availablePrinters;
-      final savedPrinter = printers.firstWhere(
-        (p) => p.address == _savedPrinterAddress,
-        orElse: () => printers.first,
-      );
-
-      _printService.selectPrinter(savedPrinter);
-
-      // Build test receipt
-      final testData = _buildTestReceipt();
-
-      final connected = await _printService.connect();
-      if (connected) {
-        await FlutterThermalPrinter.instance.printData(
-          savedPrinter,
-          testData,
-          longData: true,
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n?.testPrintSuccess ?? 'Test print sent successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        throw Exception('Could not connect to printer');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${l10n?.printFailed ?? 'Print failed'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-
-    setState(() => _isTesting = false);
-  }
-
-  List<int> _buildTestReceipt() {
-    final List<int> commands = [];
-
-    // Initialize
-    commands.addAll([0x1B, 0x40]);
-
-    // Center align
-    commands.addAll([0x1B, 0x61, 0x01]);
-
-    // Bold on + double height
-    commands.addAll([0x1B, 0x45, 0x01]);
-    commands.addAll([0x1D, 0x21, 0x10]);
-
-    commands.addAll('TEST PRINT'.codeUnits);
-    commands.add(0x0A);
-
-    // Normal size
-    commands.addAll([0x1D, 0x21, 0x00]);
-    commands.addAll([0x1B, 0x45, 0x00]);
-
-    commands.addAll('--------------------------------'.codeUnits);
-    commands.add(0x0A);
-
-    commands.addAll(AppConstants.appName.codeUnits);
-    commands.add(0x0A);
-
-    commands.addAll('Printer: ${_savedPrinterName ?? "Unknown"}'.codeUnits);
-    commands.add(0x0A);
-
-    commands.addAll('--------------------------------'.codeUnits);
-    commands.add(0x0A);
-
-    commands.addAll('If you can see this,'.codeUnits);
-    commands.add(0x0A);
-    commands.addAll('your printer is working!'.codeUnits);
-    commands.add(0x0A);
-    commands.add(0x0A);
-
-    // Feed and cut
-    commands.addAll([0x1B, 0x64, 0x04]);
-    commands.addAll([0x1D, 0x56, 0x00]);
-
-    return commands;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Current Printer
-            Row(
-              children: [
-                Icon(
-                  _savedPrinterName != null ? Icons.print : Icons.print_disabled,
-                  color: _savedPrinterName != null ? AppColors.success : AppColors.textSecondary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n?.defaultPrinter ?? 'Default Printer',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      Text(
-                        _savedPrinterName ?? (l10n?.notConfigured ?? 'Not configured'),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: _savedPrinterName != null ? null : AppColors.textSecondary,
-                        ),
-                      ),
-                      if (_savedPrinterAddress != null)
-                        Text(
-                          _savedPrinterAddress!,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                    ],
-                  ),
-                ),
-                if (_savedPrinterName != null) ...[
-                  IconButton(
-                    icon: _isTesting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.print),
-                    onPressed: _isTesting ? null : _testPrint,
-                    tooltip: l10n?.testPrint ?? 'Test Print',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: _clearPrinter,
-                    tooltip: l10n?.clear ?? 'Clear',
-                  ),
-                ],
-              ],
-            ),
-
-            const Divider(height: 24),
-
-            // Auto Print Toggle
-            SwitchListTile(
-              title: Text(l10n?.autoPrintOnPayment ?? 'Auto Print on Payment'),
-              subtitle: Text(l10n?.autoPrintDescription ?? 'Automatically print receipt when order is paid'),
-              value: _autoPrintEnabled,
-              onChanged: _toggleAutoPrint,
-              contentPadding: EdgeInsets.zero,
-            ),
-
-            const Divider(height: 24),
-
-            // Scan for Printers
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  l10n?.selectPrinter ?? 'Select Printer',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SegmentedButton<ConnectionType>(
-                      segments: [
-                        ButtonSegment(
-                          value: ConnectionType.USB,
-                          label: Text(l10n?.usb ?? 'USB'),
-                        ),
-                        ButtonSegment(
-                          value: ConnectionType.BLE,
-                          label: Text(l10n?.bluetooth ?? 'BT'),
-                        ),
-                        ButtonSegment(
-                          value: ConnectionType.NETWORK,
-                          label: Text(l10n?.wifi ?? 'WiFi'),
-                        ),
-                      ],
-                      selected: {_selectedConnectionType},
-                      onSelectionChanged: (types) {
-                        setState(() {
-                          _selectedConnectionType = types.first;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: _isScanning ? null : _startScan,
-                      icon: _isScanning
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.search),
-                      label: Text(_isScanning ? (l10n?.scanning ?? 'Scanning...') : (l10n?.scan ?? 'Scan')),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Note about thermal printers
-            Container(
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      l10n?.escposPrinterNote ?? 'Requires ESC/POS thermal receipt printer (Epson, Star, HOIN, etc.)\nVirtual printers (PDF, OneNote) are not supported.',
-                      style: TextStyle(fontSize: 12, color: Colors.amber[900]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Printer List
-            if (_availablePrinters.isEmpty && !_isScanning)
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.print_disabled,
-                        size: 48,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        l10n?.noThermalPrintersFound ?? 'No thermal printers found',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n?.connectThermalPrinter ?? 'Connect a USB thermal printer and click Scan',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Container(
-                constraints: const BoxConstraints(maxHeight: 200),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _availablePrinters.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final printer = _availablePrinters[index];
-                    final isSelected = printer.address == _savedPrinterAddress;
-
-                    return ListTile(
-                      leading: Icon(
-                        _getConnectionIcon(printer.connectionType),
-                        color: isSelected ? AppColors.success : AppColors.primary,
-                      ),
-                      title: Text(printer.name ?? (l10n?.unknownPrinter ?? 'Unknown Printer')),
-                      subtitle: Text(
-                        printer.address ?? '',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      trailing: isSelected
-                          ? Icon(Icons.check_circle, color: AppColors.success)
-                          : const Icon(Icons.chevron_right),
-                      selected: isSelected,
-                      onTap: () => _savePrinter(printer),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getConnectionIcon(ConnectionType? type) {
-    switch (type) {
-      case ConnectionType.USB:
-        return Icons.usb;
-      case ConnectionType.BLE:
-        return Icons.bluetooth;
-      case ConnectionType.NETWORK:
-        return Icons.wifi;
-      default:
-        return Icons.print;
-    }
-  }
-}
+// PrinterSettingsCard is now loaded conditionally from printer_settings_widget.dart
+// Desktop: Uses flutter_thermal_printer
+// Web: Uses Web Serial API
 
 /// Receipt Preview Card - Shows thermal receipt with demo data
 class ReceiptPreviewCard extends StatefulWidget {

@@ -8,13 +8,14 @@ import '../../core/models/customer_address.dart';
 import '../../core/models/saved_cart.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/audio_service.dart';
-import '../../core/database/saved_cart_database.dart';
+import '../../core/database/saved_cart_storage.dart';
+import '../../core/database/saved_cart_storage_factory.dart';
 import 'delivery_address_widget.dart';
 
 class SalesProvider with ChangeNotifier {
   final ApiService _apiService;
   final AudioService _audioService;
-  final SavedCartDatabase _savedCartDb = SavedCartDatabase();
+  final SavedCartStorage _savedCartDb = SavedCartStorageFactory.getInstance();
   final Uuid _uuid = const Uuid();
 
   List<Product> _products = [];
@@ -51,6 +52,7 @@ class SalesProvider with ChangeNotifier {
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _isCheckingOut = false;
   String? _error;
   String _searchQuery = '';
   int _currentPage = 1;
@@ -64,6 +66,7 @@ class SalesProvider with ChangeNotifier {
   Customer? get selectedCustomer => _selectedCustomer;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
+  bool get isCheckingOut => _isCheckingOut;
   String? get error => _error;
   String get searchQuery => _searchQuery;
   AudioService get audioService => _audioService;
@@ -630,7 +633,7 @@ class SalesProvider with ChangeNotifier {
 
   // ✅ CHECKOUT: Create order - sends cart items directly to backend
   Future<Order?> checkout({String? paymentDetails, Map<String, dynamic>? paymentMetadata}) async {
-    _isLoading = true;
+    _isCheckingOut = true;
     _error = null;
     notifyListeners();
 
@@ -671,30 +674,49 @@ class SalesProvider with ChangeNotifier {
         customerAddressStr = _selectedAddress!.displayText;
       }
 
-      // Direct checkout with discount, shipping, and address
-      final order = await _apiService.checkoutDirect(
+      // Build tax details for Laravel
+      final taxDetails = _cartItems.map((item) => {
+        'product_id': item.productId,
+        'product_name': item.name,
+        'tax_rate': item.taxRate,
+        'tax_amount': (item.price * item.quantity * (item.taxRate / 100)).round(),
+      }).toList();
+
+      // Build address object for Laravel
+      final addressPayload = {
+        'address_id': _selectedAddress?.id != null ? _selectedAddress!.id.toString() : 'new',
+        'name': _selectedCustomer?.name ?? 'Guest',
+        'email': _selectedCustomer?.email ?? 'guest@example.com',
+        'phone': _selectedCustomer?.phone ?? 'N/A',
+        'country': _selectedAddress?.country ?? 'SC',
+        'state': _selectedAddress?.state,
+        'city': _selectedAddress?.city,
+        'address': customerAddressStr ?? 'Pickup at Store',
+        'zip_code': _selectedAddress?.zipCode,
+      };
+
+      // Checkout via Laravel API
+      final order = await _apiService.checkoutViaLaravel(
         items: items,
         paymentMethod: _paymentMethod,
-        paymentDetails: paymentDetails,
-        paymentMetadata: paymentMetadata,
-        customerId: _selectedCustomer?.id,
-        // Discount parameters
-        discountId: _couponDiscountId,
-        couponCode: _couponCode,
-        discountAmount: totalDiscountAmount,
-        discountDescription: _discountDescription,
-        // Shipping & Delivery
-        shippingAmount: _shippingAmount,
-        deliveryType: _deliveryType == DeliveryType.ship ? 'ship' : 'pickup',
-        // Tax (calculated from cart)
+        subtotal: cart.subtotal,
+        total: cart.total,
         taxAmount: cart.tax,
-        // Customer info for invoice
-        customerName: _selectedCustomer?.name,
-        customerEmail: _selectedCustomer?.email,
-        customerPhone: _selectedCustomer?.phone,
-        // Address info (for delivery)
-        addressId: _selectedAddress?.id,
-        customerAddress: customerAddressStr,
+        taxDetails: taxDetails.cast<Map<String, dynamic>>(),
+        discountAmount: totalDiscountAmount,
+        shippingAmount: _shippingAmount,
+        couponCode: _couponCode,
+        customerId: _selectedCustomer?.id,
+        customer: _selectedCustomer != null ? {
+          'id': _selectedCustomer!.id,
+          'name': _selectedCustomer!.name,
+          'email': _selectedCustomer!.email,
+          'phone': _selectedCustomer!.phone,
+        } : null,
+        address: addressPayload,
+        deliveryOption: _deliveryType == DeliveryType.ship ? 'ship' : 'pickup',
+        notes: null,
+        cashReceived: paymentMetadata?['cash_received']?.toDouble(),
       );
 
       // Clear local cart and all state
@@ -715,7 +737,7 @@ class SalesProvider with ChangeNotifier {
 
       await _audioService.playSuccess();
 
-      _isLoading = false;
+      _isCheckingOut = false;
       notifyListeners();
 
       debugPrint('✅ CHECKOUT: Complete - Order #${order.code}');
@@ -724,7 +746,7 @@ class SalesProvider with ChangeNotifier {
       debugPrint('❌ CHECKOUT: Error: $e');
       await _audioService.playError();
       _error = e.toString();
-      _isLoading = false;
+      _isCheckingOut = false;
       notifyListeners();
       return null;
     }
@@ -913,5 +935,93 @@ class SalesProvider with ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  // ========== STOCK VALIDATION ==========
+
+  /// Get current quantity of a product in the cart
+  int getCartQuantity(int productId) {
+    final item = _cartItems.firstWhere(
+      (item) => item.productId == productId,
+      orElse: () => SavedCartItem(productId: 0, name: '', price: 0, quantity: 0),
+    );
+    return item.quantity;
+  }
+
+  /// Check if a product can be added to cart with the given quantity
+  /// Returns null if OK, or an error message if not
+  String? validateStock(Product product, int requestedQty) {
+    final currentCartQty = getCartQuantity(product.id);
+
+    // Check if product is available in POS
+    if (!product.isAvailableInPos) {
+      return '${product.name} is not available for POS sales';
+    }
+
+    // If allows checkout when out of stock, always allow
+    if (product.allowCheckoutWhenOutOfStock) {
+      return null;
+    }
+
+    // If not tracking stock (no storehouse management), allow
+    if (!product.withStorehouseManagement) {
+      return null;
+    }
+
+    // Check if product is completely out of stock
+    if (product.quantity <= 0) {
+      return '${product.name} is out of stock';
+    }
+
+    // Check if enough stock for requested + already in cart
+    final totalRequested = currentCartQty + requestedQty;
+    if (totalRequested > product.quantity) {
+      if (currentCartQty > 0) {
+        return 'Insufficient stock for ${product.name}. Only ${product.quantity} available (${currentCartQty} already in cart)';
+      } else {
+        return 'Insufficient stock for ${product.name}. Only ${product.quantity} available';
+      }
+    }
+
+    return null;
+  }
+
+  /// Refresh stock levels for all cart items before checkout
+  /// Returns map of productId -> error message for items with stock issues
+  Future<Map<int, String>> refreshCartStock() async {
+    final stockIssues = <int, String>{};
+
+    for (final item in _cartItems) {
+      try {
+        final product = await _apiService.getProductDetails(item.productId);
+        if (product == null) {
+          stockIssues[item.productId] = '${item.name} is no longer available';
+          continue;
+        }
+
+        final error = validateStock(product, 0);
+        if (error != null) {
+          // Product is completely unavailable
+          stockIssues[item.productId] = error;
+          continue;
+        }
+
+        // Check if cart quantity exceeds current stock
+        if (product.withStorehouseManagement &&
+            !product.allowCheckoutWhenOutOfStock &&
+            item.quantity > product.quantity) {
+          if (product.quantity <= 0) {
+            stockIssues[item.productId] = '${item.name} is now out of stock';
+          } else {
+            stockIssues[item.productId] = '${item.name} only has ${product.quantity} in stock (you have ${item.quantity} in cart)';
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ STOCK CHECK: Error checking ${item.name}: $e');
+        // Don't block checkout for API errors
+      }
+    }
+
+    return stockIssues;
   }
 }

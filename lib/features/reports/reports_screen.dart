@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:csv/csv.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:open_file/open_file.dart';
 import '../../core/api/api_service.dart';
+import '../../core/utils/file_helper.dart';
 import '../../shared/constants/app_constants.dart';
 import '../session/session_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
@@ -267,17 +265,14 @@ class _ReportsScreenState extends State<ReportsScreen>
       // Convert to CSV
       final csv = const ListToCsvConverter().convert(rows);
 
-      // Save file
-      final dir = await getApplicationDocumentsDirectory();
+      // Save and open file
       final dateStr = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-      final file = File('${dir.path}/orders_report_$dateStr.csv');
-      await file.writeAsString(csv);
-
-      await OpenFile.open(file.path);
+      final filename = 'orders_report_$dateStr.csv';
+      final success = await FileHelper.saveCsvAndOpen(filename, csv);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exported to ${file.path}')),
+          SnackBar(content: Text(success ? 'Exported: $filename' : 'Export failed')),
         );
       }
     } catch (e) {
@@ -330,17 +325,14 @@ class _ReportsScreenState extends State<ReportsScreen>
       // Convert to CSV
       final csv = const ListToCsvConverter().convert(rows);
 
-      // Save file
-      final dir = await getApplicationDocumentsDirectory();
+      // Save and open file
       final dateStr = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-      final file = File('${dir.path}/products_report_$dateStr.csv');
-      await file.writeAsString(csv);
-
-      await OpenFile.open(file.path);
+      final filename = 'products_report_$dateStr.csv';
+      final success = await FileHelper.saveCsvAndOpen(filename, csv);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exported to ${file.path}')),
+          SnackBar(content: Text(success ? 'Exported: $filename' : 'Export failed')),
         );
       }
     } catch (e) {

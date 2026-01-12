@@ -1,0 +1,124 @@
+/* Responsive styles for POS Pro plugin */
+
+/* Mobile-friendly form controls */
+.mobile-friendly {
+    min-height: 44px !important; /* Minimum Apple recommended touch target size */
+}
+
+.input-group-flat .mobile-friendly {
+    height: 44px !important;
+}
+
+/* Checkout Modal Responsive Styles */
+@media (max-width: 991.98px) {
+    /* Make modal take up more screen space on mobile */
+    .checkout-modal-responsive .modal-dialog {
+        max-width: 95% !important;
+        margin: 0.5rem auto !important;
+    }
+    
+    /* Adjust padding for better mobile experience */
+    .checkout-modal-responsive .modal-body {
+        padding: 1rem !important;
+    }
+    
+    /* Make datagrid items more compact on mobile */
+    .checkout-modal-responsive .datagrid-item {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .checkout-modal-responsive .datagrid-item .datagrid-title {
+        margin-bottom: 0.5rem;
+        width: 100%;
+    }
+    
+    /* Adjust spacing for order summary card */
+    .checkout-modal-responsive .order-summary-card {
+        margin-top: 1rem;
+    }
+    
+    /* Make total price more visible */
+    .checkout-modal-responsive #modal-total {
+        font-size: 1.5rem !important;
+    }
+    
+    /* Improve form inputs for touch */
+    .checkout-modal-responsive .form-control,
+    .checkout-modal-responsive .form-select,
+    .checkout-modal-responsive .input-group-text {
+        padding: 0.5rem !important;
+        font-size: 1rem !important;
+    }
+    
+    /* Make buttons more touch-friendly */
+    .checkout-modal-responsive .btn {
+        padding: 0.5rem 1rem !important;
+        font-size: 1rem !important;
+    }
+}
+
+/* Extra small devices (phones) */
+@media (max-width: 575.98px) {
+    /* Make modal take full width on very small screens */
+    .checkout-modal-responsive .modal-dialog {
+        max-width: 100% !important;
+        margin: 0.25rem !important;
+    }
+    
+    /* Further reduce padding */
+    .checkout-modal-responsive .modal-body {
+        padding: 0.75rem !important;
+    }
+    
+    /* Make card bodies more compact */
+    .checkout-modal-responsive .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    /* Adjust footer buttons */
+    .checkout-modal-responsive .modal-footer {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+        padding: 0.75rem !important;
+    }
+    
+    /* Make the complete order button full width and more prominent */
+    .checkout-modal-responsive #complete-order-btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+        padding: 0.75rem !important;
+        font-size: 1.1rem !important;
+    }
+    
+    /* Adjust textarea height */
+    .checkout-modal-responsive textarea.form-control {
+        min-height: 80px !important;
+    }
+    
+    /* Improve address form on mobile */
+    .checkout-modal-responsive #custom-address-form .row {
+        margin: 0 !important;
+    }
+    
+    .checkout-modal-responsive #custom-address-form .col-12 {
+        padding: 0.25rem !important;
+    }
+    
+    /* Make datagrid items more compact */
+    .checkout-modal-responsive .datagrid-item {
+        padding: 0.5rem 0 !important;
+    }
+    
+    /* Improve modal header */
+    .checkout-modal-responsive .modal-header {
+        padding: 0.75rem !important;
+    }
+    
+    /* Ensure icons are visible */
+    .checkout-modal-responsive .icon {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}

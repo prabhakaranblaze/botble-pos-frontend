@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:window_manager/window_manager.dart';
 import 'l10n/generated/app_localizations.dart';
 
-import 'core/database/database_service.dart';
 import 'core/api/api_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/audio_service.dart';
@@ -15,6 +13,8 @@ import 'core/providers/inactivity_provider.dart';
 import 'core/providers/currency_provider.dart';
 import 'core/providers/pos_mode_provider.dart';
 import 'core/providers/update_provider.dart';
+import 'core/utils/window_helper.dart';
+import 'core/database/saved_cart_storage_factory.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
@@ -28,27 +28,22 @@ import 'shared/constants/app_constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize window manager for desktop fullscreen support
-  await windowManager.ensureInitialized();
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(1280, 800),
-    minimumSize: Size(800, 600),
-    center: true,
-    backgroundColor: Colors.transparent,
-    skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.normal,
+  // Initialize window manager for desktop (no-op on web)
+  await WindowHelper.initialize(
+    width: 1280,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     title: 'StampSmart POS',
   );
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
+
+  // Initialize saved cart storage (SQLite on desktop, LocalStorage on web)
+  await SavedCartStorageFactory.initialize();
 
   final storageService = StorageService();
   await storageService.init();
 
-  final databaseService = DatabaseService();
-  final apiService = ApiService(databaseService, storageService);
+  final apiService = ApiService(storageService);
   final audioService = AudioService();
   await audioService.preload(); // preload beep sound for instant playback
 

@@ -1,0 +1,9 @@
+{
+    "name": "QuickBooks Integration",
+    "namespace": "Botble\\Quickbooks\\",
+    "provider": "Botble\\Quickbooks\\Providers\\QuickbooksServiceProvider",
+    "url": "https://botble.com",
+    "author": "Blaze Technologies",
+    "description": "Integrate QuickBooks OAuth and Sales Receipts",
+    "version": "1.0.0"
+}

@@ -1,7 +1,10 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/config/env_config.dart';
+import 'device_name_stub.dart'
+    if (dart.library.io) 'device_name_io.dart'
+    if (dart.library.html) 'device_name_web.dart' as device_helper;
 
 class AppConstants {
   // API Configuration - now uses environment config
@@ -11,16 +14,8 @@ class AppConstants {
   // App Configuration
   static const String appName = 'StampSmart POS';
 
-  // Dynamic device name based on computer name
-  static String get deviceName {
-    try {
-      return Platform.localHostname.isNotEmpty
-          ? 'POS-${Platform.localHostname}'
-          : 'Desktop Terminal';
-    } catch (e) {
-      return 'Desktop Terminal';
-    }
-  }
+  // Dynamic device name based on platform
+  static String get deviceName => device_helper.getDeviceName();
 
   // Currency Configuration (defaults - can be overridden by backend)
   static String currencyCode = 'SCR'; // Seychelles Rupee

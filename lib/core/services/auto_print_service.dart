@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
-import 'package:flutter_thermal_printer/utils/printer.dart';
 import '../../core/models/cart.dart';
-import 'thermal_print_service.dart';
+import 'print_service_interface.dart';
+import 'print_service_factory.dart';
 
 /// Service for auto-printing receipts using saved default printer
 class AutoPrintService {
@@ -12,7 +11,12 @@ class AutoPrintService {
   static const String _printerConnectionTypeKey = 'default_printer_connection_type';
   static const String _autoPrintKey = 'auto_print_enabled';
 
-  final ThermalPrintService _printService = ThermalPrintService();
+  PrintServiceInterface? _printServiceInstance;
+
+  PrintServiceInterface get _printService {
+    _printServiceInstance ??= PrintServiceFactory.getInstance();
+    return _printServiceInstance!;
+  }
 
   /// Check if auto-print is enabled
   Future<bool> isAutoPrintEnabled() async {
@@ -80,17 +84,7 @@ class AutoPrintService {
 
       // Get connection type
       final connectionTypeStr = printerInfo['connectionType'] ?? 'USB';
-      ConnectionType connectionType;
-      switch (connectionTypeStr) {
-        case 'BLE':
-          connectionType = ConnectionType.BLE;
-          break;
-        case 'NETWORK':
-          connectionType = ConnectionType.NETWORK;
-          break;
-        default:
-          connectionType = ConnectionType.USB;
-      }
+      final connectionType = PrinterConnectionTypeExtension.fromString(connectionTypeStr);
 
       // Scan for printers
       debugPrint('🖨️ AUTO_PRINT: Scanning for printers...');
@@ -101,7 +95,7 @@ class AutoPrintService {
       final printers = _printService.availablePrinters;
       debugPrint('🖨️ AUTO_PRINT: Found ${printers.length} printers');
 
-      Printer? targetPrinter;
+      PrinterInfo? targetPrinter;
       for (final printer in printers) {
         if (printer.address == printerInfo['address']) {
           targetPrinter = printer;

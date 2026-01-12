@@ -1,8 +1,10 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import '../api/api_service.dart';
+
+// Conditional imports for desktop-only functionality
+import 'update_service_stub.dart'
+    if (dart.library.io) 'update_service_io.dart' as update_io;
 
 /// Model for update information
 class UpdateInfo {
@@ -86,18 +88,23 @@ class UpdateService {
     }
   }
 
-  /// Download the update installer
+  /// Download the update installer (desktop only)
   /// Returns the path to the downloaded file
   Future<String?> downloadUpdate(
     String downloadUrl, {
     Function(int received, int total)? onProgress,
   }) async {
+    // Check if running on web
+    if (kIsWeb) {
+      debugPrint('📦 UPDATE SERVICE: Updates not supported on web');
+      return null;
+    }
+
     debugPrint('📦 UPDATE SERVICE: Downloading update from: $downloadUrl');
 
     try {
-      final tempDir = await getTemporaryDirectory();
-      final fileName = downloadUrl.split('/').last;
-      final savePath = '${tempDir.path}/$fileName';
+      final savePath = await update_io.getDownloadPath(downloadUrl);
+      if (savePath == null) return null;
 
       debugPrint('📦 UPDATE SERVICE: Saving to: $savePath');
 
@@ -121,33 +128,15 @@ class UpdateService {
     }
   }
 
-  /// Launch the installer and exit the app
+  /// Launch the installer and exit the app (desktop only)
   Future<bool> installUpdate(String installerPath) async {
-    debugPrint('📦 UPDATE SERVICE: Installing update from: $installerPath');
-
-    try {
-      // Verify file exists
-      final file = File(installerPath);
-      if (!await file.exists()) {
-        debugPrint('❌ UPDATE SERVICE: Installer file not found');
-        return false;
-      }
-
-      // Launch the installer with /SILENT flag for quiet install
-      // The installer will close the running app and install the update
-      final result = await Process.start(
-        installerPath,
-        ['/SILENT', '/CLOSEAPPLICATIONS'],
-        mode: ProcessStartMode.detached,
-      );
-
-      debugPrint('✅ UPDATE SERVICE: Installer launched with PID: ${result.pid}');
-
-      // Exit the app to allow installation
-      exit(0);
-    } catch (e) {
-      debugPrint('❌ UPDATE SERVICE: Failed to launch installer: $e');
+    // Check if running on web
+    if (kIsWeb) {
+      debugPrint('📦 UPDATE SERVICE: Updates not supported on web');
       return false;
     }
+
+    debugPrint('📦 UPDATE SERVICE: Installing update from: $installerPath');
+    return update_io.installUpdate(installerPath);
   }
 }

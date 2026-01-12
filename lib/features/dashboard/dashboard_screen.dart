@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:window_manager/window_manager.dart';
+import '../../core/utils/window_helper.dart';
 import '../auth/auth_provider.dart';
 import '../session/session_provider.dart';
 import '../session/close_session_dialog.dart';
@@ -54,9 +54,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _initWindowManager() async {
     try {
-      // Window manager is already initialized in main.dart
+      // Window helper is already initialized in main.dart
       _windowManagerReady = true;
-      _isFullScreen = await windowManager.isFullScreen();
+      _isFullScreen = await WindowHelper.isFullScreen();
       if (mounted) setState(() {});
       debugPrint('🖥️ Window ready, fullscreen: $_isFullScreen');
     } catch (e) {
@@ -71,11 +71,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       debugPrint('🖥️ Setting fullscreen to: $_isFullScreen');
 
       // setFullScreen hides Windows taskbar and title bar (true kiosk mode)
-      await windowManager.setFullScreen(_isFullScreen);
+      await WindowHelper.setFullScreen(_isFullScreen);
 
       // Wait for window to settle, then regain focus (fixes input not working after toggle)
       await Future.delayed(const Duration(milliseconds: 150));
-      await windowManager.focus();
+      await WindowHelper.focus();
 
       setState(() {});
       debugPrint('🖥️ Fullscreen: $_isFullScreen');

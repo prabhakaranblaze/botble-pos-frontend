@@ -1,6 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart'; // ← ADD THIS
-import 'package:cookie_jar/cookie_jar.dart'; // ← ADD THIS
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/constants/app_constants.dart';
@@ -10,21 +8,25 @@ import '../models/cart.dart';
 import '../models/customer.dart';
 import '../models/customer_address.dart';
 import '../models/session.dart';
-import '../database/database_service.dart';
 import '../services/storage_service.dart';
+
+// Conditional imports for cookie manager (desktop only)
+import 'api_cookie_stub.dart'
+    if (dart.library.io) 'api_cookie_io.dart' as cookie_helper;
 
 class ApiService {
   late final Dio _dio;
-  final DatabaseService _db;
   final StorageService _storage;
-  final CookieJar _cookieJar = CookieJar(); // ← ADD THIS
   bool _isOnline = true;
 
   /// Callback triggered on 401 Unauthorized errors
   /// Used to trigger automatic logout when token is invalid
   void Function()? onUnauthorized;
 
-  ApiService(this._db, this._storage) {
+  /// Callback triggered when offline - UI should show toast
+  void Function(String message)? onOffline;
+
+  ApiService(this._storage) {
     debugPrint('🟢 API SERVICE: Constructor called');
 
     _dio = Dio(BaseOptions(
@@ -38,8 +40,8 @@ class ApiService {
       },
     ));
 
-    _dio.interceptors.add(CookieManager(_cookieJar));
-    debugPrint('🍪 API SERVICE: Cookie manager added');
+    // Add cookie manager only on desktop (not supported on web)
+    cookie_helper.addCookieManager(_dio);
 
     debugPrint('🟢 API SERVICE: Base URL: ${AppConstants.baseUrl}');
 
@@ -56,21 +58,8 @@ class ApiService {
           debugPrint('📤 API REQUEST DATA: ${options.data}');
         }
 
-        // 🍪 ADD THIS: Check cookies being sent
-        try {
-          final cookies = await _cookieJar.loadForRequest(options.uri);
-          if (cookies.isNotEmpty) {
-            debugPrint('🍪 SENDING ${cookies.length} COOKIE(S):');
-            for (var cookie in cookies) {
-              debugPrint(
-                  '  🍪 ${cookie.name} = ${cookie.value.substring(0, 20)}...');
-            }
-          } else {
-            debugPrint('🍪 NO COOKIES TO SEND');
-          }
-        } catch (e) {
-          debugPrint('⚠️ Cookie check error: $e');
-        }
+        // Log cookies (desktop only)
+        await cookie_helper.logCookies(options.uri);
 
         return handler.next(options);
       },
@@ -125,9 +114,6 @@ class ApiService {
     Connectivity().onConnectivityChanged.listen((result) {
       _isOnline = result != ConnectivityResult.none;
       debugPrint('🌐 API SERVICE: Connectivity changed - Online: $_isOnline');
-      if (_isOnline) {
-        _syncPendingData();
-      }
     });
   }
 
@@ -177,7 +163,7 @@ class ApiService {
     } catch (e) {
       // Ignore errors
     } finally {
-      await _cookieJar.deleteAll(); // ← Cookies cleared here
+      await cookie_helper.clearCookies();
     }
   }
 
@@ -200,13 +186,13 @@ class ApiService {
         '📦 API SERVICE: getProducts called - Page: $page, Search: "$search"');
     debugPrint('📦 API SERVICE: Online: $_isOnline');
 
-    try {
-      if (!_isOnline) {
-        debugPrint('⚠️ API SERVICE: Offline, loading from database');
-        return await _db.getProducts(
-            search: search, limit: AppConstants.itemsPerPage);
-      }
+    if (!_isOnline) {
+      debugPrint('⚠️ API SERVICE: Offline, cannot load products');
+      onOffline?.call('You are offline. Please check your connection.');
+      return [];
+    }
 
+    try {
       final response = await _dio.get('/products', queryParameters: {
         'page': page,
         'per_page': AppConstants.itemsPerPage,
@@ -229,11 +215,6 @@ class ApiService {
             productsData.map((json) => Product.fromJson(json)).toList();
 
         debugPrint('✅ API SERVICE: Products parsed successfully');
-
-        // Save to local database
-        await _db.saveProducts(products);
-        debugPrint('✅ API SERVICE: Products saved to database');
-
         return products;
       } else {
         debugPrint(
@@ -242,23 +223,20 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('❌ API SERVICE: getProducts error: $e');
-      debugPrint('❌ API SERVICE: Attempting to load from database');
-
-      // If online request fails, try local database
-      return await _db.getProducts(
-          search: search, limit: AppConstants.itemsPerPage);
+      rethrow;
     }
   }
 
   Future<Product?> scanBarcode(String barcode) async {
     debugPrint('📷 API SERVICE: scanBarcode called - Barcode: "$barcode"');
 
-    try {
-      if (!_isOnline) {
-        debugPrint('⚠️ API SERVICE: Offline, searching database');
-        return await _db.getProductByBarcode(barcode);
-      }
+    if (!_isOnline) {
+      debugPrint('⚠️ API SERVICE: Offline, cannot scan barcode');
+      onOffline?.call('You are offline. Please check your connection.');
+      return null;
+    }
 
+    try {
       final response = await _dio.post('/products/scan-barcode', data: {
         'barcode': barcode,
       });
@@ -273,7 +251,7 @@ class ApiService {
       return null;
     } catch (e) {
       debugPrint('❌ API SERVICE: Barcode scan error: $e');
-      return await _db.getProductByBarcode(barcode);
+      return null;
     }
   }
 
@@ -583,11 +561,13 @@ class ApiService {
     debugPrint('💳 API SERVICE: Customer ID: $customerId');
     debugPrint('💳 API SERVICE: Address ID: $addressId');
 
+    if (!_isOnline) {
+      debugPrint('❌ API SERVICE: Cannot checkout while offline');
+      onOffline?.call('You are offline. Cannot complete checkout.');
+      throw Exception('Cannot checkout while offline');
+    }
+
     try {
-      if (!_isOnline) {
-        debugPrint('❌ API SERVICE: Cannot checkout while offline');
-        throw Exception('Cannot checkout while offline');
-      }
 
       // Build request data explicitly to debug what's being sent
       final requestData = {
@@ -640,6 +620,174 @@ class ApiService {
   Future<Order> checkout({String? paymentDetails}) async {
     debugPrint('💳 API SERVICE: checkout called (deprecated)');
     throw Exception('Use checkoutDirect instead');
+  }
+
+  /// Checkout via Laravel API (proxied through Node.js)
+  /// This uses Laravel's order processing with POS_API_TOKEN authentication
+  Future<Order> checkoutViaLaravel({
+    required List<Map<String, dynamic>> items,
+    required String paymentMethod,
+    required double subtotal,
+    required double total,
+    double taxAmount = 0,
+    List<Map<String, dynamic>>? taxDetails,
+    double discountAmount = 0,
+    double shippingAmount = 0,
+    String? couponCode,
+    int? customerId,
+    Map<String, dynamic>? customer,
+    Map<String, dynamic>? address,
+    String deliveryOption = 'pickup',
+    String? notes,
+    double? cashReceived,
+  }) async {
+    debugPrint('💳 API SERVICE: ========== CHECKOUT VIA LARAVEL ==========');
+    debugPrint('💳 API SERVICE: Items: ${items.length}');
+    debugPrint('💳 API SERVICE: Payment method: $paymentMethod');
+    debugPrint('💳 API SERVICE: Subtotal: $subtotal, Tax: $taxAmount, Total: $total');
+
+    if (!_isOnline) {
+      debugPrint('❌ API SERVICE: Cannot checkout while offline');
+      onOffline?.call('You are offline. Cannot complete checkout.');
+      throw Exception('Cannot checkout while offline');
+    }
+
+    try {
+      // Helper to parse options string to Laravel attributes array
+      // Converts "Color: Brown • Weight: 1KG • Size: S" to [{"set": "Color", "value": "Brown"}, ...]
+      List<Map<String, String>>? parseOptionsToAttributes(dynamic options) {
+        if (options == null) return null;
+        if (options is List) return options.cast<Map<String, String>>();
+        if (options is! String || options.isEmpty) return null;
+
+        final attributes = <Map<String, String>>[];
+        final parts = options.split(' • ');
+        for (final part in parts) {
+          final colonIndex = part.indexOf(':');
+          if (colonIndex > 0) {
+            final set = part.substring(0, colonIndex).trim();
+            final value = part.substring(colonIndex + 1).trim();
+            attributes.add({'set': set, 'value': value});
+          }
+        }
+        return attributes.isEmpty ? null : attributes;
+      }
+
+      // Build Laravel-compatible cart payload
+      final cartPayload = {
+        'items': items.map((item) => {
+          'id': item['product_id'] ?? item['id'],
+          'name': item['name'],
+          'sku': item['sku'],
+          'image': item['image'],
+          'price': item['price'],
+          'quantity': item['quantity'],
+          'tax_rate': item['tax_rate'] ?? 0,
+          'attributes': parseOptionsToAttributes(item['attributes'] ?? item['options']),
+          'image_url': item['image_url'],
+        }).toList(),
+        'subtotal': subtotal,
+        'subtotal_formatted': '',
+        'coupon_code': couponCode,
+        'coupon_discount': 0,
+        'coupon_discount_formatted': '',
+        'coupon_discount_type': null,
+        'manual_discount': discountAmount,
+        'manual_discount_value': discountAmount,
+        'manual_discount_type': 'fixed',
+        'manual_discount_formatted': '',
+        'manual_discount_description': '',
+        'tax': taxAmount,
+        'tax_formatted': '',
+        'tax_details': taxDetails ?? [],
+        'shipping_amount': shippingAmount,
+        'shipping_amount_formatted': '',
+        'total': total,
+        'total_formatted': '',
+        'count': items.length,
+        'customer_id': customerId,
+        'customer': customer,
+        'payment_method': paymentMethod,
+        'payment_method_enum': paymentMethod == 'card' ? 'pos_card' : 'pos_cash',
+      };
+
+      final requestData = {
+        'customer_id': customerId,
+        'address': address ?? {
+          'address_id': 'new',
+          'name': 'Guest',
+          'email': 'guest@example.com',
+          'phone': 'N/A',
+          'country': 'SC',
+          'state': null,
+          'city': null,
+          'address': 'Pickup at Store',
+          'zip_code': null,
+        },
+        'delivery_option': deliveryOption,
+        'payment_method': paymentMethod,
+        'notes': notes,
+        'cash_received': cashReceived,
+        'cart': cartPayload,
+      };
+
+      debugPrint('💳 API SERVICE: Sending to Laravel checkout: $requestData');
+
+      final response = await _dio.post('/orders/laravel-checkout', data: requestData);
+
+      if (response.data['error'] == false) {
+        final order = Order.fromJson(response.data['data']['order']);
+        debugPrint(
+            '✅ API SERVICE: Laravel Order created - ID: ${order.id}, Code: ${order.code}');
+        return order;
+      } else {
+        debugPrint(
+            '❌ API SERVICE: Laravel Checkout error - ${response.data['message']}');
+        throw Exception(response.data['message']);
+      }
+    } on DioException catch (e) {
+      debugPrint('❌ API SERVICE: checkoutViaLaravel DioException: $e');
+
+      // Extract friendly error message
+      String friendlyMessage = 'Checkout failed. Please try again.';
+
+      if (e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map) {
+          // Try to get message from response
+          if (data['message'] != null) {
+            final message = data['message'].toString().toLowerCase();
+            // Map common errors to friendly messages
+            if (message.contains('token') || message.contains('unauthorized')) {
+              friendlyMessage = 'Authentication error. Please log in again.';
+            } else if (message.contains('network') || message.contains('connection')) {
+              friendlyMessage = 'Network error. Please check your connection.';
+            } else if (message.contains('timeout')) {
+              friendlyMessage = 'Request timed out. Please try again.';
+            } else if (message.contains('certificate')) {
+              friendlyMessage = 'Server connection error. Please contact support.';
+            } else {
+              // Use the message if it's not too technical
+              final msg = data['message'].toString();
+              if (msg.length < 100 && !msg.contains('Exception') && !msg.contains('Error:')) {
+                friendlyMessage = msg;
+              }
+            }
+          }
+        }
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+                 e.type == DioExceptionType.receiveTimeout ||
+                 e.type == DioExceptionType.sendTimeout) {
+        friendlyMessage = 'Connection timed out. Please try again.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        friendlyMessage = 'Unable to connect to server. Please check your network.';
+      }
+
+      throw Exception(friendlyMessage);
+    } catch (e) {
+      debugPrint('❌ API SERVICE: checkoutViaLaravel exception: $e');
+      throw Exception('Checkout failed. Please try again.');
+    }
   }
 
   Future<String> getReceipt(int orderId) async {
@@ -732,29 +880,6 @@ class ApiService {
     } catch (e) {
       debugPrint('❌ API SERVICE: getDenominations error: $e');
       return [];
-    }
-  }
-
-  // Sync pending data when back online
-  Future<void> _syncPendingData() async {
-    debugPrint('🔄 API SERVICE: _syncPendingData called');
-
-    try {
-      final pendingOrders = await _db.getPendingOrders();
-      debugPrint('🔄 API SERVICE: Pending orders: ${pendingOrders.length}');
-
-      for (var order in pendingOrders) {
-        try {
-          await _dio.post('/orders', data: order);
-          await _db.markOrderAsSynced(order['id'] as int);
-          debugPrint('✅ API SERVICE: Order synced - ID: ${order['id']}');
-        } catch (e) {
-          debugPrint('⚠️ API SERVICE: Failed to sync order ${order['id']}: $e');
-          continue;
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ API SERVICE: _syncPendingData error: $e');
     }
   }
 

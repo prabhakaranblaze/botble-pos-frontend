@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -143,7 +144,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (hasUpdate) ...[
+                // Show NEW badge only on desktop when update available
+                if (hasUpdate && !kIsWeb) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -174,8 +176,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       children: [
                         Icon(
-                          hasUpdate ? Icons.update : Icons.check_circle,
-                          color: hasUpdate ? AppColors.warning : AppColors.success,
+                          kIsWeb ? Icons.info_outline : (hasUpdate ? Icons.update : Icons.check_circle),
+                          color: kIsWeb ? AppColors.primary : (hasUpdate ? AppColors.warning : AppColors.success),
                           size: 40,
                         ),
                         const SizedBox(width: 16),
@@ -184,7 +186,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                hasUpdate ? (l10n?.updateAvailable ?? 'Update Available') : (l10n?.appUpToDate ?? 'App is up to date'),
+                                kIsWeb
+                                    ? (l10n?.version ?? 'Version')
+                                    : (hasUpdate ? (l10n?.updateAvailable ?? 'Update Available') : (l10n?.appUpToDate ?? 'App is up to date')),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 16,
@@ -192,13 +196,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${l10n?.currentVersionLabel ?? 'Current:'} v${UpdateService.appVersion}',
+                                kIsWeb
+                                    ? 'v${UpdateService.appVersion}'
+                                    : '${l10n?.currentVersionLabel ?? 'Current:'} v${UpdateService.appVersion}',
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,
                                 ),
                               ),
-                              if (hasUpdate && updateInfo != null)
+                              // Show latest version only on desktop
+                              if (!kIsWeb && hasUpdate && updateInfo != null)
                                 Text(
                                   '${l10n?.latestVersionLabel ?? 'Latest:'} v${updateInfo.latestVersion}',
                                   style: TextStyle(
@@ -210,49 +217,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                         ),
-                        // Check/Download button
-                        if (updateProvider.isChecking)
-                          const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else if (updateProvider.isDownloading)
-                          Column(
-                            children: [
-                              SizedBox(
-                                width: 80,
-                                child: LinearProgressIndicator(
-                                  value: updateProvider.downloadProgress,
+                        // Check/Download button (desktop only)
+                        if (!kIsWeb) ...[
+                          if (updateProvider.isChecking)
+                            const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else if (updateProvider.isDownloading)
+                            Column(
+                              children: [
+                                SizedBox(
+                                  width: 80,
+                                  child: LinearProgressIndicator(
+                                    value: updateProvider.downloadProgress,
+                                  ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${(updateProvider.downloadProgress * 100).toInt()}%',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            )
+                          else if (hasUpdate)
+                            ElevatedButton.icon(
+                              onPressed: () => _downloadAndInstallUpdate(updateProvider),
+                              icon: const Icon(Icons.download, size: 18),
+                              label: Text(l10n?.update ?? 'Update'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${(updateProvider.downloadProgress * 100).toInt()}%',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          )
-                        else if (hasUpdate)
-                          ElevatedButton.icon(
-                            onPressed: () => _downloadAndInstallUpdate(updateProvider),
-                            icon: const Icon(Icons.download, size: 18),
-                            label: Text(l10n?.update ?? 'Update'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.success,
+                            )
+                          else
+                            OutlinedButton.icon(
+                              onPressed: () => updateProvider.checkForUpdate(),
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: Text(l10n?.check ?? 'Check'),
                             ),
-                          )
-                        else
-                          OutlinedButton.icon(
-                            onPressed: () => updateProvider.checkForUpdate(),
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: Text(l10n?.check ?? 'Check'),
-                          ),
+                        ],
                       ],
                     ),
 
-                    // Release notes
-                    if (hasUpdate && updateInfo != null && updateInfo.releaseNotes.isNotEmpty) ...[
+                    // Release notes (desktop only)
+                    if (!kIsWeb && hasUpdate && updateInfo != null && updateInfo.releaseNotes.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 8),

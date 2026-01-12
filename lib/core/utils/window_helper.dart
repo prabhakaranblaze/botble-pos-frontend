@@ -29,4 +29,19 @@ class WindowHelper {
       title: title,
     );
   }
+
+  /// Check if window is in fullscreen mode
+  static Future<bool> isFullScreen() async {
+    return platform_window.isFullScreen();
+  }
+
+  /// Set fullscreen mode
+  static Future<void> setFullScreen(bool fullscreen) async {
+    await platform_window.setFullScreen(fullscreen);
+  }
+
+  /// Focus the window
+  static Future<void> focus() async {
+    await platform_window.focusWindow();
+  }
 }

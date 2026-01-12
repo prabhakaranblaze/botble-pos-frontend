@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_service.dart';
 import '../../core/models/cart.dart';
-import '../../core/services/thermal_print_service.dart';
 import '../../core/services/auto_print_service.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../l10n/generated/app_localizations.dart';
@@ -21,7 +20,6 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
   bool _isLoading = true;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  final ThermalPrintService _printService = ThermalPrintService();
 
   @override
   void initState() {

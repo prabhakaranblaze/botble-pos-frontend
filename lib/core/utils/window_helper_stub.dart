@@ -8,3 +8,12 @@ Future<void> initializeWindow({
 }) async {
   // No-op
 }
+
+/// Stub - always returns false
+Future<bool> isFullScreen() async => false;
+
+/// Stub - no-op
+Future<void> setFullScreen(bool fullscreen) async {}
+
+/// Stub - no-op
+Future<void> focusWindow() async {}

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
-import 'package:flutter_thermal_printer/utils/printer.dart';
 import '../../core/models/cart.dart';
-import '../../core/services/thermal_print_service.dart';
+import '../../core/services/print_service_interface.dart';
+import '../../core/services/print_service_factory.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../l10n/generated/app_localizations.dart';
 
@@ -17,7 +16,7 @@ class ReceiptDialog extends StatefulWidget {
 }
 
 class _ReceiptDialogState extends State<ReceiptDialog> {
-  final ThermalPrintService _printService = ThermalPrintService();
+  late final PrintServiceInterface _printService;
   bool _isPrinting = false;
   bool _isScanning = false;
   String? _printMessage;
@@ -25,6 +24,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
   @override
   void initState() {
     super.initState();
+    _printService = PrintServiceFactory.getInstance();
     _printService.init();
   }
 
@@ -325,7 +325,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
     );
   }
 
-  Future<void> _printReceipt(Printer printer) async {
+  Future<void> _printReceipt(PrinterInfo printer) async {
     setState(() {
       _isPrinting = true;
       _printMessage = 'Connecting to printer...';
@@ -368,8 +368,8 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
 
 /// Dialog to select a thermal printer
 class _PrinterSelectionDialog extends StatefulWidget {
-  final ThermalPrintService printService;
-  final Function(Printer) onPrinterSelected;
+  final PrintServiceInterface printService;
+  final Function(PrinterInfo) onPrinterSelected;
 
   const _PrinterSelectionDialog({
     required this.printService,
@@ -382,8 +382,8 @@ class _PrinterSelectionDialog extends StatefulWidget {
 
 class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
   bool _isScanning = true;
-  List<Printer> _printers = [];
-  ConnectionType _selectedConnectionType = ConnectionType.USB;
+  List<PrinterInfo> _printers = [];
+  PrinterConnectionType _selectedConnectionType = PrinterConnectionType.usb;
 
   @override
   void initState() {
@@ -421,6 +421,21 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
     });
   }
 
+  IconData _getConnectionIcon(PrinterConnectionType? type) {
+    switch (type) {
+      case PrinterConnectionType.usb:
+        return Icons.usb;
+      case PrinterConnectionType.bluetooth:
+        return Icons.bluetooth;
+      case PrinterConnectionType.network:
+        return Icons.wifi;
+      case PrinterConnectionType.serial:
+        return Icons.settings_input_hdmi;
+      default:
+        return Icons.print;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -433,20 +448,20 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Connection type selector
-            SegmentedButton<ConnectionType>(
+            SegmentedButton<PrinterConnectionType>(
               segments: const [
                 ButtonSegment(
-                  value: ConnectionType.USB,
+                  value: PrinterConnectionType.usb,
                   label: Text('USB'),
                   icon: Icon(Icons.usb),
                 ),
                 ButtonSegment(
-                  value: ConnectionType.BLE,
+                  value: PrinterConnectionType.bluetooth,
                   label: Text('Bluetooth'),
                   icon: Icon(Icons.bluetooth),
                 ),
                 ButtonSegment(
-                  value: ConnectionType.NETWORK,
+                  value: PrinterConnectionType.network,
                   label: Text('WiFi'),
                   icon: Icon(Icons.wifi),
                 ),
@@ -514,9 +529,9 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
                             _getConnectionIcon(printer.connectionType),
                             color: AppColors.primary,
                           ),
-                          title: Text(printer.name ?? 'Unknown Printer'),
+                          title: Text(printer.name.isNotEmpty ? printer.name : 'Unknown Printer'),
                           subtitle: Text(
-                            printer.address ?? '',
+                            printer.address,
                             style: const TextStyle(fontSize: 12),
                           ),
                           trailing: const Icon(Icons.chevron_right),
@@ -540,18 +555,5 @@ class _PrinterSelectionDialogState extends State<_PrinterSelectionDialog> {
         ),
       ],
     );
-  }
-
-  IconData _getConnectionIcon(ConnectionType? type) {
-    switch (type) {
-      case ConnectionType.USB:
-        return Icons.usb;
-      case ConnectionType.BLE:
-        return Icons.bluetooth;
-      case ConnectionType.NETWORK:
-        return Icons.wifi;
-      default:
-        return Icons.print;
-    }
   }
 }

@@ -26,3 +26,18 @@ Future<void> initializeWindow({
     await windowManager.focus();
   });
 }
+
+/// Check if window is fullscreen
+Future<bool> isFullScreen() async {
+  return windowManager.isFullScreen();
+}
+
+/// Set fullscreen mode
+Future<void> setFullScreen(bool fullscreen) async {
+  await windowManager.setFullScreen(fullscreen);
+}
+
+/// Focus the window
+Future<void> focusWindow() async {
+  await windowManager.focus();
+}

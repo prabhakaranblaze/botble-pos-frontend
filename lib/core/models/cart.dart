@@ -41,10 +41,19 @@ class CartItem {
       // Handle both Node.js format and Laravel format
       // Node.js: id, name, quantity
       // Laravel: product_id, product_name, qty
+
+      // Parse price - handle both num and string
+      double parsePrice(dynamic value) {
+        if (value == null) return 0.0;
+        if (value is num) return value.toDouble();
+        if (value is String) return double.tryParse(value) ?? 0.0;
+        return 0.0;
+      }
+
       final item = CartItem(
         productId: json['id'] as int? ?? json['product_id'] as int,
         name: json['name'] as String? ?? json['product_name'] as String,
-        price: (json['price'] as num).toDouble(),
+        price: parsePrice(json['price']),
         quantity: json['quantity'] as int? ?? json['qty'] as int? ?? 1,
         image: json['image'] as String? ?? json['product_image'] as String?,
         sku: json['sku'] as String?,
@@ -248,14 +257,22 @@ class Order {
         paymentMethod = _parseStringOrObject(json['payment_method'], 'pos_cash');
       }
 
+      // Helper to parse numeric values (handles both num and string)
+      double parseNum(dynamic value, [double defaultValue = 0]) {
+        if (value == null) return defaultValue;
+        if (value is num) return value.toDouble();
+        if (value is String) return double.tryParse(value) ?? defaultValue;
+        return defaultValue;
+      }
+
       final order = Order(
         id: json['id'] as int,
         code: json['code'] as String,
-        amount: (json['amount'] as num).toDouble(),
-        subTotal: (json['sub_total'] as num?)?.toDouble() ?? 0,
-        taxAmount: (json['tax_amount'] as num?)?.toDouble() ?? 0,
-        discountAmount: (json['discount_amount'] as num?)?.toDouble() ?? 0,
-        shippingAmount: (json['shipping_amount'] as num?)?.toDouble() ?? 0,
+        amount: parseNum(json['amount']),
+        subTotal: parseNum(json['sub_total']),
+        taxAmount: parseNum(json['tax_amount']),
+        discountAmount: parseNum(json['discount_amount']),
+        shippingAmount: parseNum(json['shipping_amount']),
         paymentMethod: paymentMethod,
         status: _parseStringOrObject(json['status'], 'pending'),
         createdAt: DateTime.parse(json['created_at'] as String),

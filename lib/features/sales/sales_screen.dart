@@ -1607,10 +1607,21 @@ class _SalesScreenState extends State<SalesScreen> {
                               // Checkout Button
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: cart.items.isEmpty ? null : _handleCheckout,
-                                  icon: const Icon(Icons.payment),
+                                  onPressed: cart.items.isEmpty || salesProvider.isCheckingOut ? null : _handleCheckout,
+                                  icon: salesProvider.isCheckingOut
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        )
+                                      : const Icon(Icons.payment),
                                   label: Text(
-                                    '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
+                                    salesProvider.isCheckingOut
+                                        ? 'Processing...'
+                                        : '${l10n?.checkout ?? 'Pay'} - ${AppCurrency.format(cart.total)}',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -1969,10 +1980,21 @@ class _SalesScreenState extends State<SalesScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: _handleCheckout,
-                          icon: const Icon(Icons.payment),
+                          onPressed: sales.isCheckingOut ? null : _handleCheckout,
+                          icon: sales.isCheckingOut
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.payment),
                           label: Text(
-                            '${l10n?.checkout ?? 'Checkout'} - ${AppCurrency.format(cart.total)}',
+                            sales.isCheckingOut
+                                ? 'Processing...'
+                                : '${l10n?.checkout ?? 'Checkout'} - ${AppCurrency.format(cart.total)}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -1981,6 +2003,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             backgroundColor: AppColors.success,
+                            disabledBackgroundColor: AppColors.success.withOpacity(0.3),
                           ),
                         ),
                       ),

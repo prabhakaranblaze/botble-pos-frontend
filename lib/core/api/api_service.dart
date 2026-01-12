@@ -634,6 +634,154 @@ class ApiService {
     throw Exception('Use checkoutDirect instead');
   }
 
+  /// Checkout via Laravel API (proxied through Node.js)
+  /// This uses Laravel's order processing with POS_API_TOKEN authentication
+  Future<Order> checkoutViaLaravel({
+    required List<Map<String, dynamic>> items,
+    required String paymentMethod,
+    required double subtotal,
+    required double total,
+    double taxAmount = 0,
+    List<Map<String, dynamic>>? taxDetails,
+    double discountAmount = 0,
+    double shippingAmount = 0,
+    String? couponCode,
+    int? customerId,
+    Map<String, dynamic>? customer,
+    Map<String, dynamic>? address,
+    String deliveryOption = 'pickup',
+    String? notes,
+    double? cashReceived,
+  }) async {
+    debugPrint('💳 API SERVICE: ========== CHECKOUT VIA LARAVEL ==========');
+    debugPrint('💳 API SERVICE: Items: ${items.length}');
+    debugPrint('💳 API SERVICE: Payment method: $paymentMethod');
+    debugPrint('💳 API SERVICE: Subtotal: $subtotal, Tax: $taxAmount, Total: $total');
+
+    if (!_isOnline) {
+      debugPrint('❌ API SERVICE: Cannot checkout while offline');
+      onOffline?.call('You are offline. Cannot complete checkout.');
+      throw Exception('Cannot checkout while offline');
+    }
+
+    try {
+      // Build Laravel-compatible cart payload
+      final cartPayload = {
+        'items': items.map((item) => {
+          'id': item['product_id'] ?? item['id'],
+          'name': item['name'],
+          'sku': item['sku'],
+          'image': item['image'],
+          'price': item['price'],
+          'quantity': item['quantity'],
+          'tax_rate': item['tax_rate'] ?? 0,
+          'attributes': item['attributes'] ?? item['options'],
+          'image_url': item['image_url'],
+        }).toList(),
+        'subtotal': subtotal,
+        'subtotal_formatted': '',
+        'coupon_code': couponCode,
+        'coupon_discount': 0,
+        'coupon_discount_formatted': '',
+        'coupon_discount_type': null,
+        'manual_discount': discountAmount,
+        'manual_discount_value': discountAmount,
+        'manual_discount_type': 'fixed',
+        'manual_discount_formatted': '',
+        'manual_discount_description': '',
+        'tax': taxAmount,
+        'tax_formatted': '',
+        'tax_details': taxDetails ?? [],
+        'shipping_amount': shippingAmount,
+        'shipping_amount_formatted': '',
+        'total': total,
+        'total_formatted': '',
+        'count': items.length,
+        'customer_id': customerId,
+        'customer': customer,
+        'payment_method': paymentMethod,
+        'payment_method_enum': paymentMethod == 'card' ? 'pos_card' : 'pos_cash',
+      };
+
+      final requestData = {
+        'customer_id': customerId,
+        'address': address ?? {
+          'address_id': 'new',
+          'name': 'Guest',
+          'email': 'guest@example.com',
+          'phone': 'N/A',
+          'country': 'SC',
+          'state': null,
+          'city': null,
+          'address': 'Pickup at Store',
+          'zip_code': null,
+        },
+        'delivery_option': deliveryOption,
+        'payment_method': paymentMethod,
+        'notes': notes,
+        'cash_received': cashReceived,
+        'cart': cartPayload,
+      };
+
+      debugPrint('💳 API SERVICE: Sending to Laravel checkout: $requestData');
+
+      final response = await _dio.post('/orders/laravel-checkout', data: requestData);
+
+      if (response.data['error'] == false) {
+        final order = Order.fromJson(response.data['data']['order']);
+        debugPrint(
+            '✅ API SERVICE: Laravel Order created - ID: ${order.id}, Code: ${order.code}');
+        return order;
+      } else {
+        debugPrint(
+            '❌ API SERVICE: Laravel Checkout error - ${response.data['message']}');
+        throw Exception(response.data['message']);
+      }
+    } on DioException catch (e) {
+      debugPrint('❌ API SERVICE: checkoutViaLaravel DioException: $e');
+
+      // Extract friendly error message
+      String friendlyMessage = 'Checkout failed. Please try again.';
+
+      if (e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map) {
+          // Try to get message from response
+          if (data['message'] != null) {
+            final message = data['message'].toString().toLowerCase();
+            // Map common errors to friendly messages
+            if (message.contains('token') || message.contains('unauthorized')) {
+              friendlyMessage = 'Authentication error. Please log in again.';
+            } else if (message.contains('network') || message.contains('connection')) {
+              friendlyMessage = 'Network error. Please check your connection.';
+            } else if (message.contains('timeout')) {
+              friendlyMessage = 'Request timed out. Please try again.';
+            } else if (message.contains('certificate')) {
+              friendlyMessage = 'Server connection error. Please contact support.';
+            } else {
+              // Use the message if it's not too technical
+              final msg = data['message'].toString();
+              if (msg.length < 100 && !msg.contains('Exception') && !msg.contains('Error:')) {
+                friendlyMessage = msg;
+              }
+            }
+          }
+        }
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+                 e.type == DioExceptionType.receiveTimeout ||
+                 e.type == DioExceptionType.sendTimeout) {
+        friendlyMessage = 'Connection timed out. Please try again.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        friendlyMessage = 'Unable to connect to server. Please check your network.';
+      }
+
+      throw Exception(friendlyMessage);
+    } catch (e) {
+      debugPrint('❌ API SERVICE: checkoutViaLaravel exception: $e');
+      throw Exception('Checkout failed. Please try again.');
+    }
+  }
+
   Future<String> getReceipt(int orderId) async {
     debugPrint('🧾 API SERVICE: getReceipt called - Order ID: $orderId');
 

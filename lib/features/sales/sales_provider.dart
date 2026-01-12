@@ -51,6 +51,7 @@ class SalesProvider with ChangeNotifier {
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _isCheckingOut = false;
   String? _error;
   String _searchQuery = '';
   int _currentPage = 1;
@@ -64,6 +65,7 @@ class SalesProvider with ChangeNotifier {
   Customer? get selectedCustomer => _selectedCustomer;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
+  bool get isCheckingOut => _isCheckingOut;
   String? get error => _error;
   String get searchQuery => _searchQuery;
   AudioService get audioService => _audioService;
@@ -630,7 +632,7 @@ class SalesProvider with ChangeNotifier {
 
   // ✅ CHECKOUT: Create order - sends cart items directly to backend
   Future<Order?> checkout({String? paymentDetails, Map<String, dynamic>? paymentMetadata}) async {
-    _isLoading = true;
+    _isCheckingOut = true;
     _error = null;
     notifyListeners();
 
@@ -715,7 +717,7 @@ class SalesProvider with ChangeNotifier {
 
       await _audioService.playSuccess();
 
-      _isLoading = false;
+      _isCheckingOut = false;
       notifyListeners();
 
       debugPrint('✅ CHECKOUT: Complete - Order #${order.code}');
@@ -724,7 +726,7 @@ class SalesProvider with ChangeNotifier {
       debugPrint('❌ CHECKOUT: Error: $e');
       await _audioService.playError();
       _error = e.toString();
-      _isLoading = false;
+      _isCheckingOut = false;
       notifyListeners();
       return null;
     }

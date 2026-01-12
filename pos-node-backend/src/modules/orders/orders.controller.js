@@ -167,6 +167,135 @@ class OrdersController {
       next(error);
     }
   }
+
+  /**
+   * POST /orders/laravel-checkout
+   * Proxy checkout to Laravel API with POS_API_TOKEN authentication
+   * This allows Laravel to handle order creation while Node.js handles POS auth
+   */
+  async checkoutViaLaravel(req, res, next) {
+    try {
+      console.log('========== LARAVEL CHECKOUT PROXY ==========');
+
+      const laravelApiUrl = process.env.LARAVEL_API_URL;
+      const laravelApiKey = process.env.LARAVEL_API_KEY;
+      const posApiToken = process.env.POS_API_TOKEN;
+
+      if (!laravelApiUrl || !posApiToken) {
+        console.error('Missing Laravel API configuration');
+        return res.status(500).json({
+          error: true,
+          message: 'Laravel API not configured',
+        });
+      }
+
+      // Get user info from Node.js auth
+      const posUser = req.user;
+      console.log('POS User:', posUser.id, posUser.username);
+
+      // Build cart payload for Laravel
+      const cartData = req.body.cart || req.body;
+      const payload = {
+        pos_user_id: posUser.id,
+        pos_username: posUser.username || posUser.email,
+        customer_id: req.body.customer_id || null,
+        address: req.body.address || {
+          address_id: 'new',
+          name: req.body.customer_name || 'Guest',
+          email: req.body.customer_email || 'guest@example.com',
+          phone: req.body.customer_phone || 'N/A',
+          country: 'SC',
+          state: null,
+          city: null,
+          address: 'Pickup at Store',
+          zip_code: null,
+        },
+        delivery_option: req.body.delivery_option || req.body.delivery_type || 'pickup',
+        payment_method: req.body.payment_method || 'cash',
+        notes: req.body.notes || null,
+        cash_received: req.body.cash_received || null,
+        cart: {
+          items: (cartData.items || []).map(item => ({
+            id: item.product_id || item.id,
+            name: item.name,
+            sku: item.sku || null,
+            image: item.image || null,
+            price: item.price,
+            quantity: item.quantity,
+            tax_rate: item.tax_rate || 0,
+            attributes: item.attributes || item.options || null,
+            image_url: item.image_url || null,
+          })),
+          subtotal: cartData.subtotal || cartData.sub_total || 0,
+          subtotal_formatted: cartData.subtotal_formatted || '',
+          coupon_code: cartData.coupon_code || null,
+          coupon_discount: cartData.coupon_discount || 0,
+          coupon_discount_formatted: cartData.coupon_discount_formatted || '',
+          coupon_discount_type: cartData.coupon_discount_type || null,
+          manual_discount: cartData.manual_discount || 0,
+          manual_discount_value: cartData.manual_discount_value || 0,
+          manual_discount_type: cartData.manual_discount_type || 'fixed',
+          manual_discount_formatted: cartData.manual_discount_formatted || '',
+          manual_discount_description: cartData.manual_discount_description || '',
+          tax: cartData.tax || cartData.tax_amount || 0,
+          tax_formatted: cartData.tax_formatted || '',
+          tax_details: cartData.tax_details || [],
+          shipping_amount: cartData.shipping_amount || 0,
+          shipping_amount_formatted: cartData.shipping_amount_formatted || '',
+          total: cartData.total || 0,
+          total_formatted: cartData.total_formatted || '',
+          count: (cartData.items || []).length,
+          customer_id: req.body.customer_id || null,
+          customer: req.body.customer || null,
+          payment_method: req.body.payment_method || 'cash',
+          payment_method_enum: req.body.payment_method === 'card' ? 'pos_card' : 'pos_cash',
+        },
+      };
+
+      console.log('Sending to Laravel:', JSON.stringify(payload, null, 2));
+
+      // Call Laravel API
+      const response = await axios.post(
+        `${laravelApiUrl}/checkout/processcheckout`,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-KEY': laravelApiKey,
+            'Token': posApiToken,
+          },
+          timeout: 30000, // 30 second timeout
+        }
+      );
+
+      console.log('Laravel response:', JSON.stringify(response.data, null, 2));
+
+      // Return Laravel response to client
+      res.json(response.data);
+
+    } catch (error) {
+      console.error('Laravel checkout error:', error.message);
+
+      if (error.response) {
+        // Laravel returned an error response
+        console.error('Laravel error response:', error.response.data);
+        return res.status(error.response.status).json({
+          error: true,
+          message: error.response.data?.message || 'Laravel checkout failed',
+          details: error.response.data,
+        });
+      }
+
+      if (error.code === 'ECONNREFUSED') {
+        return res.status(503).json({
+          error: true,
+          message: 'Laravel API unavailable',
+        });
+      }
+
+      next(error);
+    }
+  }
 }
 
 module.exports = new OrdersController();

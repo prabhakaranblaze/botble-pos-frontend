@@ -19,6 +19,22 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
   final _notesController = TextEditingController();
   final Map<int, int> _denominationCounts = {};
   bool _isClosing = false;
+  bool _isRefreshing = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh session data to get latest cash sales
+    _refreshSession();
+  }
+
+  Future<void> _refreshSession() async {
+    final sessionProvider = context.read<SessionProvider>();
+    await sessionProvider.checkActiveSession();
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -87,9 +103,19 @@ class _CloseSessionDialogState extends State<CloseSessionDialog> {
           builder: (context, session, _) {
             final activeSession = session.activeSession;
 
-            if (activeSession == null) {
-              return const Center(
-                child: CircularProgressIndicator(),
+            if (activeSession == null || _isRefreshing) {
+              return const SizedBox(
+                height: 200,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading session data...'),
+                    ],
+                  ),
+                ),
               );
             }
 

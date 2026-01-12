@@ -127,7 +127,7 @@ class SessionsService {
     // Find orders between session open and close (or now if still open)
     const endTime = session.closed_at || new Date();
 
-    // Get orders for this session's user within the session time range
+    // Get POS orders by payment method (pos_cash or pos_card) within session time
     const orders = await prisma.order.findMany({
       where: {
         created_at: {
@@ -135,9 +135,6 @@ class SessionsService {
           lte: endTime,
         },
         status: 'completed',
-        description: {
-          contains: 'POS Order',
-        },
       },
       include: {
         payment: true,
@@ -146,24 +143,27 @@ class SessionsService {
 
     let cashSales = 0;
     let cardSales = 0;
+    let posOrders = 0;
 
     for (const order of orders) {
-      const amount = Number(order.amount);
-      // Check payment method from payment record
       const paymentChannel = order.payment?.payment_channel || '';
-      if (paymentChannel === 'pos_card' || paymentChannel.includes('card')) {
-        cardSales += amount;
-      } else {
-        // Default to cash (pos_cash or any other)
-        cashSales += amount;
+
+      // Only count POS orders (pos_cash or pos_card payment methods)
+      if (paymentChannel === 'pos_cash') {
+        cashSales += Number(order.amount);
+        posOrders++;
+      } else if (paymentChannel === 'pos_card') {
+        cardSales += Number(order.amount);
+        posOrders++;
       }
+      // Skip non-POS orders (e.g., online orders with 'cod', 'stripe', etc.)
     }
 
     return {
       cash_sales: cashSales,
       card_sales: cardSales,
       total_sales: cashSales + cardSales,
-      total_orders: orders.length,
+      total_orders: posOrders,
     };
   }
 

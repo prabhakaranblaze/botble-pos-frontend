@@ -10,6 +10,9 @@ import '../models/cart.dart';
 import '../../shared/constants/app_constants.dart';
 import 'print_service_interface.dart';
 
+/// Factory function for web platform
+PrintServiceInterface createPrintService() => WebPrintService();
+
 /// Web implementation of PrintService using Web Serial API
 /// Only works in Chrome/Edge browsers
 class WebPrintService implements PrintServiceInterface {

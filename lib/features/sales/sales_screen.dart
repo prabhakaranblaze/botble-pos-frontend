@@ -601,8 +601,12 @@ class _SalesScreenState extends State<SalesScreen> {
       // Auto-print in background (don't wait for it)
       _autoPrintReceipt(order);
 
-      // Refresh for new order
-      _searchFocusNode.requestFocus();
+      // Refresh for new order - delay focus to avoid Flutter Web focus traversal bug
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _searchFocusNode.requestFocus();
+        }
+      });
     } else if (salesProvider.error != null && mounted) {
       debugPrint('❌ CHECKOUT: Error during checkout: ${salesProvider.error}');
 

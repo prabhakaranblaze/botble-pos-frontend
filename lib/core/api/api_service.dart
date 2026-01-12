@@ -1,6 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
-import 'package:cookie_jar/cookie_jar.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/constants/app_constants.dart';
@@ -12,10 +10,13 @@ import '../models/customer_address.dart';
 import '../models/session.dart';
 import '../services/storage_service.dart';
 
+// Conditional imports for cookie manager (desktop only)
+import 'api_cookie_stub.dart'
+    if (dart.library.io) 'api_cookie_io.dart' as cookie_helper;
+
 class ApiService {
   late final Dio _dio;
   final StorageService _storage;
-  final CookieJar _cookieJar = CookieJar();
   bool _isOnline = true;
 
   /// Callback triggered on 401 Unauthorized errors
@@ -39,8 +40,8 @@ class ApiService {
       },
     ));
 
-    _dio.interceptors.add(CookieManager(_cookieJar));
-    debugPrint('🍪 API SERVICE: Cookie manager added');
+    // Add cookie manager only on desktop (not supported on web)
+    cookie_helper.addCookieManager(_dio);
 
     debugPrint('🟢 API SERVICE: Base URL: ${AppConstants.baseUrl}');
 
@@ -57,21 +58,8 @@ class ApiService {
           debugPrint('📤 API REQUEST DATA: ${options.data}');
         }
 
-        // 🍪 ADD THIS: Check cookies being sent
-        try {
-          final cookies = await _cookieJar.loadForRequest(options.uri);
-          if (cookies.isNotEmpty) {
-            debugPrint('🍪 SENDING ${cookies.length} COOKIE(S):');
-            for (var cookie in cookies) {
-              debugPrint(
-                  '  🍪 ${cookie.name} = ${cookie.value.substring(0, 20)}...');
-            }
-          } else {
-            debugPrint('🍪 NO COOKIES TO SEND');
-          }
-        } catch (e) {
-          debugPrint('⚠️ Cookie check error: $e');
-        }
+        // Log cookies (desktop only)
+        await cookie_helper.logCookies(options.uri);
 
         return handler.next(options);
       },

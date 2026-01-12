@@ -163,7 +163,7 @@ class ApiService {
     } catch (e) {
       // Ignore errors
     } finally {
-      await _cookieJar.deleteAll(); // ← Cookies cleared here
+      await cookie_helper.clearCookies();
     }
   }
 

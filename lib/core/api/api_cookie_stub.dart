@@ -9,3 +9,8 @@ void addCookieManager(Dio dio) {
 Future<void> logCookies(Uri uri) async {
   // No-op on web
 }
+
+/// Clear all cookies (no-op on web - browser manages cookies)
+Future<void> clearCookies() async {
+  // No-op on web
+}

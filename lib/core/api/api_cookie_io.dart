@@ -30,3 +30,9 @@ Future<void> logCookies(Uri uri) async {
     debugPrint('⚠️ Cookie check error: $e');
   }
 }
+
+/// Clear all cookies on logout
+Future<void> clearCookies() async {
+  await _cookieJar.deleteAll();
+  debugPrint('🍪 API SERVICE: Cookies cleared');
+}

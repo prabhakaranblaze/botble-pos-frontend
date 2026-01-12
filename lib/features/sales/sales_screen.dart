@@ -536,10 +536,15 @@ class _SalesScreenState extends State<SalesScreen> {
     );
 
     final stockIssues = await salesProvider.refreshCartStock();
+
+    // Hide the "checking stock" snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    }
+
     if (stockIssues.isNotEmpty) {
       debugPrint('❌ CHECKOUT: Stock issues found: $stockIssues');
       if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         _showStockIssuesDialog(stockIssues);
       }
       return;

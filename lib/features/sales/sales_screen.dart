@@ -44,7 +44,10 @@ class _SalesScreenState extends State<SalesScreen> {
       debugPrint('🟢 SALES SCREEN: Post frame callback - loading data');
       _loadData();
       _loadSavedCarts();
-      _searchFocusNode.requestFocus();
+      // Delay focus to avoid Flutter Web focus traversal bug
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) _searchFocusNode.requestFocus();
+      });
     });
   }
 
@@ -67,14 +70,7 @@ class _SalesScreenState extends State<SalesScreen> {
       await salesProvider.loadSettings();
       debugPrint('✅ SALES SCREEN: Settings loaded (default tax: ${salesProvider.defaultTaxRate}%)');
 
-      debugPrint('🔵 SALES SCREEN: Loading categories...');
-      await salesProvider.loadCategories();
-      debugPrint('✅ SALES SCREEN: Categories loaded');
-
-      debugPrint('🔵 SALES SCREEN: Loading products...');
-      await salesProvider.loadProducts(refresh: true);
-      debugPrint(
-          '✅ SALES SCREEN: Products loaded - Count: ${salesProvider.products.length}');
+      // Note: Products are loaded on-demand via search/scan, not preloaded
     } catch (e) {
       debugPrint('❌ SALES SCREEN: Error loading data: $e');
       debugPrint('❌ SALES SCREEN: Stack trace: ${StackTrace.current}');

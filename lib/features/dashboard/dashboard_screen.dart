@@ -200,16 +200,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: EnvConfig.isUat
-                            ? AppColors.warning.withOpacity(0.2)
-                            : AppColors.primary.withOpacity(0.2),
+                            ? AppColors.warning
+                            : Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         EnvConfig.isDev ? 'DEV' : 'UAT',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: EnvConfig.isUat ? AppColors.warning : AppColors.primary,
+                          color: Colors.white,
                         ),
                       ),
                     ),

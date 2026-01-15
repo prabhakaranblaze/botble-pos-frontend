@@ -46,3 +46,4 @@ app.*.map.json
 
 # Windows Installer
 /installer_output/
+*.bak

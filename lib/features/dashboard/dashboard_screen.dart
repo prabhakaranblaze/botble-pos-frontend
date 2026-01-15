@@ -15,6 +15,7 @@ import '../../core/providers/locale_provider.dart';
 import '../../core/providers/update_provider.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/constants/app_constants.dart';
+import '../../core/config/env_config.dart';
 import 'recent_bills_dialog.dart';
 
 /// Dashboard Screen - Main application screen
@@ -191,6 +192,27 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                   ),
+
+                  // Environment Badge (DEV/UAT only)
+                  if (!EnvConfig.isProd)
+                    Container(
+                      margin: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: EnvConfig.isUat
+                            ? AppColors.warning
+                            : Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        EnvConfig.isDev ? 'DEV' : 'UAT',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
 
                   // Online/Offline Indicator
                   Consumer<ConnectivityProvider>(

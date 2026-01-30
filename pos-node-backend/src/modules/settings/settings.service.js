@@ -108,28 +108,40 @@ class SettingsService {
 
       // Get default tax from settings (stores tax_id, not percentage)
       let defaultTax = null;
+      let taxIsInclusive = false;
       try {
-        const taxSetting = await prisma.setting.findFirst({
-          where: { key: 'ecommerce_default_tax_rate' },
+        const taxSettings = await prisma.setting.findMany({
+          where: {
+            key: {
+              in: ['ecommerce_default_tax_rate', 'ecommerce_tax_is_inclusive'],
+            },
+          },
         });
-        if (taxSetting && taxSetting.value) {
-          const defaultTaxId = parseInt(taxSetting.value);
-          if (defaultTaxId > 0) {
-            // Look up the actual tax record
-            const taxRecord = await prisma.tax.findFirst({
-              where: {
-                id: BigInt(defaultTaxId),
-                status: 'published',
-                deleted_at: null,
-              },
-            });
-            if (taxRecord) {
-              defaultTax = {
-                id: Number(taxRecord.id),
-                title: taxRecord.title,
-                percentage: parseFloat(taxRecord.percentage) || 0,
-              };
-            }
+
+        const taxSettingsMap = {};
+        for (const s of taxSettings) {
+          taxSettingsMap[s.key] = s.value;
+        }
+
+        // Tax inclusive flag
+        taxIsInclusive = taxSettingsMap['ecommerce_tax_is_inclusive'] === '1';
+
+        // Default tax record
+        const defaultTaxId = parseInt(taxSettingsMap['ecommerce_default_tax_rate'] || '0');
+        if (defaultTaxId > 0) {
+          const taxRecord = await prisma.tax.findFirst({
+            where: {
+              id: BigInt(defaultTaxId),
+              status: 'published',
+              deleted_at: null,
+            },
+          });
+          if (taxRecord) {
+            defaultTax = {
+              id: Number(taxRecord.id),
+              title: taxRecord.title,
+              percentage: parseFloat(taxRecord.percentage) || 0,
+            };
           }
         }
       } catch (e) {
@@ -139,6 +151,7 @@ class SettingsService {
       return {
         currency,
         default_tax: defaultTax,
+        tax_is_inclusive: taxIsInclusive,
         store_name: 'StampSmart POS',
       };
     } catch (e) {

@@ -31,7 +31,7 @@ class EnvConfig {
   static String get baseUrl {
     switch (environment) {
       case 'prod':
-        return 'https://stampsmart.test/api/v1/pos';
+        return 'https://posapi.seychelles.post/api/v1/pos';
       case 'uat':
         return 'https://seypost-posapi-uat.stampsm.art/api/v1/pos';
       case 'dev':

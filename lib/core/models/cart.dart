@@ -92,6 +92,7 @@ class Cart {
   final Customer? customer;
   final String? paymentMethod;
   final String? couponCode;
+  final bool taxIsInclusive;
 
   Cart({
     required this.items,
@@ -103,6 +104,7 @@ class Cart {
     this.customer,
     this.paymentMethod,
     this.couponCode,
+    this.taxIsInclusive = false,
   });
 
   bool get isEmpty => items.isEmpty;

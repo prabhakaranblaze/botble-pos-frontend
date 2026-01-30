@@ -29,6 +29,9 @@ class SalesProvider with ChangeNotifier {
   // ✅ Default tax rate from settings (percentage, e.g., 15 for 15%)
   double _defaultTaxRate = 0.0;
 
+  // ✅ Tax inclusive flag from settings (prices include tax)
+  bool _taxIsInclusive = false;
+
   // ✅ Discount state
   int? _couponDiscountId;            // ID for usage tracking
   String? _couponCode;               // Applied coupon code
@@ -72,6 +75,7 @@ class SalesProvider with ChangeNotifier {
   AudioService get audioService => _audioService;
   bool get isOnline => _apiService.isOnline;
   double get defaultTaxRate => _defaultTaxRate;
+  bool get taxIsInclusive => _taxIsInclusive;
 
   // Discount getters
   int? get couponDiscountId => _couponDiscountId;
@@ -99,10 +103,23 @@ class SalesProvider with ChangeNotifier {
   Cart get cart {
     if (_cartItems.isEmpty) return Cart.empty();
 
-    final subtotal =
-        _cartItems.fold<double>(0, (sum, item) => sum + item.total);
-    final tax = _cartItems.fold<double>(
-        0, (sum, item) => sum + (item.total * (item.taxRate / 100)));
+    final double subtotal;
+    final double tax;
+
+    if (_taxIsInclusive) {
+      // Tax inclusive: prices already contain tax, extract it
+      // Ex-tax amount = price / (1 + rate/100)
+      // Tax = price - ex-tax amount
+      tax = _cartItems.fold<double>(
+          0, (sum, item) => sum + (item.total - (item.total / (1 + item.taxRate / 100))));
+      subtotal = _cartItems.fold<double>(
+          0, (sum, item) => sum + (item.total / (1 + item.taxRate / 100)));
+    } else {
+      // Tax exclusive: tax is added on top of price
+      subtotal = _cartItems.fold<double>(0, (sum, item) => sum + item.total);
+      tax = _cartItems.fold<double>(
+          0, (sum, item) => sum + (item.total * (item.taxRate / 100)));
+    }
 
     // Calculate total: subtotal + tax - discount + shipping
     final discount = totalDiscountAmount;
@@ -110,15 +127,20 @@ class SalesProvider with ChangeNotifier {
 
     return Cart(
       items: _cartItems
-          .map((item) => CartItem(
+          .map((item) {
+            final displayPrice = _taxIsInclusive
+                ? item.price / (1 + item.taxRate / 100)
+                : item.price;
+            return CartItem(
                 productId: item.productId,
                 name: item.name,
-                price: item.price,
+                price: displayPrice,
                 quantity: item.quantity,
                 image: item.image,
                 sku: item.sku,
                 options: item.options,
-              ))
+              );
+          })
           .toList(),
       subtotal: subtotal,
       discount: discount,
@@ -127,6 +149,7 @@ class SalesProvider with ChangeNotifier {
       total: total,
       customer: _selectedCustomer,
       paymentMethod: _paymentMethod,
+      taxIsInclusive: _taxIsInclusive,
     );
   }
 
@@ -144,6 +167,10 @@ class SalesProvider with ChangeNotifier {
         } else {
           debugPrint('⚠️ SALES: No default tax in settings');
         }
+
+        // Extract tax inclusive flag
+        _taxIsInclusive = settings['tax_is_inclusive'] == true;
+        debugPrint('✅ SALES: Tax is inclusive: $_taxIsInclusive');
       }
     } catch (e) {
       debugPrint('❌ SALES: Error loading settings: $e');
@@ -653,16 +680,22 @@ class SalesProvider with ChangeNotifier {
       }
 
       // Build items for direct checkout (include tax_rate, sku, and options)
+      // When tax is inclusive, send ex-tax price so backend doesn't double-add
       final items = _cartItems
-          .map((item) => {
-                'product_id': item.productId,
-                'name': item.name,
-                'quantity': item.quantity,
-                'price': item.price,
-                'image': item.image,
-                'sku': item.sku,
-                'options': item.options,
-                'tax_rate': item.taxRate,
+          .map((item) {
+                final itemPrice = _taxIsInclusive
+                    ? item.price / (1 + item.taxRate / 100)
+                    : item.price;
+                return {
+                  'product_id': item.productId,
+                  'name': item.name,
+                  'quantity': item.quantity,
+                  'price': itemPrice,
+                  'image': item.image,
+                  'sku': item.sku,
+                  'options': item.options,
+                  'tax_rate': item.taxRate,
+                };
               })
           .toList();
 

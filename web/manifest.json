@@ -1,11 +1,11 @@
 {
-    "name": "StampSmart POS",
-    "short_name": "StampSmart",
+    "name": "Seychelles Post POS",
+    "short_name": "SeyPost POS",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#667eea",
     "theme_color": "#667eea",
-    "description": "StampSmart Point of Sale System",
+    "description": "Seychelles Post Point of Sale System",
     "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [

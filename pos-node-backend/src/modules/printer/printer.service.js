@@ -62,7 +62,7 @@ class PrinterService {
             .align('ct')
             .style('b')
             .size(1, 1)
-            .text('StampSmart POS')
+            .text('Seychelles Post POS')
             .style('normal')
             .text('--------------------------------')
             .align('lt');

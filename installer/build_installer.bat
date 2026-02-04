@@ -2,7 +2,7 @@
 setlocal
 
 echo ============================================
-echo   StampSmart POS - Windows Installer Build
+echo   Seychelles Post POS - Windows Installer Build
 echo ============================================
 echo.
 
@@ -71,7 +71,7 @@ echo.
 
 echo ============================================
 echo   BUILD COMPLETE!
-echo   Installer: installer_output\StampSmartPOS_Setup_1.0.0.exe
+echo   Installer: installer_output\SeychellesPostPOS_Setup_1.0.0.exe
 echo ============================================
 echo.
 pause

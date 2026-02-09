@@ -6,11 +6,21 @@ echo   Seychelles Post POS - Windows Installer Build
 echo ============================================
 echo.
 
+:: Resolve the project root (parent of the installer\ directory where this script lives)
+set "SCRIPT_DIR=%~dp0"
+set "PROJECT_ROOT=%SCRIPT_DIR%.."
+set "DLL_DIR=%SCRIPT_DIR%dlls"
+set "ISS_FILE=%SCRIPT_DIR%installer.iss"
+
+:: Ensure we are in the project root so flutter build works correctly
+cd /d "%PROJECT_ROOT%"
+
 :: Check for environment argument
 set ENV=uat
 if not "%1"=="" set ENV=%1
 
 echo Environment: %ENV%
+echo Project root: %PROJECT_ROOT%
 echo.
 
 :: Step 1: Build Flutter Windows Release
@@ -21,36 +31,38 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+:: Restore working directory in case flutter build changed it
+cd /d "%PROJECT_ROOT%"
 echo       Done!
 echo.
 
-:: Step 2: Copy VC++ Runtime DLLs
+:: Step 2: Copy VC++ Runtime DLLs (only if not already present)
 echo [2/4] Copying VC++ Runtime DLLs...
-if not exist "installer\dlls\vcruntime140.dll" (
+if not exist "%DLL_DIR%\vcruntime140.dll" (
     echo       Copying from System32...
-    copy "C:\Windows\System32\vcruntime140.dll" "installer\dlls\" >nul
-    copy "C:\Windows\System32\vcruntime140_1.dll" "installer\dlls\" >nul
-    copy "C:\Windows\System32\msvcp140.dll" "installer\dlls\" >nul
+    copy "C:\Windows\System32\vcruntime140.dll" "%DLL_DIR%\" >nul
+    copy "C:\Windows\System32\vcruntime140_1.dll" "%DLL_DIR%\" >nul
+    copy "C:\Windows\System32\msvcp140.dll" "%DLL_DIR%\" >nul
 )
 echo       Done!
 echo.
 
 :: Step 3: Verify DLLs exist
 echo [3/4] Verifying required files...
-if not exist "installer\dlls\vcruntime140.dll" (
-    echo ERROR: vcruntime140.dll not found in installer\dlls\
+if not exist "%DLL_DIR%\vcruntime140.dll" (
+    echo ERROR: vcruntime140.dll not found in %DLL_DIR%\
     echo Please copy it from C:\Windows\System32\vcruntime140.dll
     pause
     exit /b 1
 )
-if not exist "installer\dlls\vcruntime140_1.dll" (
-    echo ERROR: vcruntime140_1.dll not found in installer\dlls\
+if not exist "%DLL_DIR%\vcruntime140_1.dll" (
+    echo ERROR: vcruntime140_1.dll not found in %DLL_DIR%\
     echo Please copy it from C:\Windows\System32\vcruntime140_1.dll
     pause
     exit /b 1
 )
-if not exist "installer\dlls\msvcp140.dll" (
-    echo ERROR: msvcp140.dll not found in installer\dlls\
+if not exist "%DLL_DIR%\msvcp140.dll" (
+    echo ERROR: msvcp140.dll not found in %DLL_DIR%\
     echo Please copy it from C:\Windows\System32\msvcp140.dll
     pause
     exit /b 1
@@ -67,7 +79,7 @@ if not exist %INNO_PATH% (
     pause
     exit /b 1
 )
-%INNO_PATH% "installer\installer.iss"
+%INNO_PATH% "%ISS_FILE%"
 if errorlevel 1 (
     echo ERROR: Inno Setup build failed!
     pause

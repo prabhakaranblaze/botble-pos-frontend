@@ -82,13 +82,13 @@ class AutoPrintService {
       // Initialize print service
       await _printService.init();
 
-      // Get connection type
-      final connectionTypeStr = printerInfo['connectionType'] ?? 'USB';
-      final connectionType = PrinterConnectionTypeExtension.fromString(connectionTypeStr);
-
-      // Scan for printers
+      // Scan all connection types (USB, BLE, Network) to maximize discovery
       debugPrint('🖨️ AUTO_PRINT: Scanning for printers...');
-      await _printService.startScan(connectionTypes: [connectionType]);
+      await _printService.startScan(connectionTypes: [
+        PrinterConnectionType.usb,
+        PrinterConnectionType.bluetooth,
+        PrinterConnectionType.network,
+      ]);
       await Future.delayed(const Duration(seconds: 2));
 
       // Find the saved printer
@@ -103,8 +103,14 @@ class AutoPrintService {
         }
       }
 
+      // Fallback: use first available printer if saved one not found
+      if (targetPrinter == null && printers.isNotEmpty) {
+        targetPrinter = printers.first;
+        debugPrint('🖨️ AUTO_PRINT: Saved printer not found, using fallback: ${targetPrinter.name}');
+      }
+
       if (targetPrinter == null) {
-        debugPrint('🖨️ AUTO_PRINT: Saved printer not found');
+        debugPrint('🖨️ AUTO_PRINT: No printers found');
         return AutoPrintResult(
           success: false,
           message: 'Printer not found. Please check connection.',

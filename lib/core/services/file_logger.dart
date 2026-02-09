@@ -53,6 +53,19 @@ class FileLogger {
     }
   }
 
+  /// Read today's log file content (for reporting)
+  Future<String?> readLogContent() async {
+    if (_logFile == null) return null;
+    try {
+      if (await _logFile!.exists()) {
+        return await _logFile!.readAsString();
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> info(String message) => _write('INFO', message);
   Future<void> warn(String message) => _write('WARN', message);
   Future<void> error(String message, [Object? err, StackTrace? stack]) async {

@@ -1,15 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/models/cart.dart';
 import 'print_service_interface.dart';
 import 'print_service_factory.dart';
+import 'file_logger.dart';
 
-/// Service for auto-printing receipts using saved default printer
+/// Service for auto-printing receipts using saved default printer.
+/// Uses a static lock to serialize all print operations and prevent
+/// concurrent scans from corrupting the shared ThermalPrintService singleton.
 class AutoPrintService {
   static const String _printerNameKey = 'default_printer_name';
   static const String _printerAddressKey = 'default_printer_address';
   static const String _printerConnectionTypeKey = 'default_printer_connection_type';
   static const String _autoPrintKey = 'auto_print_enabled';
+
+  /// Static lock shared across all AutoPrintService instances.
+  /// Ensures only one print job runs at a time since ThermalPrintService
+  /// is a singleton with shared mutable state.
+  static Completer<void>? _printLock;
 
   PrintServiceInterface? _printServiceInstance;
 
@@ -46,11 +55,29 @@ class AutoPrintService {
     };
   }
 
+  /// Wait for any in-progress print job to finish, then acquire the lock
+  Future<void> _acquireLock() async {
+    while (_printLock != null) {
+      await _printLock!.future;
+    }
+    _printLock = Completer<void>();
+  }
+
+  /// Release the lock so the next queued print job can proceed
+  void _releaseLock() {
+    final lock = _printLock;
+    _printLock = null;
+    lock?.complete();
+  }
+
   /// Auto-print a receipt for an order
   /// Returns true if printing was successful or if auto-print is disabled
   /// Returns false if printing failed
+  final _log = FileLogger.instance;
+
   Future<AutoPrintResult> autoPrint(Order order) async {
     debugPrint('🖨️ AUTO_PRINT: Starting auto-print process...');
+    _log.info('PRINT: Starting auto-print for order ${order.code}');
 
     // Check if auto-print is enabled
     final autoPrintEnabled = await isAutoPrintEnabled();
@@ -78,76 +105,117 @@ class AutoPrintService {
     final printerInfo = await getSavedPrinterInfo();
     debugPrint('🖨️ AUTO_PRINT: Using printer: ${printerInfo['name']} (${printerInfo['address']})');
 
+    // Acquire lock - wait for any other print job to finish
+    debugPrint('🖨️ AUTO_PRINT: Waiting for print lock...');
+    await _acquireLock();
+    debugPrint('🖨️ AUTO_PRINT: Lock acquired');
+
     try {
       // Initialize print service
       await _printService.init();
 
-      // Scan all connection types (USB, BLE, Network) to maximize discovery
-      debugPrint('🖨️ AUTO_PRINT: Scanning for printers...');
-      await _printService.startScan(connectionTypes: [
-        PrinterConnectionType.usb,
-        PrinterConnectionType.bluetooth,
-        PrinterConnectionType.network,
-      ]);
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Find the saved printer
-      final printers = _printService.availablePrinters;
-      debugPrint('🖨️ AUTO_PRINT: Found ${printers.length} printers');
-
-      PrinterInfo? targetPrinter;
-      for (final printer in printers) {
-        if (printer.address == printerInfo['address']) {
-          targetPrinter = printer;
-          break;
-        }
-      }
-
-      // Fallback: use first available printer if saved one not found
-      if (targetPrinter == null && printers.isNotEmpty) {
-        targetPrinter = printers.first;
-        debugPrint('🖨️ AUTO_PRINT: Saved printer not found, using fallback: ${targetPrinter.name}');
-      }
-
-      if (targetPrinter == null) {
-        debugPrint('🖨️ AUTO_PRINT: No printers found');
-        return AutoPrintResult(
-          success: false,
-          message: 'Printer not found. Please check connection.',
-          didPrint: false,
-        );
-      }
-
-      // Select and connect to printer
-      _printService.selectPrinter(targetPrinter);
-
-      // Print the receipt
-      debugPrint('🖨️ AUTO_PRINT: Printing receipt...');
-      final printSuccess = await _printService.printReceipt(order, autoCut: true);
-
-      if (printSuccess) {
-        debugPrint('🖨️ AUTO_PRINT: Print successful!');
-        return AutoPrintResult(
-          success: true,
-          message: 'Receipt printed successfully',
-          didPrint: true,
-        );
-      } else {
-        debugPrint('🖨️ AUTO_PRINT: Print failed');
-        return AutoPrintResult(
-          success: false,
-          message: 'Print failed',
-          didPrint: false,
-        );
-      }
-    } catch (e) {
+      // Try to find and print with retry
+      final result = await _scanAndPrint(printerInfo, order);
+      return result;
+    } catch (e, stack) {
       debugPrint('🖨️ AUTO_PRINT: Error: $e');
+      _log.error('PRINT: Error printing order ${order.code}', e, stack);
       return AutoPrintResult(
         success: false,
         message: 'Print error: ${e.toString()}',
         didPrint: false,
       );
+    } finally {
+      // Always stop scan and release lock
+      try {
+        _printService.stopScan();
+      } catch (_) {}
+      _releaseLock();
+      debugPrint('🖨️ AUTO_PRINT: Lock released');
     }
+  }
+
+  /// Scan for printers and print, with one retry on failure
+  Future<AutoPrintResult> _scanAndPrint(
+    Map<String, String?> printerInfo,
+    Order order,
+  ) async {
+    // First attempt with 2 second scan
+    var printer = await _findPrinter(printerInfo, const Duration(seconds: 2));
+
+    // Retry with longer scan if first attempt failed
+    if (printer == null) {
+      debugPrint('🖨️ AUTO_PRINT: First scan failed, retrying with longer timeout...');
+      printer = await _findPrinter(printerInfo, const Duration(seconds: 4));
+    }
+
+    if (printer == null) {
+      debugPrint('🖨️ AUTO_PRINT: No printers found after retry');
+      _log.warn('PRINT: No printers found for order ${order.code} after 2 scan attempts');
+      return AutoPrintResult(
+        success: false,
+        message: 'Printer not found. Please check connection.',
+        didPrint: false,
+      );
+    }
+
+    // Select and print
+    _printService.selectPrinter(printer);
+
+    debugPrint('🖨️ AUTO_PRINT: Printing receipt on ${printer.name}...');
+    _log.info('PRINT: Printing order ${order.code} on ${printer.name} (${printer.address})');
+    final printSuccess = await _printService.printReceipt(order, autoCut: true);
+
+    if (printSuccess) {
+      debugPrint('🖨️ AUTO_PRINT: Print successful!');
+      _log.info('PRINT: Success - order ${order.code}');
+      return AutoPrintResult(
+        success: true,
+        message: 'Receipt printed successfully',
+        didPrint: true,
+      );
+    } else {
+      debugPrint('🖨️ AUTO_PRINT: Print failed');
+      _log.warn('PRINT: Failed - order ${order.code} on ${printer.name}');
+      return AutoPrintResult(
+        success: false,
+        message: 'Print failed',
+        didPrint: false,
+      );
+    }
+  }
+
+  /// Scan for printers and try to find the saved one (or fallback to first available)
+  Future<PrinterInfo?> _findPrinter(
+    Map<String, String?> printerInfo,
+    Duration scanDuration,
+  ) async {
+    debugPrint('🖨️ AUTO_PRINT: Scanning for ${scanDuration.inSeconds}s...');
+
+    await _printService.startScan(connectionTypes: [
+      PrinterConnectionType.usb,
+      PrinterConnectionType.bluetooth,
+      PrinterConnectionType.network,
+    ]);
+    await Future.delayed(scanDuration);
+
+    final printers = _printService.availablePrinters;
+    debugPrint('🖨️ AUTO_PRINT: Found ${printers.length} printers');
+
+    if (printers.isEmpty) return null;
+
+    // Try exact address match first
+    for (final printer in printers) {
+      if (printer.address == printerInfo['address']) {
+        debugPrint('🖨️ AUTO_PRINT: Found saved printer: ${printer.name}');
+        return printer;
+      }
+    }
+
+    // Fallback to first available printer
+    final fallback = printers.first;
+    debugPrint('🖨️ AUTO_PRINT: Saved printer not found, using fallback: ${fallback.name}');
+    return fallback;
   }
 }
 

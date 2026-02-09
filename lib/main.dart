@@ -15,6 +15,7 @@ import 'core/providers/pos_mode_provider.dart';
 import 'core/providers/update_provider.dart';
 import 'core/utils/window_helper.dart';
 import 'core/database/saved_cart_storage_factory.dart';
+import 'core/services/file_logger.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
@@ -34,6 +35,10 @@ void main() async {
   GoogleFonts.config.allowRuntimeFetching = false;
 
   try {
+    // Initialize file logger for production debugging
+    await FileLogger.instance.init();
+    FileLogger.instance.info('App starting...');
+
     // Initialize window manager for desktop (no-op on web)
     await WindowHelper.initialize(
       width: 1280,
@@ -94,6 +99,7 @@ void main() async {
   } catch (e, stackTrace) {
     debugPrint('FATAL: App initialization failed: $e');
     debugPrint('$stackTrace');
+    FileLogger.instance.error('FATAL: App initialization failed', e, stackTrace);
     runApp(
       MaterialApp(
         home: Scaffold(

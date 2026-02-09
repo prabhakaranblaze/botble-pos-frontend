@@ -46,6 +46,7 @@ Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignore
 ; VC++ Runtime DLLs (required for Flutter Windows apps)
 Source: "dlls\vcruntime140.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dlls\vcruntime140_1.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dlls\msvcp140.dll"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

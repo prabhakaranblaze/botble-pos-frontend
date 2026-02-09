@@ -28,63 +28,101 @@ import 'shared/constants/app_constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize window manager for desktop (no-op on web)
-  await WindowHelper.initialize(
-    width: 1280,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    title: 'Seychelles Post POS',
-  );
+  // Disable google_fonts runtime fetching to avoid white screen when
+  // fonts can't be downloaded (e.g. no internet on installed desktop app).
+  // Falls back to system default font instead.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
-  // Initialize saved cart storage (SQLite on desktop, LocalStorage on web)
-  await SavedCartStorageFactory.initialize();
+  try {
+    // Initialize window manager for desktop (no-op on web)
+    await WindowHelper.initialize(
+      width: 1280,
+      height: 800,
+      minWidth: 800,
+      minHeight: 600,
+      title: 'Seychelles Post POS',
+    );
 
-  final storageService = StorageService();
-  await storageService.init();
+    // Initialize saved cart storage (SQLite on desktop, LocalStorage on web)
+    await SavedCartStorageFactory.initialize();
 
-  final apiService = ApiService(storageService);
-  final audioService = AudioService();
-  await audioService.preload(); // preload beep sound for instant playback
+    final storageService = StorageService();
+    await storageService.init();
 
-  final inactivityProvider = InactivityProvider(
-    lockTimeout: const Duration(minutes: 60),
-  );
+    final apiService = ApiService(storageService);
+    final audioService = AudioService();
+    await audioService.preload(); // preload beep sound for instant playback
 
-  // Create AuthProvider first so we can connect the 401 handler
-  final authProvider = AuthProvider(apiService, storageService);
+    final inactivityProvider = InactivityProvider(
+      lockTimeout: const Duration(minutes: 60),
+    );
 
-  // Create UpdateProvider for app updates
-  final updateProvider = UpdateProvider(apiService);
+    // Create AuthProvider first so we can connect the 401 handler
+    final authProvider = AuthProvider(apiService, storageService);
 
-  // Connect API 401 handler to trigger automatic logout
-  apiService.onUnauthorized = () {
-    debugPrint('🔐 AUTO-LOGOUT: 401 detected, logging out user');
-    authProvider.logout();
-  };
+    // Create UpdateProvider for app updates
+    final updateProvider = UpdateProvider(apiService);
 
-  // Check for updates on startup (non-blocking)
-  updateProvider.checkForUpdate();
+    // Connect API 401 handler to trigger automatic logout
+    apiService.onUnauthorized = () {
+      debugPrint('AUTO-LOGOUT: 401 detected, logging out user');
+      authProvider.logout();
+    };
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
-        ChangeNotifierProvider(create: (_) => LocaleProvider()),
-        ChangeNotifierProvider(create: (_) => CurrencyProvider()),
-        ChangeNotifierProvider(create: (_) => PosModeProvider()),
-        ChangeNotifierProvider.value(value: inactivityProvider),
-        ChangeNotifierProvider.value(value: updateProvider),
-        Provider.value(value: apiService),
-        ChangeNotifierProvider.value(value: authProvider),
-        ChangeNotifierProvider(
-            create: (_) => SalesProvider(apiService, audioService)),
-        ChangeNotifierProvider(
-            create: (_) => SessionProvider(apiService, storageService)),
-      ],
-      child: MyApp(inactivityProvider: inactivityProvider),
-    ),
-  );
+    // Check for updates on startup (non-blocking)
+    updateProvider.checkForUpdate();
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
+          ChangeNotifierProvider(create: (_) => LocaleProvider()),
+          ChangeNotifierProvider(create: (_) => CurrencyProvider()),
+          ChangeNotifierProvider(create: (_) => PosModeProvider()),
+          ChangeNotifierProvider.value(value: inactivityProvider),
+          ChangeNotifierProvider.value(value: updateProvider),
+          Provider.value(value: apiService),
+          ChangeNotifierProvider.value(value: authProvider),
+          ChangeNotifierProvider(
+              create: (_) => SalesProvider(apiService, audioService)),
+          ChangeNotifierProvider(
+              create: (_) => SessionProvider(apiService, storageService)),
+        ],
+        child: MyApp(inactivityProvider: inactivityProvider),
+      ),
+    );
+  } catch (e, stackTrace) {
+    debugPrint('FATAL: App initialization failed: $e');
+    debugPrint('$stackTrace');
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Failed to start application',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    '$e',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {

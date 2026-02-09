@@ -30,6 +30,7 @@ if not exist "installer\dlls\vcruntime140.dll" (
     echo       Copying from System32...
     copy "C:\Windows\System32\vcruntime140.dll" "installer\dlls\" >nul
     copy "C:\Windows\System32\vcruntime140_1.dll" "installer\dlls\" >nul
+    copy "C:\Windows\System32\msvcp140.dll" "installer\dlls\" >nul
 )
 echo       Done!
 echo.
@@ -45,6 +46,12 @@ if not exist "installer\dlls\vcruntime140.dll" (
 if not exist "installer\dlls\vcruntime140_1.dll" (
     echo ERROR: vcruntime140_1.dll not found in installer\dlls\
     echo Please copy it from C:\Windows\System32\vcruntime140_1.dll
+    pause
+    exit /b 1
+)
+if not exist "installer\dlls\msvcp140.dll" (
+    echo ERROR: msvcp140.dll not found in installer\dlls\
+    echo Please copy it from C:\Windows\System32\msvcp140.dll
     pause
     exit /b 1
 )

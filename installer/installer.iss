@@ -1,10 +1,10 @@
-; StampSmart POS - Inno Setup Script
+; Seychelles Post POS - Inno Setup Script
 ; This script creates a Windows installer with all dependencies bundled
 
-#define MyAppName "StampSmart POS"
+#define MyAppName "Seychelles Post POS"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "StampSmart"
-#define MyAppURL "https://stampsmart.com"
+#define MyAppPublisher "Seychelles Post"
+#define MyAppURL "https://seychelles.post"
 #define MyAppExeName "pos_desktop.exe"
 
 [Setup]
@@ -21,7 +21,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 ; Output settings
 OutputDir=..\installer_output
-OutputBaseFilename=StampSmartPOS_Setup_{#MyAppVersion}
+OutputBaseFilename=SeychellesPostPOS_Setup_{#MyAppVersion}
 ; Compression
 Compression=lzma2
 SolidCompression=yes
@@ -46,6 +46,7 @@ Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignore
 ; VC++ Runtime DLLs (required for Flutter Windows apps)
 Source: "dlls\vcruntime140.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dlls\vcruntime140_1.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dlls\msvcp140.dll"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

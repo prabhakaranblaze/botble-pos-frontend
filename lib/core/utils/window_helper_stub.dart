@@ -4,7 +4,7 @@ Future<void> initializeWindow({
   double height = 800,
   double minWidth = 800,
   double minHeight = 600,
-  String title = 'StampSmart POS',
+  String title = 'Seychelles Post POS',
 }) async {
   // No-op
 }

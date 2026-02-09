@@ -14,7 +14,7 @@ class WindowHelper {
     double height = 800,
     double minWidth = 800,
     double minHeight = 600,
-    String title = 'StampSmart POS',
+    String title = 'Seychelles Post POS',
   }) async {
     if (kIsWeb) {
       // No window management on web

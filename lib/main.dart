@@ -15,6 +15,7 @@ import 'core/providers/pos_mode_provider.dart';
 import 'core/providers/update_provider.dart';
 import 'core/utils/window_helper.dart';
 import 'core/database/saved_cart_storage_factory.dart';
+import 'core/services/file_logger.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/auth/lock_screen.dart';
 import 'features/sales/sales_provider.dart';
@@ -28,63 +29,106 @@ import 'shared/constants/app_constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize window manager for desktop (no-op on web)
-  await WindowHelper.initialize(
-    width: 1280,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    title: 'StampSmart POS',
-  );
+  // Disable google_fonts runtime fetching to avoid white screen when
+  // fonts can't be downloaded (e.g. no internet on installed desktop app).
+  // Falls back to system default font instead.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
-  // Initialize saved cart storage (SQLite on desktop, LocalStorage on web)
-  await SavedCartStorageFactory.initialize();
+  try {
+    // Initialize file logger for production debugging
+    await FileLogger.instance.init();
+    FileLogger.instance.info('App starting...');
 
-  final storageService = StorageService();
-  await storageService.init();
+    // Initialize window manager for desktop (no-op on web)
+    await WindowHelper.initialize(
+      width: 1280,
+      height: 800,
+      minWidth: 800,
+      minHeight: 600,
+      title: 'Seychelles Post POS',
+    );
 
-  final apiService = ApiService(storageService);
-  final audioService = AudioService();
-  await audioService.preload(); // preload beep sound for instant playback
+    // Initialize saved cart storage (SQLite on desktop, LocalStorage on web)
+    await SavedCartStorageFactory.initialize();
 
-  final inactivityProvider = InactivityProvider(
-    lockTimeout: const Duration(minutes: 60),
-  );
+    final storageService = StorageService();
+    await storageService.init();
 
-  // Create AuthProvider first so we can connect the 401 handler
-  final authProvider = AuthProvider(apiService, storageService);
+    final apiService = ApiService(storageService);
+    final audioService = AudioService();
+    await audioService.preload(); // preload beep sound for instant playback
 
-  // Create UpdateProvider for app updates
-  final updateProvider = UpdateProvider(apiService);
+    final inactivityProvider = InactivityProvider(
+      lockTimeout: const Duration(minutes: 60),
+    );
 
-  // Connect API 401 handler to trigger automatic logout
-  apiService.onUnauthorized = () {
-    debugPrint('🔐 AUTO-LOGOUT: 401 detected, logging out user');
-    authProvider.logout();
-  };
+    // Create AuthProvider first so we can connect the 401 handler
+    final authProvider = AuthProvider(apiService, storageService);
 
-  // Check for updates on startup (non-blocking)
-  updateProvider.checkForUpdate();
+    // Create UpdateProvider for app updates
+    final updateProvider = UpdateProvider(apiService);
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
-        ChangeNotifierProvider(create: (_) => LocaleProvider()),
-        ChangeNotifierProvider(create: (_) => CurrencyProvider()),
-        ChangeNotifierProvider(create: (_) => PosModeProvider()),
-        ChangeNotifierProvider.value(value: inactivityProvider),
-        ChangeNotifierProvider.value(value: updateProvider),
-        Provider.value(value: apiService),
-        ChangeNotifierProvider.value(value: authProvider),
-        ChangeNotifierProvider(
-            create: (_) => SalesProvider(apiService, audioService)),
-        ChangeNotifierProvider(
-            create: (_) => SessionProvider(apiService, storageService)),
-      ],
-      child: MyApp(inactivityProvider: inactivityProvider),
-    ),
-  );
+    // Connect API 401 handler to trigger automatic logout
+    apiService.onUnauthorized = () {
+      debugPrint('AUTO-LOGOUT: 401 detected, logging out user');
+      authProvider.logout();
+    };
+
+    // Check for updates on startup (non-blocking)
+    updateProvider.checkForUpdate();
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
+          ChangeNotifierProvider(create: (_) => LocaleProvider()),
+          ChangeNotifierProvider(create: (_) => CurrencyProvider()),
+          ChangeNotifierProvider(create: (_) => PosModeProvider()),
+          ChangeNotifierProvider.value(value: inactivityProvider),
+          ChangeNotifierProvider.value(value: updateProvider),
+          Provider.value(value: apiService),
+          ChangeNotifierProvider.value(value: authProvider),
+          ChangeNotifierProvider(
+              create: (_) => SalesProvider(apiService, audioService)),
+          ChangeNotifierProvider(
+              create: (_) => SessionProvider(apiService, storageService)),
+        ],
+        child: MyApp(inactivityProvider: inactivityProvider),
+      ),
+    );
+  } catch (e, stackTrace) {
+    debugPrint('FATAL: App initialization failed: $e');
+    debugPrint('$stackTrace');
+    FileLogger.instance.error('FATAL: App initialization failed', e, stackTrace);
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Failed to start application',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    '$e',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {

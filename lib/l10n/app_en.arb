@@ -1,7 +1,7 @@
 {
   "@@locale": "en",
 
-  "appTitle": "StampSmart POS",
+  "appTitle": "Seychelles Post POS",
   "@appTitle": {"description": "Application title"},
 
   "login": "Login",

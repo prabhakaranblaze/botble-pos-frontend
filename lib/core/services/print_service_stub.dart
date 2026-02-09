@@ -27,6 +27,13 @@ class _StubPrintService implements PrintServiceInterface {
   void selectPrinter(PrinterInfo printer) {}
 
   @override
+  void selectPrinterFromSaved({
+    required String name,
+    required String address,
+    required PrinterConnectionType connectionType,
+  }) {}
+
+  @override
   Future<bool> connect() async => false;
 
   @override

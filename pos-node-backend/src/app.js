@@ -25,6 +25,7 @@ const settingsRoutes = require('./modules/settings/settings.routes');
 const discountsRoutes = require('./modules/discounts/discounts.routes');
 const reportsRoutes = require('./modules/reports/reports.routes');
 const updatesRoutes = require('./modules/updates/updates.routes');
+const logsRoutes = require('./modules/logs/logs.routes');
 
 // Initialize Express
 const app = express();
@@ -89,6 +90,7 @@ apiRouter.use('/settings', settingsRoutes);
 apiRouter.use('/discounts', discountsRoutes);
 apiRouter.use('/reports', reportsRoutes);
 apiRouter.use('/updates', updatesRoutes);
+apiRouter.use('/logs', logsRoutes);
 
 // Mount API router
 app.use('/api/v1/pos', apiRouter);

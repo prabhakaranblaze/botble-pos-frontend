@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../shared/constants/app_constants.dart';
 import '../../core/services/update_service.dart';
+import '../../core/services/file_logger.dart';
 import '../../core/providers/update_provider.dart';
+import '../../core/api/api_service.dart';
 import '../auth/auth_provider.dart';
 import '../../core/models/user.dart';
 import '../../l10n/generated/app_localizations.dart';
@@ -374,10 +376,103 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildInfoRow(l10n?.version ?? 'Version', UpdateService.appVersion),
             const Divider(),
             _buildInfoRow(l10n?.currency ?? 'Currency', AppConstants.currencyCode),
+            if (!kIsWeb) ...[
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Diagnostic Logs',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _openLogFile,
+                          icon: const Icon(Icons.description_outlined, size: 16),
+                          label: const Text('View Logs'),
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: _reportLog,
+                          icon: const Icon(Icons.send_outlined, size: 16),
+                          label: const Text('Report Log'),
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _openLogFile() async {
+    final logPath = await FileLogger.instance.logFilePath;
+    if (logPath != null && mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.description_outlined),
+              SizedBox(width: 8),
+              Text('Log File Location'),
+            ],
+          ),
+          content: SelectableText(
+            logPath,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _reportLog() async {
+    final logContent = await FileLogger.instance.readLogContent();
+    if (logContent == null || logContent.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No log content to report')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    final api = context.read<ApiService>();
+    final success = await api.reportLog(
+      logContent: logContent,
+      deviceInfo: 'POS Desktop v${UpdateService.appVersion}',
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Log reported successfully' : 'Failed to send log report'),
+          backgroundColor: success ? AppColors.success : AppColors.error,
+        ),
+      );
+    }
   }
 
   Widget _buildInfoRow(String label, String value) {

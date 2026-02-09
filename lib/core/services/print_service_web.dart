@@ -24,12 +24,19 @@ class WebPrintService implements PrintServiceInterface {
   final List<PrinterInfo> _availablePrinters = [];
   dynamic _serialPort;
   bool _isConnected = false;
+  int _baudRate = 9600;
 
   @override
   List<PrinterInfo> get availablePrinters => _availablePrinters;
 
   @override
   PrinterInfo? get selectedPrinter => _selectedPrinter;
+
+  int get baudRate => _baudRate;
+  set baudRate(int value) {
+    _baudRate = value;
+    debugPrint('🖨️ WebPrintService: Baud rate set to $value');
+  }
 
   @override
   bool get isWebSerialSupported {
@@ -123,6 +130,16 @@ class WebPrintService implements PrintServiceInterface {
   }
 
   @override
+  void selectPrinterFromSaved({
+    required String name,
+    required String address,
+    required PrinterConnectionType connectionType,
+  }) {
+    // Web Serial requires user gesture to select port, can't reconstruct from saved info
+    debugPrint('🖨️ WebPrintService: selectPrinterFromSaved not supported on web');
+  }
+
+  @override
   Future<bool> connect() async {
     if (_serialPort == null) {
       debugPrint('🖨️ WebPrintService: No port selected');
@@ -130,11 +147,11 @@ class WebPrintService implements PrintServiceInterface {
     }
 
     try {
-      // Open the port with typical thermal printer settings
+      // Open the port with configurable baud rate
       await js.context.callMethod('eval', [
         '''
         (async (port) => {
-          await port.open({ baudRate: 9600 });
+          await port.open({ baudRate: $_baudRate });
         })(${_serialPort})
         '''
       ]);

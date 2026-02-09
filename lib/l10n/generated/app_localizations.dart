@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// Application title
   ///
   /// In en, this message translates to:
-  /// **'StampSmart POS'**
+  /// **'Seychelles Post POS'**
   String get appTitle;
 
   /// No description provided for @login.

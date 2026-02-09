@@ -9,7 +9,7 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
-  String get appTitle => 'StampSmart POS';
+  String get appTitle => 'Seychelles Post POS';
 
   @override
   String get login => 'Connexion';

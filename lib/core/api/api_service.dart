@@ -1170,6 +1170,34 @@ class ApiService {
 
   // Update APIs
 
+  // Logs APIs
+
+  /// Report diagnostic logs to backend
+  Future<bool> reportLog({
+    required String logContent,
+    String? deviceInfo,
+  }) async {
+    debugPrint('📋 API SERVICE: reportLog called');
+
+    try {
+      final response = await _dio.post('/logs/report', data: {
+        'logContent': logContent,
+        'deviceInfo': deviceInfo,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+
+      if (response.data['error'] == false) {
+        debugPrint('✅ API SERVICE: Log report sent successfully');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint('❌ API SERVICE: reportLog error: $e');
+      return false;
+    }
+  }
+
   /// Check for app updates
   Future<Map<String, dynamic>?> checkForUpdate(String currentVersion) async {
     debugPrint('📦 API SERVICE: checkForUpdate called - Version: $currentVersion');

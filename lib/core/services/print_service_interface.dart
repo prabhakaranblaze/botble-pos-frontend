@@ -21,6 +21,13 @@ abstract class PrintServiceInterface {
   /// Select a printer for printing
   void selectPrinter(PrinterInfo printer);
 
+  /// Select a printer directly from saved info (no scan needed)
+  void selectPrinterFromSaved({
+    required String name,
+    required String address,
+    required PrinterConnectionType connectionType,
+  });
+
   /// Connect to the selected printer
   Future<bool> connect();
 

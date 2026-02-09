@@ -130,6 +130,16 @@ class WebPrintService implements PrintServiceInterface {
   }
 
   @override
+  void selectPrinterFromSaved({
+    required String name,
+    required String address,
+    required PrinterConnectionType connectionType,
+  }) {
+    // Web Serial requires user gesture to select port, can't reconstruct from saved info
+    debugPrint('🖨️ WebPrintService: selectPrinterFromSaved not supported on web');
+  }
+
+  @override
   Future<bool> connect() async {
     if (_serialPort == null) {
       debugPrint('🖨️ WebPrintService: No port selected');

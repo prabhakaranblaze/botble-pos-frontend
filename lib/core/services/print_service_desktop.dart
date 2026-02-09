@@ -64,6 +64,34 @@ class DesktopPrintService implements PrintServiceInterface {
   }
 
   @override
+  void selectPrinterFromSaved({
+    required String name,
+    required String address,
+    required PrinterConnectionType connectionType,
+  }) {
+    ConnectionType nativeType;
+    switch (connectionType) {
+      case PrinterConnectionType.usb:
+      case PrinterConnectionType.serial:
+        nativeType = ConnectionType.USB;
+        break;
+      case PrinterConnectionType.bluetooth:
+        nativeType = ConnectionType.BLE;
+        break;
+      case PrinterConnectionType.network:
+        nativeType = ConnectionType.NETWORK;
+        break;
+    }
+
+    final printer = Printer(
+      name: name,
+      address: address,
+      connectionType: nativeType,
+    );
+    _thermalService.selectPrinter(printer);
+  }
+
+  @override
   Future<bool> connect() => _thermalService.connect();
 
   @override

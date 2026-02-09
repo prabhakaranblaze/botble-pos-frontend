@@ -12,7 +12,7 @@ class AppConstants {
   static String get apiKey => EnvConfig.apiKey;
 
   // App Configuration
-  static const String appName = 'StampSmart POS';
+  static const String appName = 'Seychelles Post POS';
 
   // Dynamic device name based on platform
   static String get deviceName => device_helper.getDeviceName();

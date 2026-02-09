@@ -6,6 +6,7 @@ import '../../shared/constants/app_constants.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../core/services/print_service_interface.dart';
 import '../../core/services/print_service_factory.dart';
+import '../../core/services/print_service_web.dart';
 
 /// Web implementation of printer settings using Web Serial API
 Widget buildPrinterSettingsCard(BuildContext context) {
@@ -22,9 +23,13 @@ class _WebPrinterSettingsCard extends StatefulWidget {
 class _WebPrinterSettingsCardState extends State<_WebPrinterSettingsCard> {
   static const String _printerNameKey = 'default_printer_name';
   static const String _autoPrintKey = 'auto_print_enabled';
+  static const String _baudRateKey = 'printer_baud_rate';
+
+  static const List<int> _baudRateOptions = [9600, 19200, 38400, 57600, 115200];
 
   String? _savedPrinterName;
   bool _autoPrintEnabled = true;
+  int _baudRate = 9600;
   bool _isConnecting = false;
   bool _isTesting = false;
   bool _isWebSerialSupported = false;
@@ -51,7 +56,14 @@ class _WebPrinterSettingsCardState extends State<_WebPrinterSettingsCard> {
     setState(() {
       _savedPrinterName = prefs.getString(_printerNameKey);
       _autoPrintEnabled = prefs.getBool(_autoPrintKey) ?? true;
+      _baudRate = prefs.getInt(_baudRateKey) ?? 9600;
     });
+
+    // Apply saved baud rate to print service
+    final printService = PrintServiceFactory.getInstance();
+    if (printService is WebPrintService) {
+      printService.baudRate = _baudRate;
+    }
   }
 
   Future<void> _toggleAutoPrint(bool value) async {
@@ -60,6 +72,23 @@ class _WebPrinterSettingsCardState extends State<_WebPrinterSettingsCard> {
     setState(() {
       _autoPrintEnabled = value;
     });
+  }
+
+  Future<void> _changeBaudRate(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_baudRateKey, value);
+    setState(() {
+      _baudRate = value;
+    });
+
+    // Apply to print service
+    final printService = PrintServiceFactory.getInstance();
+    if (printService is WebPrintService) {
+      printService.baudRate = value;
+    }
+
+    // Disconnect so next print reconnects with new baud rate
+    await printService.disconnect();
   }
 
   Future<void> _selectPrinter() async {
@@ -307,6 +336,43 @@ class _WebPrinterSettingsCardState extends State<_WebPrinterSettingsCard> {
               value: _autoPrintEnabled,
               onChanged: _toggleAutoPrint,
               contentPadding: EdgeInsets.zero,
+            ),
+
+            const Divider(height: 24),
+
+            // Baud Rate Setting
+            Row(
+              children: [
+                const Icon(Icons.speed, color: Colors.grey),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Baud Rate',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      Text(
+                        'Serial port communication speed',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                DropdownButton<int>(
+                  value: _baudRate,
+                  items: _baudRateOptions
+                      .map((rate) => DropdownMenuItem<int>(
+                            value: rate,
+                            child: Text('$rate bps'),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) _changeBaudRate(value);
+                  },
+                ),
+              ],
             ),
 
             const Divider(height: 24),

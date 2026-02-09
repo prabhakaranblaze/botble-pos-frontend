@@ -152,7 +152,7 @@ class SettingsService {
         currency,
         default_tax: defaultTax,
         tax_is_inclusive: taxIsInclusive,
-        store_name: 'StampSmart POS',
+        store_name: 'Seychelles Post POS',
       };
     } catch (e) {
       console.error('Error fetching settings:', e);
@@ -166,7 +166,7 @@ class SettingsService {
           is_prefix: false,
         },
         default_tax: null,
-        store_name: 'StampSmart POS',
+        store_name: 'Seychelles Post POS',
       };
     }
   }

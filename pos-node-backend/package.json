@@ -12,7 +12,7 @@
     "db:studio": "prisma studio"
   },
   "keywords": ["pos", "point-of-sale", "botble", "node", "api"],
-  "author": "StampSmart",
+  "author": "Seychelles Post",
   "license": "PROPRIETARY",
   "dependencies": {
     "@prisma/client": "^5.10.0",

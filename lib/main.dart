@@ -34,7 +34,7 @@ void main() async {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: 'StampSmart POS',
+    title: 'Seychelles Post POS',
   );
 
   // Initialize saved cart storage (SQLite on desktop, LocalStorage on web)

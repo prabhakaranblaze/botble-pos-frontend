@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'StampSmart POS';
+  String get appTitle => 'Seychelles Post POS';
 
   @override
   String get login => 'Login';

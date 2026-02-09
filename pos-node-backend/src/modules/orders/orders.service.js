@@ -609,7 +609,7 @@ class OrdersService {
       </head>
       <body>
         <div class="header">
-          <h1>StampSmart POS</h1>
+          <h1>Seychelles Post POS</h1>
           <p>Receipt</p>
         </div>
 

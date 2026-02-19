@@ -143,144 +143,173 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
 
   Widget _buildReceiptContent() {
     final l10n = AppLocalizations.of(context);
-    final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final order = widget.order;
+
+    // Build payment info string (matches thermal print)
+    String paymentInfo = 'Payment: ${_formatPaymentMethod(order.paymentMethod)}';
+    if (order.cardLastFour != null) {
+      paymentInfo += ' (*${order.cardLastFour})';
+    }
+
+    // Tax label with percentage
+    String taxLabel = l10n?.tax ?? 'Tax';
+    if (order.taxAmount > 0 && order.subTotal > 0) {
+      final pct = (order.taxAmount / order.subTotal * 100).round();
+      taxLabel = '${l10n?.tax ?? 'Tax'} ($pct%)';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // Header - matches thermal print
         Text(
           AppConstants.appName,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 8),
         Text(
-          '${l10n?.orderNumber ?? 'Order'} ${widget.order.code}',
+          'POS Receipt',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 13,
             color: AppColors.textSecondary,
           ),
         ),
-        Text(
-          dateFormat.format(widget.order.createdAt),
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const Divider(height: 32),
+        const SizedBox(height: 12),
 
-        // Items
-        ...widget.order.items.map((item) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+        // Order info - left aligned, matches thermal print
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${l10n?.orderNumber ?? 'Order'}: ${order.code}',
+                  style: const TextStyle(fontSize: 13)),
+              Text('${l10n?.date ?? 'Date'}: ${dateFormat.format(order.createdAt)}',
+                  style: const TextStyle(fontSize: 13)),
+              if (order.customer != null)
+                Text('${l10n?.customer ?? 'Customer'}: ${order.customer!.name}',
+                    style: const TextStyle(fontSize: 13)),
+              Text(paymentInfo, style: const TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+
+        const Divider(height: 24),
+
+        // Column headers - matches thermal print
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: Text(l10n?.item ?? 'Item',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
+              SizedBox(
+                width: 40,
+                child: Text(l10n?.qty ?? 'Qty',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(l10n?.amount ?? 'Amount',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 4),
+
+        // Items - table format matching thermal print
+        ...order.items.map((item) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          '${item.quantity} x ${AppCurrency.format(item.price)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+                    flex: 5,
+                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
                   ),
-                  Text(
-                    AppCurrency.format(item.total),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  SizedBox(
+                    width: 40,
+                    child: Text(item.quantity.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 13)),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(AppCurrency.format(item.total),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontSize: 13)),
                   ),
                 ],
               ),
             )),
 
-        const Divider(height: 32),
+        const Divider(height: 24),
 
-        // Subtotal
-        if (widget.order.subTotal > 0)
-          _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', AppCurrency.format(widget.order.subTotal)),
+        // Subtotal (always show)
+        _buildSummaryRow(l10n?.subtotal ?? 'Subtotal', AppCurrency.format(order.subTotal)),
 
-        // Tax
-        if (widget.order.taxAmount > 0)
-          _buildSummaryRow(l10n?.tax ?? 'Tax', AppCurrency.format(widget.order.taxAmount)),
+        // Tax with percentage
+        if (order.taxAmount > 0)
+          _buildSummaryRow(taxLabel, AppCurrency.format(order.taxAmount)),
 
         // Discount
-        if (widget.order.discountAmount > 0)
-          _buildSummaryRow(l10n?.discount ?? 'Discount', '-${AppCurrency.format(widget.order.discountAmount)}'),
+        if (order.discountAmount > 0)
+          _buildSummaryRow(l10n?.discount ?? 'Discount', '-${AppCurrency.format(order.discountAmount)}'),
 
-        const SizedBox(height: 8),
+        const Divider(height: 16),
 
-        // Total
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              l10n?.total ?? 'Total',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              AppCurrency.format(widget.order.amount),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 16),
-
-        // Payment Method
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-          ),
+        // Total - bold, matches thermal print
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                l10n?.paymentMethod ?? 'Payment Method',
-                style: TextStyle(color: AppColors.textSecondary),
+                '${l10n?.total ?? 'TOTAL'}:',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
-                _formatPaymentMethod(widget.order.paymentMethod),
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                AppCurrency.format(order.amount),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
         ),
 
-        if (widget.order.paymentDetails != null) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              widget.order.paymentDetails!,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
+        // Cash/Change details - matches thermal print
+        if (order.cashReceived != null && order.changeGiven != null) ...[
+          const SizedBox(height: 4),
+          _buildSummaryRow(l10n?.cashReceived ?? 'Cash', AppCurrency.format(order.cashReceived!)),
+          _buildSummaryRow(l10n?.change ?? 'Change', AppCurrency.format(order.changeGiven!)),
         ],
+
+        const SizedBox(height: 12),
+        const Divider(),
+        const SizedBox(height: 12),
+
+        // Footer - matches thermal print
+        Text(
+          'Thank you for your purchase!',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+        Text(
+          'Please come again',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
       ],
     );
   }

@@ -209,9 +209,14 @@ class ThermalPrintService {
     commands.addAll(_textToBytes(_formatTotalLine('Subtotal:', AppCurrency.format(order.subTotal))));
     commands.addAll(_escNewLine());
 
-    // Tax
+    // Tax (with percentage if calculable)
     if (order.taxAmount > 0) {
-      commands.addAll(_textToBytes(_formatTotalLine('Tax:', AppCurrency.format(order.taxAmount))));
+      String taxLabel = 'Tax:';
+      if (order.subTotal > 0) {
+        final pct = (order.taxAmount / order.subTotal * 100).round();
+        taxLabel = 'Tax ($pct%):';
+      }
+      commands.addAll(_textToBytes(_formatTotalLine(taxLabel, AppCurrency.format(order.taxAmount))));
       commands.addAll(_escNewLine());
     }
 

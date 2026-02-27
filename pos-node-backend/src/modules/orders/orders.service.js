@@ -297,6 +297,9 @@ class OrdersService {
       await discountsService.incrementUsage(discountId);
     }
 
+    // Link order to active register via pos_session_transactions
+    await this.createSessionTransaction(userId, order, paymentChannel, paymentMetadata);
+
     // Create invoice
     const invoice = await this.createInvoice({
       orderId: order.id,
@@ -449,6 +452,74 @@ class OrdersService {
     }
 
     return invoice;
+  }
+
+  /**
+   * Generate transaction code (TRX-YYYYMMDD-XXXXX)
+   */
+  async generateTransactionCode() {
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const lastTxn = await prisma.posSessionTransaction.findFirst({
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+    const nextId = lastTxn ? Number(lastTxn.id) + 1 : 1;
+    return `TRX-${dateStr}-${String(nextId).padStart(5, '0')}`;
+  }
+
+  /**
+   * Create a pos_session_transaction linking the order to the user's active register
+   * This provides accurate per-register sales tracking without time-window queries
+   */
+  async createSessionTransaction(userId, order, paymentChannel, paymentMetadata) {
+    try {
+      // Find user's active (open) register
+      const activeRegister = await prisma.posRegister.findFirst({
+        where: {
+          user_id: BigInt(userId),
+          status: 'open',
+        },
+      });
+
+      if (!activeRegister) {
+        console.log('No active register found for user', userId, '- skipping session transaction');
+        return null;
+      }
+
+      const transactionCode = await this.generateTransactionCode();
+
+      // Map payment channel to transaction payment_method
+      const paymentMethod = paymentChannel === 'pos_card' ? 'card' : 'cash';
+
+      const transaction = await prisma.posSessionTransaction.create({
+        data: {
+          register_id: activeRegister.id,
+          order_id: order.id,
+          transaction_code: transactionCode,
+          type: 'sale',
+          amount: order.amount,
+          payment_method: paymentMethod,
+          payment_details: paymentMetadata ? paymentMetadata : undefined,
+          cash_received: paymentMetadata?.cash_received
+            ? parseFloat(paymentMetadata.cash_received)
+            : null,
+          change_given: paymentMetadata?.change_given
+            ? parseFloat(paymentMetadata.change_given)
+            : null,
+          user_id: BigInt(userId),
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      console.log(`Session transaction created: ${transactionCode} for register ${Number(activeRegister.id)}`);
+      return transaction;
+    } catch (error) {
+      // Don't fail the checkout if transaction logging fails
+      console.error('Failed to create session transaction:', error.message);
+      return null;
+    }
   }
 
   /**

@@ -61,7 +61,10 @@ class SessionsService {
       },
     });
 
-    return this.formatSession(session, { cash_sales: 0, card_sales: 0, total_sales: 0, total_orders: 0 });
+    return this.formatSession(session, {
+      cash_sales: 0, card_sales: 0, total_sales: 0,
+      total_orders: 0, total_products_sold: 0, total_refunds: 0,
+    });
   }
 
   /**
@@ -111,59 +114,61 @@ class SessionsService {
   }
 
   /**
-   * Get sales summary for a session
-   * Calculates cash sales, card sales, and totals from orders
+   * Get sales summary for a register session
+   * Queries pos_session_transactions by register_id for accurate per-register stats
    */
-  async getSessionSalesSummary(sessionId) {
-    // Get orders created during this session
-    const session = await prisma.posRegister.findUnique({
-      where: { id: BigInt(sessionId) },
-    });
-
-    if (!session) {
-      return { cash_sales: 0, card_sales: 0, total_sales: 0, total_orders: 0 };
-    }
-
-    // Find orders between session open and close (or now if still open)
-    const endTime = session.closed_at || new Date();
-
-    // Get POS orders by payment method (pos_cash or pos_card) within session time
-    const orders = await prisma.order.findMany({
+  async getSessionSalesSummary(registerId) {
+    // Get all transactions linked to this register
+    const transactions = await prisma.posSessionTransaction.findMany({
       where: {
-        created_at: {
-          gte: session.opened_at,
-          lte: endTime,
-        },
-        status: 'completed',
+        register_id: BigInt(registerId),
       },
       include: {
-        payment: true,
+        // Join through order to get product line items for "products sold" count
+        order: {
+          include: {
+            orderProducts: true,
+          },
+        },
       },
     });
 
     let cashSales = 0;
     let cardSales = 0;
-    let posOrders = 0;
+    let totalOrders = 0;
+    let totalProductsSold = 0;
+    let totalRefunds = 0;
 
-    for (const order of orders) {
-      const paymentChannel = order.payment?.payment_channel || '';
+    for (const txn of transactions) {
+      const amount = Number(txn.amount);
 
-      // Only count POS orders (pos_cash or pos_card payment methods)
-      if (paymentChannel === 'pos_cash') {
-        cashSales += Number(order.amount);
-        posOrders++;
-      } else if (paymentChannel === 'pos_card') {
-        cardSales += Number(order.amount);
-        posOrders++;
+      if (txn.type === 'sale') {
+        totalOrders++;
+
+        if (txn.payment_method === 'cash') {
+          cashSales += amount;
+        } else if (txn.payment_method === 'card') {
+          cardSales += amount;
+        }
+
+        // Count products sold from order line items
+        if (txn.order?.orderProducts) {
+          for (const item of txn.order.orderProducts) {
+            totalProductsSold += item.qty;
+          }
+        }
+      } else if (txn.type === 'refund') {
+        totalRefunds += amount;
       }
-      // Skip non-POS orders (e.g., online orders with 'cod', 'stripe', etc.)
     }
 
     return {
       cash_sales: cashSales,
       card_sales: cardSales,
       total_sales: cashSales + cardSales,
-      total_orders: posOrders,
+      total_orders: totalOrders,
+      total_products_sold: totalProductsSold,
+      total_refunds: totalRefunds,
     };
   }
 
@@ -201,7 +206,10 @@ class SessionsService {
       ? `${session.user.first_name || ''} ${session.user.last_name || ''}`.trim() || session.user.username
       : 'User';
 
-    const summary = salesSummary || { cash_sales: 0, card_sales: 0, total_sales: 0, total_orders: 0 };
+    const summary = salesSummary || {
+      cash_sales: 0, card_sales: 0, total_sales: 0,
+      total_orders: 0, total_products_sold: 0, total_refunds: 0,
+    };
 
     return {
       id: Number(session.id),
@@ -221,6 +229,8 @@ class SessionsService {
       card_sales: summary.card_sales,
       total_sales: summary.total_sales,
       total_orders: summary.total_orders,
+      total_products_sold: summary.total_products_sold,
+      total_refunds: summary.total_refunds,
     };
   }
 }

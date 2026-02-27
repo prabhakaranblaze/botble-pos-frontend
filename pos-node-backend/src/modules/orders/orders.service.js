@@ -147,9 +147,17 @@ class OrdersService {
     addressId = null,           // Customer address ID (for shipping)
     customerAddress = null,     // Full formatted address for invoice
   }) {
+    // Fetch cashier's store_id to stamp on the order
+    const cashier = await prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+      select: { store_id: true },
+    });
+    const storeId = cashier?.store_id || null;
+
     console.log('========== CHECKOUT DIRECT ==========');
     console.log('checkoutDirect received params:');
     console.log('  - userId:', userId);
+    console.log('  - storeId:', storeId ? Number(storeId) : null);
     console.log('  - items count:', items?.length);
     console.log('  - paymentMethod:', paymentMethod);
     console.log('  - taxAmount (from client):', taxAmount, '(type:', typeof taxAmount, ')');
@@ -239,6 +247,7 @@ class OrdersService {
         completed_at: new Date(),
         token: this.generateToken(),
         payment_id: payment.id, // Link to payment record
+        store_id: storeId,
         description: `POS Order - ${paymentChannel.toUpperCase()}`,
         created_at: new Date(),
         updated_at: new Date(),

@@ -293,7 +293,7 @@ class ProductsService {
       allow_checkout_when_out_of_stock: product.allow_checkout_when_out_of_stock ? 1 : 0,
       with_storehouse_management: product.with_storehouse_management ? 1 : 0,
       has_variants: hasVariations,
-      variants: hasVariations ? this.formatVariations(product.variations) : null,
+      variants: hasVariations ? this.formatVariations(product.variations, finalPrice) : null,
       tax: taxInfo,
     };
   }
@@ -302,7 +302,7 @@ class ProductsService {
    * Format variations for API response
    * Groups attributes by attribute set (e.g., "Color", "Size")
    */
-  formatVariations(variations) {
+  formatVariations(variations, parentPrice = 0) {
     if (!variations || variations.length === 0) return [];
 
     // Collect all attributes from all variations
@@ -332,12 +332,13 @@ class ProductsService {
         const set = attributeSetMap.get(setId);
         const optionId = Number(attr.id);
         if (!set.options.has(optionId)) {
-          // Get price modifier from variation product if available
+          // Calculate price modifier as delta from parent price
           let priceModifier = 0;
           if (variation.product) {
-            const variantPrice = variation.product.price || 0;
-            // Note: price_modifier could be calculated relative to parent price
-            priceModifier = variantPrice;
+            const variantPrice = variation.product.sale_price && variation.product.sale_price < variation.product.price
+              ? variation.product.sale_price
+              : (variation.product.price || 0);
+            priceModifier = variantPrice - parentPrice;
           }
 
           set.options.set(optionId, {

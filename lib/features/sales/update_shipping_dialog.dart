@@ -93,7 +93,7 @@ class _UpdateShippingDialogState extends State<UpdateShippingDialog> {
                 labelText: l10n?.shippingAmount ?? 'Shipping Amount',
                 hintText: l10n?.enterShippingAmount ?? 'Enter shipping amount',
                 prefixIcon: const Icon(Icons.attach_money),
-                suffixText: 'Rs',
+                suffixText: AppConstants.currencySymbol,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

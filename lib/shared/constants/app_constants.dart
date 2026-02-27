@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/config/env_config.dart';
 import 'device_name_stub.dart'
     if (dart.library.io) 'device_name_io.dart'
@@ -18,10 +17,13 @@ class AppConstants {
   static String get deviceName => device_helper.getDeviceName();
 
   // Currency Configuration (defaults - can be overridden by backend)
-  static String currencyCode = 'SCR'; // Seychelles Rupee
-  static String currencySymbol = 'Rs';
+  static String currencyCode = 'SCR';
+  static String currencySymbol = 'SCR';
   static int currencyDecimalDigits = 2;
-  static bool currencyIsPrefix = false; // false = suffix (100Rs), true = prefix ($100)
+  static bool currencyIsPrefix = false;
+  static bool currencyAddSpace = true;
+  static String currencyThousandsSeparator = ',';
+  static String currencyDecimalSeparator = '.';
 
   // Update currency settings from backend
   static void updateCurrency({
@@ -29,27 +31,53 @@ class AppConstants {
     required String symbol,
     required int decimalDigits,
     required bool isPrefix,
+    bool addSpace = true,
+    String thousandsSeparator = ',',
+    String decimalSeparator = '.',
   }) {
     currencyCode = code;
     currencySymbol = symbol;
     currencyDecimalDigits = decimalDigits;
     currencyIsPrefix = isPrefix;
-    debugPrint('💰 Currency updated: $code ($symbol) prefix=$isPrefix');
+    currencyAddSpace = addSpace;
+    currencyThousandsSeparator = thousandsSeparator;
+    currencyDecimalSeparator = decimalSeparator;
+    debugPrint('💰 Currency updated: $code ($symbol) prefix=$isPrefix space=$addSpace');
   }
 
   // Format amount with currency
   static String formatCurrency(double amount) {
-    final formatter = NumberFormat.currency(
-      symbol: '',
-      decimalDigits: currencyDecimalDigits,
-    );
-    final formattedAmount = formatter.format(amount);
+    final decimals = currencyDecimalDigits;
+    final parts = amount.toStringAsFixed(decimals).split('.');
+    final intPart = _addThousandsSeparator(parts[0], currencyThousandsSeparator);
+    final decPart = parts.length > 1 ? parts[1] : '';
+    final formatted = decPart.isNotEmpty
+        ? '$intPart$currencyDecimalSeparator$decPart'
+        : intPart;
 
+    final space = currencyAddSpace ? ' ' : '';
     if (currencyIsPrefix) {
-      return '$currencySymbol$formattedAmount';
+      return '$currencySymbol$space$formatted';
     } else {
-      return '$formattedAmount$currencySymbol';
+      return '$formatted$space$currencySymbol';
     }
+  }
+
+  static String _addThousandsSeparator(String intPart, String separator) {
+    if (intPart.length <= 3) return intPart;
+
+    final isNegative = intPart.startsWith('-');
+    final digits = isNegative ? intPart.substring(1) : intPart;
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) {
+        buffer.write(separator);
+      }
+      buffer.write(digits[i]);
+    }
+
+    return isNegative ? '-${buffer.toString()}' : buffer.toString();
   }
 
   // Storage Keys
@@ -91,9 +119,10 @@ class AppCurrency {
     return AppConstants.formatCurrency(amount);
   }
 
-  /// Format amount in compact form for buttons (e.g., 1,000 instead of Rs 1,000.00)
+  /// Format amount in compact form for buttons (e.g., 1,000)
   static String formatCompact(double amount) {
-    final formatter = NumberFormat('#,###');
-    return formatter.format(amount.toInt());
+    final intPart = amount.toInt().toString();
+    return AppConstants._addThousandsSeparator(
+      intPart, AppConstants.currencyThousandsSeparator);
   }
 }

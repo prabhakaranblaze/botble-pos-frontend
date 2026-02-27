@@ -1,4 +1,5 @@
 const config = require('../../config');
+const settingsService = require('../settings/settings.service');
 
 /**
  * Printer Service for ESC/POS thermal printers
@@ -46,6 +47,20 @@ class PrinterService {
       return false;
     }
 
+    // Pre-format all prices before entering the callback
+    const fmt = (amount) => settingsService.formatPrice(amount);
+    const formattedItems = await Promise.all(
+      order.items.map(async (item) => ({
+        name: item.name,
+        qty: item.quantity,
+        price: await fmt(item.price),
+        lineTotal: await fmt(item.price * item.quantity),
+      }))
+    );
+    const fmtSubtotal = await fmt(order.sub_total);
+    const fmtTax = await fmt(order.tax_amount);
+    const fmtTotal = await fmt(order.amount);
+
     return new Promise((resolve, reject) => {
       this.device.open((err) => {
         if (err) {
@@ -74,21 +89,20 @@ class PrinterService {
             .text('--------------------------------');
 
           // Items
-          order.items.forEach((item) => {
-            const lineTotal = (item.price * item.quantity).toFixed(2);
+          formattedItems.forEach((item) => {
             this.printer
               .text(`${item.name}`)
-              .text(`  ${item.quantity} x $${item.price.toFixed(2)}  = $${lineTotal}`);
+              .text(`  ${item.qty} x ${item.price}  = ${item.lineTotal}`);
           });
 
           // Totals
           this.printer
             .text('--------------------------------')
             .align('rt')
-            .text(`Subtotal: $${order.sub_total.toFixed(2)}`)
-            .text(`Tax: $${order.tax_amount.toFixed(2)}`)
+            .text(`Subtotal: ${fmtSubtotal}`)
+            .text(`Tax: ${fmtTax}`)
             .style('b')
-            .text(`TOTAL: $${order.amount.toFixed(2)}`)
+            .text(`TOTAL: ${fmtTotal}`)
             .style('normal')
             .text('--------------------------------')
             .align('ct')

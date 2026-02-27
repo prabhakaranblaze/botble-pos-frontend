@@ -1,6 +1,7 @@
 const { prisma } = require('../../config/database');
 const cartService = require('../cart/cart.service');
 const discountsService = require('../discounts/discounts.service');
+const settingsService = require('../settings/settings.service');
 const crypto = require('crypto');
 
 class OrdersService {
@@ -588,7 +589,7 @@ class OrdersService {
       throw new Error('Order not found');
     }
 
-    const receiptHtml = this.generateReceiptHtml(order);
+    const receiptHtml = await this.generateReceiptHtml(order);
     return receiptHtml;
   }
 
@@ -655,19 +656,19 @@ class OrdersService {
   /**
    * Generate receipt HTML
    */
-  generateReceiptHtml(order) {
-    const itemsHtml = order.items
-      .map(
-        (item) => `
+  async generateReceiptHtml(order) {
+    const fmt = (amount) => settingsService.formatPrice(amount);
+
+    const itemsHtml = (await Promise.all(
+      order.items.map(async (item) => `
         <tr>
           <td>${item.name}</td>
           <td style="text-align:center">${item.quantity}</td>
-          <td style="text-align:right">SCR ${item.price.toFixed(2)}</td>
-          <td style="text-align:right">SCR ${(item.price * item.quantity).toFixed(2)}</td>
+          <td style="text-align:right">${await fmt(item.price)}</td>
+          <td style="text-align:right">${await fmt(item.price * item.quantity)}</td>
         </tr>
-      `
-      )
-      .join('');
+      `)
+    )).join('');
 
     return `
       <!DOCTYPE html>
@@ -721,27 +722,27 @@ class OrdersService {
         <table class="totals">
           <tr>
             <td>Subtotal:</td>
-            <td style="text-align:right">SCR ${order.sub_total.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.sub_total)}</td>
           </tr>
           <tr>
             <td>Tax:</td>
-            <td style="text-align:right">SCR ${order.tax_amount.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.tax_amount)}</td>
           </tr>
           ${order.discount_amount > 0 ? `
           <tr>
             <td>Discount:</td>
-            <td style="text-align:right">-SCR ${order.discount_amount.toFixed(2)}</td>
+            <td style="text-align:right">-${await fmt(order.discount_amount)}</td>
           </tr>
           ` : ''}
           ${order.shipping_amount > 0 ? `
           <tr>
             <td>Shipping:</td>
-            <td style="text-align:right">SCR ${order.shipping_amount.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.shipping_amount)}</td>
           </tr>
           ` : ''}
           <tr class="total-row">
             <td>TOTAL:</td>
-            <td style="text-align:right">SCR ${order.amount.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.amount)}</td>
           </tr>
         </table>
 

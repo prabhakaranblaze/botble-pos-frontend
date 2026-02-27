@@ -518,6 +518,7 @@ class OrdersService {
     } catch (error) {
       // Don't fail the checkout if transaction logging fails
       console.error('Failed to create session transaction:', error.message);
+      console.error('Full error:', error);
       return null;
     }
   }

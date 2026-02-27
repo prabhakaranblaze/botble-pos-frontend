@@ -349,6 +349,19 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
     final l10n = AppLocalizations.of(context);
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
+    // Payment info string (matches thermal print)
+    String paymentDisplay = _formatPaymentMethod(order.paymentMethod);
+    if (order.cardLastFour != null) {
+      paymentDisplay += ' (*${order.cardLastFour})';
+    }
+
+    // Tax label with percentage
+    String taxLabel = l10n?.tax ?? 'Tax';
+    if (order.taxAmount > 0 && order.subTotal > 0) {
+      final pct = (order.taxAmount / order.subTotal * 100).round();
+      taxLabel = '${l10n?.tax ?? 'Tax'} ($pct%)';
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -367,25 +380,56 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
             children: [
               // Order Info
               _buildDetailRow(l10n?.orderDate ?? 'Date', dateFormat.format(order.createdAt)),
-              _buildDetailRow(l10n?.paymentMethod ?? 'Payment', _formatPaymentMethod(order.paymentMethod)),
+              if (order.customer != null)
+                _buildDetailRow(l10n?.customer ?? 'Customer', order.customer!.name),
+              _buildDetailRow(l10n?.paymentMethod ?? 'Payment', paymentDisplay),
               const Divider(height: 24),
 
-              // Items
-              Text(
-                '${l10n?.items ?? 'Items'} (${order.items.length})',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              // Items header
+              Row(
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Text(l10n?.item ?? 'Item',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                  SizedBox(
+                    width: 40,
+                    child: Text(l10n?.qty ?? 'Qty',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(l10n?.amount ?? 'Amount',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const Divider(height: 8),
+
+              // Items
               ...order.items.map((item) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(item.name),
+                      flex: 5,
+                      child: Text(item.name, style: const TextStyle(fontSize: 13)),
                     ),
-                    Text('x${item.quantity}'),
-                    const SizedBox(width: 16),
-                    Text(AppCurrency.format(item.total)),
+                    SizedBox(
+                      width: 40,
+                      child: Text(item.quantity.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13)),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Text(AppCurrency.format(item.total),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(fontSize: 13)),
+                    ),
                   ],
                 ),
               )),
@@ -395,17 +439,24 @@ class _RecentBillsDialogState extends State<RecentBillsDialog> {
               // Totals
               _buildDetailRow(l10n?.subtotal ?? 'Subtotal', AppCurrency.format(order.subTotal)),
               if (order.taxAmount > 0)
-                _buildDetailRow(l10n?.tax ?? 'Tax', AppCurrency.format(order.taxAmount)),
+                _buildDetailRow(taxLabel, AppCurrency.format(order.taxAmount)),
               if (order.discountAmount > 0)
                 _buildDetailRow(l10n?.discount ?? 'Discount', '-${AppCurrency.format(order.discountAmount)}'),
               if (order.shippingAmount > 0)
                 _buildDetailRow(l10n?.shipping ?? 'Shipping', AppCurrency.format(order.shippingAmount)),
               const Divider(height: 16),
               _buildDetailRow(
-                l10n?.total ?? 'Total',
+                '${l10n?.total ?? 'TOTAL'}:',
                 AppCurrency.format(order.amount),
                 isBold: true,
               ),
+
+              // Cash/Change details
+              if (order.cashReceived != null && order.changeGiven != null) ...[
+                const SizedBox(height: 4),
+                _buildDetailRow(l10n?.cashReceived ?? 'Cash', AppCurrency.format(order.cashReceived!)),
+                _buildDetailRow(l10n?.change ?? 'Change', AppCurrency.format(order.changeGiven!)),
+              ],
             ],
           ),
         ),

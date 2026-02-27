@@ -487,6 +487,7 @@ class OrdersService {
       include: {
         orderProducts: true,
         customer: true,
+        payment: true,
       },
     });
 
@@ -540,6 +541,16 @@ class OrdersService {
     // Get payment method from payment relation if available
     const paymentMethod = order.payment?.payment_channel || 'pos_cash';
 
+    // Parse payment metadata from payment.metadata (stored as JSON string)
+    let paymentMetadata = null;
+    if (order.payment?.metadata) {
+      try {
+        paymentMetadata = typeof order.payment.metadata === 'string'
+          ? JSON.parse(order.payment.metadata)
+          : order.payment.metadata;
+      } catch (_) {}
+    }
+
     return {
       id: Number(order.id),
       code: order.code,
@@ -551,6 +562,8 @@ class OrdersService {
       discount_description: order.discount_description,
       sub_total: Number(order.sub_total),
       payment_method: paymentMethod,
+      payment_details: order.description || null,
+      payment_metadata: paymentMetadata,
       status: order.status,
       created_at: order.created_at?.toISOString(),
       customer: order.customer

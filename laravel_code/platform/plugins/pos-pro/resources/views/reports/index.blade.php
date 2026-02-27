@@ -23,7 +23,70 @@
 @endpush
 
 @section('content')
-    <div id="report-stats-content">
+    <div id="report-stats-content"
+         data-filters-url="{{ $filtersUrl }}"
+         data-start-date="{{ $startDate->format('Y-m-d') }}"
+         data-end-date="{{ $endDate->format('Y-m-d') }}"
+         data-store-ids="{{ json_encode($storeIds) }}"
+         data-user-ids="{{ json_encode($userIds) }}"
+         data-session-ids="{{ json_encode($sessionIds) }}"
+    >
+
+        {{-- Filter Bar --}}
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <x-core::card>
+                    <x-core::card.body class="p-3">
+                        <form id="pos-report-filters" method="GET" action="{{ route('pos-pro.reports.index') }}">
+                            {{-- Preserve date range --}}
+                            <input type="hidden" name="start_date" value="{{ request('start_date', $startDate->format('Y-m-d')) }}">
+                            <input type="hidden" name="end_date" value="{{ request('end_date', $endDate->format('Y-m-d')) }}">
+
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ti ti-building-store me-1"></i>
+                                        {{ trans('plugins/pos-pro::pos.reports.store') }}
+                                    </label>
+                                    <select name="store_ids[]" id="filter-store" class="form-select" multiple>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ti ti-user me-1"></i>
+                                        {{ trans('plugins/pos-pro::pos.reports.cashier') }}
+                                    </label>
+                                    <select name="user_ids[]" id="filter-user" class="form-select" multiple>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ti ti-cash-register me-1"></i>
+                                        {{ trans('plugins/pos-pro::pos.reports.session') }}
+                                    </label>
+                                    <select name="session_ids[]" id="filter-session" class="form-select" multiple>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary flex-fill">
+                                        <i class="ti ti-filter me-1"></i>
+                                        {{ trans('plugins/pos-pro::pos.reports.apply_filters') }}
+                                    </button>
+                                    <a href="{{ route('pos-pro.reports.index') }}" class="btn btn-outline-secondary" title="{{ trans('plugins/pos-pro::pos.reports.clear_filters') }}">
+                                        <i class="ti ti-x"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </x-core::card.body>
+                </x-core::card>
+            </div>
+        </div>
+
+        {{-- KPI Cards --}}
         <div class="row">
             <div class="col-md-3">
                 <x-core::card class="analytic-card">
@@ -185,8 +248,6 @@
 @stop
 
 @push('footer')
-
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Sales Chart
@@ -357,8 +418,6 @@
                 noDataMessage.innerHTML = '<p>{{ trans('plugins/pos-pro::pos.reports.no_data') }}</p>';
                 document.getElementById('payment-methods-chart').parentNode.appendChild(noDataMessage);
             }
-
-            // Date Range Picker is initialized in report.js
-        }); 
+        });
     </script>
 @endpush

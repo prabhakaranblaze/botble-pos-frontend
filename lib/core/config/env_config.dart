@@ -10,11 +10,17 @@
 /// Production (Laravel backend):
 ///   flutter run --dart-define=ENV=prod
 ///
-/// Build for UAT:
-///   flutter build windows --dart-define=ENV=uat
+/// Build Windows for UAT:
+///   flutter build windows --release --dart-define=ENV=uat
 ///
-/// Build for production:
-///   flutter build windows --dart-define=ENV=prod
+/// Build Windows for production:
+///   flutter build windows --release --dart-define=ENV=prod
+///
+/// Build Web for UAT:
+///   flutter build web --release --dart-define=ENV=uat
+///
+/// Build Web for production:
+///   flutter build web --release --dart-define=ENV=prod
 
 class EnvConfig {
   // Get environment from compile-time constant

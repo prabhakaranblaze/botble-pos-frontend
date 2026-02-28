@@ -49,6 +49,11 @@ class AuthService {
       throw new Error('You do not have permission to access POS');
     }
 
+    // Require store_id for ALL users (including super-admin)
+    if (!user.store_id) {
+      throw new Error('No store assigned to your account. Please contact your administrator to assign a store before using POS.');
+    }
+
     // Generate JWT token
     const jwtToken = jwt.sign(
       {

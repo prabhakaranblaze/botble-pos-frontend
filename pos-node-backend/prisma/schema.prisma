@@ -341,6 +341,7 @@ model Order {
   customer        Customer?      @relation(fields: [user_id], references: [id])
   payment         Payment?       @relation(fields: [payment_id], references: [id])
   orderProducts   OrderProduct[]
+  posTransactions PosSessionTransaction[]
 
   @@index([code])
   @@index([status])
@@ -499,7 +500,8 @@ model PosRegister {
   created_at  DateTime?
   updated_at  DateTime?
 
-  user        User      @relation(fields: [user_id], references: [id])
+  user         User      @relation(fields: [user_id], references: [id])
+  transactions PosSessionTransaction[] @relation("RegisterTransactions")
 
   @@index([user_id])
   @@index([status])
@@ -540,7 +542,8 @@ model PosSession {
 
 model PosSessionTransaction {
   id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
-  session_id      BigInt    @db.UnsignedBigInt
+  session_id      BigInt?   @db.UnsignedBigInt
+  register_id     BigInt?   @db.UnsignedBigInt
   order_id        BigInt?   @db.UnsignedBigInt
   transaction_code String   @db.VarChar(191)
   type            String    @default("sale") @db.VarChar(20)
@@ -554,8 +557,14 @@ model PosSessionTransaction {
   created_at      DateTime?
   updated_at      DateTime?
 
-  session         PosSession @relation(fields: [session_id], references: [id])
+  session         PosSession?  @relation(fields: [session_id], references: [id])
+  register        PosRegister? @relation("RegisterTransactions", fields: [register_id], references: [id])
+  order           Order?       @relation(fields: [order_id], references: [id])
 
+  @@index([register_id])
+  @@index([session_id])
+  @@index([order_id])
+  @@index([type, payment_method])
   @@map("pos_session_transactions")
 }
 

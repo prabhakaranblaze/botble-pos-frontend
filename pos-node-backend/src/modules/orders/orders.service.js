@@ -1,6 +1,7 @@
 const { prisma } = require('../../config/database');
 const cartService = require('../cart/cart.service');
 const discountsService = require('../discounts/discounts.service');
+const settingsService = require('../settings/settings.service');
 const crypto = require('crypto');
 
 class OrdersService {
@@ -147,9 +148,17 @@ class OrdersService {
     addressId = null,           // Customer address ID (for shipping)
     customerAddress = null,     // Full formatted address for invoice
   }) {
+    // Fetch cashier's store_id to stamp on the order
+    const cashier = await prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+      select: { store_id: true },
+    });
+    const storeId = cashier?.store_id || null;
+
     console.log('========== CHECKOUT DIRECT ==========');
     console.log('checkoutDirect received params:');
     console.log('  - userId:', userId);
+    console.log('  - storeId:', storeId ? Number(storeId) : null);
     console.log('  - items count:', items?.length);
     console.log('  - paymentMethod:', paymentMethod);
     console.log('  - taxAmount (from client):', taxAmount, '(type:', typeof taxAmount, ')');
@@ -239,6 +248,7 @@ class OrdersService {
         completed_at: new Date(),
         token: this.generateToken(),
         payment_id: payment.id, // Link to payment record
+        store_id: storeId,
         description: `POS Order - ${paymentChannel.toUpperCase()}`,
         created_at: new Date(),
         updated_at: new Date(),
@@ -296,6 +306,9 @@ class OrdersService {
     if (discountId) {
       await discountsService.incrementUsage(discountId);
     }
+
+    // Link order to active register via pos_session_transactions
+    await this.createSessionTransaction(userId, order, paymentChannel, paymentMetadata);
 
     // Create invoice
     const invoice = await this.createInvoice({
@@ -452,6 +465,75 @@ class OrdersService {
   }
 
   /**
+   * Generate transaction code (TRX-YYYYMMDD-XXXXX)
+   */
+  async generateTransactionCode() {
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const lastTxn = await prisma.posSessionTransaction.findFirst({
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+    const nextId = lastTxn ? Number(lastTxn.id) + 1 : 1;
+    return `TRX-${dateStr}-${String(nextId).padStart(5, '0')}`;
+  }
+
+  /**
+   * Create a pos_session_transaction linking the order to the user's active register
+   * This provides accurate per-register sales tracking without time-window queries
+   */
+  async createSessionTransaction(userId, order, paymentChannel, paymentMetadata) {
+    try {
+      // Find user's active (open) register
+      const activeRegister = await prisma.posRegister.findFirst({
+        where: {
+          user_id: BigInt(userId),
+          status: 'open',
+        },
+      });
+
+      if (!activeRegister) {
+        console.log('No active register found for user', userId, '- skipping session transaction');
+        return null;
+      }
+
+      const transactionCode = await this.generateTransactionCode();
+
+      // Map payment channel to transaction payment_method
+      const paymentMethod = paymentChannel === 'pos_card' ? 'card' : 'cash';
+
+      const transaction = await prisma.posSessionTransaction.create({
+        data: {
+          register_id: activeRegister.id,
+          order_id: order.id,
+          transaction_code: transactionCode,
+          type: 'sale',
+          amount: order.amount,
+          payment_method: paymentMethod,
+          payment_details: paymentMetadata ? paymentMetadata : undefined,
+          cash_received: paymentMetadata?.cash_received
+            ? parseFloat(paymentMetadata.cash_received)
+            : null,
+          change_given: paymentMetadata?.change_given
+            ? parseFloat(paymentMetadata.change_given)
+            : null,
+          user_id: BigInt(userId),
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      console.log(`Session transaction created: ${transactionCode} for register ${Number(activeRegister.id)}`);
+      return transaction;
+    } catch (error) {
+      // Don't fail the checkout if transaction logging fails
+      console.error('Failed to create session transaction:', error.message);
+      console.error('Full error:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get recent orders for reprinting
    * Returns last N orders from today's session
    */
@@ -508,7 +590,7 @@ class OrdersService {
       throw new Error('Order not found');
     }
 
-    const receiptHtml = this.generateReceiptHtml(order);
+    const receiptHtml = await this.generateReceiptHtml(order);
     return receiptHtml;
   }
 
@@ -587,19 +669,19 @@ class OrdersService {
   /**
    * Generate receipt HTML
    */
-  generateReceiptHtml(order) {
-    const itemsHtml = order.items
-      .map(
-        (item) => `
+  async generateReceiptHtml(order) {
+    const fmt = (amount) => settingsService.formatPrice(amount);
+
+    const itemsHtml = (await Promise.all(
+      order.items.map(async (item) => `
         <tr>
           <td>${item.name}</td>
           <td style="text-align:center">${item.quantity}</td>
-          <td style="text-align:right">SCR ${item.price.toFixed(2)}</td>
-          <td style="text-align:right">SCR ${(item.price * item.quantity).toFixed(2)}</td>
+          <td style="text-align:right">${await fmt(item.price)}</td>
+          <td style="text-align:right">${await fmt(item.price * item.quantity)}</td>
         </tr>
-      `
-      )
-      .join('');
+      `)
+    )).join('');
 
     return `
       <!DOCTYPE html>
@@ -653,27 +735,27 @@ class OrdersService {
         <table class="totals">
           <tr>
             <td>Subtotal:</td>
-            <td style="text-align:right">SCR ${order.sub_total.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.sub_total)}</td>
           </tr>
           <tr>
             <td>Tax:</td>
-            <td style="text-align:right">SCR ${order.tax_amount.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.tax_amount)}</td>
           </tr>
           ${order.discount_amount > 0 ? `
           <tr>
             <td>Discount:</td>
-            <td style="text-align:right">-SCR ${order.discount_amount.toFixed(2)}</td>
+            <td style="text-align:right">-${await fmt(order.discount_amount)}</td>
           </tr>
           ` : ''}
           ${order.shipping_amount > 0 ? `
           <tr>
             <td>Shipping:</td>
-            <td style="text-align:right">SCR ${order.shipping_amount.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.shipping_amount)}</td>
           </tr>
           ` : ''}
           <tr class="total-row">
             <td>TOTAL:</td>
-            <td style="text-align:right">SCR ${order.amount.toFixed(2)}</td>
+            <td style="text-align:right">${await fmt(order.amount)}</td>
           </tr>
         </table>
 

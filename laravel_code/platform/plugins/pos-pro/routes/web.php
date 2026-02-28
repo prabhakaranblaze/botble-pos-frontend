@@ -63,6 +63,7 @@ AdminHelper::registerRoutes(function (): void {
 
         Route::group(['prefix' => 'pos/reports', 'as' => 'pos-pro.reports.', 'permission' => 'pos.reports'], function (): void {
             Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('/filters', [ReportController::class, 'getFilters'])->name('filters');
         });
 
         Route::group(['prefix' => 'pos/registers', 'as' => 'pos-pro.registers.', 'permission' => 'pos.registers'], function (): void {

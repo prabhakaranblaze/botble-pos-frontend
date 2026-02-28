@@ -618,18 +618,18 @@ class _ReceiptPreviewCardState extends State<ReceiptPreviewCard> {
             const SizedBox(height: 2),
 
             // Demo items
-            _itemRow('Organic Coffee Beans', '2', '${AppConstants.currencyCode} 45.00'),
-            _itemRow('Fresh Milk 1L', '1', '${AppConstants.currencyCode} 12.50'),
-            _itemRow('Whole Wheat Bread', '1', '${AppConstants.currencyCode} 8.00'),
+            _itemRow('Organic Coffee Beans', '2', AppCurrency.format(45.00)),
+            _itemRow('Fresh Milk 1L', '1', AppCurrency.format(12.50)),
+            _itemRow('Whole Wheat Bread', '1', AppCurrency.format(8.00)),
 
             const SizedBox(height: 4),
             _divider(),
             const SizedBox(height: 4),
 
             // Totals
-            _totalRow('Subtotal:', '${AppConstants.currencyCode} 65.50'),
-            _totalRow('Tax (15%):', '${AppConstants.currencyCode} 9.83'),
-            _totalRow('Discount:', '-${AppConstants.currencyCode} 5.00'),
+            _totalRow('Subtotal:', AppCurrency.format(65.50)),
+            _totalRow('Tax (15%):', AppCurrency.format(9.83)),
+            _totalRow('Discount:', '-${AppCurrency.format(5.00)}'),
 
             _divider(),
 
@@ -644,7 +644,7 @@ class _ReceiptPreviewCardState extends State<ReceiptPreviewCard> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   Text(
-                    '${AppConstants.currencyCode} 70.33',
+                    AppCurrency.format(70.33),
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ],
@@ -654,8 +654,8 @@ class _ReceiptPreviewCardState extends State<ReceiptPreviewCard> {
             // Cash payment details
             if (isCash) ...[
               const SizedBox(height: 2),
-              _totalRow('Cash:', '${AppConstants.currencyCode} 100.00'),
-              _totalRow('Change:', '${AppConstants.currencyCode} 29.67'),
+              _totalRow('Cash:', AppCurrency.format(100.00)),
+              _totalRow('Change:', AppCurrency.format(29.67)),
             ],
 
             const SizedBox(height: 8),

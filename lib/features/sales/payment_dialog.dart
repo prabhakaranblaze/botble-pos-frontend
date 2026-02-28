@@ -73,7 +73,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
       Navigator.pop(context, {
         'payment_method': 'pos_cash',
-        'payment_details': 'Cash: \$${_cashReceived.toStringAsFixed(2)}, Change: \$${_change.toStringAsFixed(2)}',
+        'payment_details': 'Cash: ${AppCurrency.format(_cashReceived)}, Change: ${AppCurrency.format(_change)}',
         'payment_metadata': {
           'cash_received': _cashReceived,
           'change_given': _change,

@@ -246,6 +246,14 @@ return [
         'sales' => 'Sales',
         'date_range_format_value' => 'From :from to :to',
         'total' => 'Total',
+        'store' => 'Store',
+        'all_stores' => 'All Stores',
+        'cashier' => 'Cashier',
+        'all_cashiers' => 'All Cashiers',
+        'session' => 'Session',
+        'all_sessions' => 'All Sessions',
+        'apply_filters' => 'Apply Filters',
+        'clear_filters' => 'Clear Filters',
     ],
 
     'settings' => [

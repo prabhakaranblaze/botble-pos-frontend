@@ -414,8 +414,8 @@ class _VariantSelectionDialogState extends State<VariantSelectionDialog> {
                         padding: const EdgeInsets.only(left: 8),
                         child: Text(
                           option.priceModifier! > 0
-                              ? '+\$${option.priceModifier!.toStringAsFixed(2)}'
-                              : '-\$${option.priceModifier!.abs().toStringAsFixed(2)}',
+                              ? '+${AppCurrency.format(option.priceModifier!)}'
+                              : '-${AppCurrency.format(option.priceModifier!.abs())}',
                           style: TextStyle(
                             fontSize: 12,
                             color: isSelected

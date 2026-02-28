@@ -89,45 +89,54 @@ class SettingsService {
 
       let currency = {
         code: 'SCR',
-        symbol: 'Rs',
+        symbol: 'SCR',
         name: 'Seychelles Rupee',
         decimal_digits: 2,
-        is_prefix: false, // Symbol after amount (e.g., 100Rs)
+        is_prefix: false,
       };
 
       if (defaultCurrency && defaultCurrency.length > 0) {
         const curr = defaultCurrency[0];
         currency = {
           code: curr.title || 'SCR',
-          symbol: curr.symbol || 'Rs',
+          symbol: curr.symbol || 'SCR',
           name: curr.title || 'Seychelles Rupee',
           decimal_digits: curr.decimals || 2,
           is_prefix: curr.is_prefix_symbol === 1,
         };
       }
 
-      // Get default tax from settings (stores tax_id, not percentage)
-      let defaultTax = null;
-      let taxIsInclusive = false;
-      try {
-        const taxSettings = await prisma.setting.findMany({
-          where: {
-            key: {
-              in: ['ecommerce_default_tax_rate', 'ecommerce_tax_is_inclusive'],
-            },
+      // Fetch formatting settings from settings table
+      const formattingSettings = await prisma.setting.findMany({
+        where: {
+          key: {
+            in: [
+              'ecommerce_default_tax_rate',
+              'ecommerce_tax_is_inclusive',
+              'ecommerce_add_space_between_price_and_currency',
+              'ecommerce_thousands_separator',
+              'ecommerce_decimal_separator',
+            ],
           },
-        });
+        },
+      });
 
-        const taxSettingsMap = {};
-        for (const s of taxSettings) {
-          taxSettingsMap[s.key] = s.value;
-        }
+      const settingsMap = {};
+      for (const s of formattingSettings) {
+        settingsMap[s.key] = s.value;
+      }
 
-        // Tax inclusive flag
-        taxIsInclusive = taxSettingsMap['ecommerce_tax_is_inclusive'] === '1';
+      // Currency formatting options
+      currency.add_space = settingsMap['ecommerce_add_space_between_price_and_currency'] === '1';
+      currency.thousands_separator = settingsMap['ecommerce_thousands_separator'] || ',';
+      currency.decimal_separator = settingsMap['ecommerce_decimal_separator'] || '.';
 
-        // Default tax record
-        const defaultTaxId = parseInt(taxSettingsMap['ecommerce_default_tax_rate'] || '0');
+      // Tax settings
+      let defaultTax = null;
+      const taxIsInclusive = settingsMap['ecommerce_tax_is_inclusive'] === '1';
+
+      try {
+        const defaultTaxId = parseInt(settingsMap['ecommerce_default_tax_rate'] || '0');
         if (defaultTaxId > 0) {
           const taxRecord = await prisma.tax.findFirst({
             where: {
@@ -160,15 +169,56 @@ class SettingsService {
       return {
         currency: {
           code: 'SCR',
-          symbol: 'Rs',
+          symbol: 'SCR',
           name: 'Seychelles Rupee',
           decimal_digits: 2,
           is_prefix: false,
+          add_space: true,
+          thousands_separator: ',',
+          decimal_separator: '.',
         },
         default_tax: null,
         store_name: 'Seychelles Post POS',
       };
     }
+  }
+  // Cache for currency formatting settings
+  _currencySettings = null;
+
+  /**
+   * Get cached currency settings (loads once from DB)
+   */
+  async getCurrencySettings() {
+    if (this._currencySettings) {
+      return this._currencySettings;
+    }
+
+    const settings = await this.getSettings();
+    this._currencySettings = settings.currency;
+    return this._currencySettings;
+  }
+
+  /**
+   * Format a price amount using the configured currency settings
+   * @param {number} amount
+   * @returns {Promise<string>} Formatted price, e.g. "100.00 SCR"
+   */
+  async formatPrice(amount) {
+    const curr = await this.getCurrencySettings();
+    const space = curr.add_space ? ' ' : '';
+    const decimals = curr.decimal_digits ?? 2;
+
+    // Format number with separators
+    const parts = amount.toFixed(decimals).split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, curr.thousands_separator || ',');
+    const decPart = parts[1];
+    const sep = curr.decimal_separator || '.';
+    const formatted = decPart ? `${intPart}${sep}${decPart}` : intPart;
+
+    if (curr.is_prefix) {
+      return `${curr.symbol}${space}${formatted}`;
+    }
+    return `${formatted}${space}${curr.symbol}`;
   }
 }
 

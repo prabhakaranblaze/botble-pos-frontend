@@ -57,7 +57,7 @@ The app supports multiple environments via compile-time configuration:
 |-------------|---------|----------|
 | `dev` | Local Node.js | `http://localhost:3001/api/v1/pos` |
 | `uat` | UAT Server | `https://seypost-posapi-uat.stampsm.art/api/v1/pos` |
-| `prod` | Production | `https://stampsmart.test/api/v1/pos` |
+| `prod` | Production | `https://posapi.seychelles.post/api/v1/pos` |
 
 Configuration is in `lib/core/config/env_config.dart`. The API key can also be overridden at build time.
 
@@ -92,7 +92,7 @@ flutter run -d windows --dart-define=ENV=dev --dart-define=API_KEY=your-key
 flutter run -d windows --release --dart-define=ENV=uat
 ```
 
-### 6. Build Executable
+### 6. Build for Windows
 
 ```bash
 # Build for Development (Node.js backend)
@@ -105,6 +105,25 @@ flutter build windows --release --dart-define=ENV=uat
 flutter build windows --release --dart-define=ENV=prod
 
 # The executable will be in: build/windows/x64/runner/Release/
+```
+
+### 7. Build for Web
+
+```bash
+# Enable web support (one-time)
+flutter config --enable-web
+
+# Build for Development
+flutter build web --release --dart-define=ENV=dev
+
+# Build for UAT
+flutter build web --release --dart-define=ENV=uat
+
+# Build for Production
+flutter build web --release --dart-define=ENV=prod
+
+# The output will be in: build/web/
+# Deploy the build/web/ folder to your web server
 ```
 
 ## Building Windows Installer

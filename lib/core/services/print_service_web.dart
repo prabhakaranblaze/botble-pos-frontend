@@ -294,12 +294,19 @@ class WebPrintService implements PrintServiceInterface {
 
     // Items
     for (final item in order.items) {
-      final itemName = _truncateText(item.name, 20);
       final qty = item.quantity.toString();
       final amount = AppCurrency.format(item.total);
+      final wrappedNameLines = _wrapItemName(item.name);
 
-      commands.addAll(_textToBytes(_formatLine(itemName, qty, amount)));
+      // First line: item name (15 chars) + qty + amount
+      commands.addAll(_textToBytes(_formatLine(wrappedNameLines[0], qty, amount)));
       commands.add(0x0A);
+
+      // Second line: continuation (if any), no qty/amount
+      if (wrappedNameLines.length > 1) {
+        commands.addAll(_textToBytes('  ${wrappedNameLines[1]}'));
+        commands.add(0x0A);
+      }
     }
 
     // Divider
@@ -327,14 +334,12 @@ class WebPrintService implements PrintServiceInterface {
       commands.add(0x0A);
     }
 
-    // Total - bold and larger
+    // Total - bold, same size as subtotal
     commands.addAll(_textToBytes('--------------------------------'));
     commands.add(0x0A);
     commands.addAll([0x1B, 0x45, 0x01]); // Bold on
-    commands.addAll([0x1D, 0x21, 0x10]); // Double height
     commands.addAll(_textToBytes(_formatTotalLine('TOTAL:', AppCurrency.format(order.amount))));
     commands.add(0x0A);
-    commands.addAll([0x1D, 0x21, 0x00]); // Normal size
     commands.addAll([0x1B, 0x45, 0x00]); // Bold off
 
     // Cash payment details
@@ -368,11 +373,12 @@ class WebPrintService implements PrintServiceInterface {
 
   List<int> _textToBytes(String text) => text.codeUnits;
 
+  /// Format a 3-column line for items: [item 15][qty 4][amount 13]
   String _formatLine(String col1, String col2, String col3) {
     const totalWidth = 32;
     const col2Width = 4;
-    const col3Width = 10;
-    const col1Width = totalWidth - col2Width - col3Width;
+    const col3Width = 13;
+    const col1Width = totalWidth - col2Width - col3Width; // 15
 
     final c1 = col1.padRight(col1Width).substring(0, col1Width);
     final c2 = col2.padLeft(col2Width);
@@ -381,15 +387,46 @@ class WebPrintService implements PrintServiceInterface {
     return '$c1$c2$c3';
   }
 
+  /// Format a 2-column total line: [label 18][value 14]
+  /// Fits amounts up to 999,999.99 SCR
   String _formatTotalLine(String label, String value) {
     const totalWidth = 32;
-    const valueWidth = 12;
-    const labelWidth = totalWidth - valueWidth;
+    const valueWidth = 14;
+    const labelWidth = totalWidth - valueWidth; // 18
 
     final l = label.padRight(labelWidth);
     final v = value.padLeft(valueWidth);
 
     return '$l$v';
+  }
+
+  /// Wrap an item name across at most 2 lines.
+  /// Line 1 fits 15 chars (item column width).
+  /// Line 2 fits 30 chars (32 paper width minus 2-space indent).
+  /// Overflow on line 2 is truncated with "..".
+  List<String> _wrapItemName(String name) {
+    const line1Width = 15;
+    const line2Width = 30;
+
+    if (name.length <= line1Width) {
+      return [name];
+    }
+
+    // Try to break at a space within line 1
+    int breakIdx = line1Width;
+    final spaceIdx = name.lastIndexOf(' ', line1Width);
+    if (spaceIdx > 0 && spaceIdx >= line1Width ~/ 2) {
+      breakIdx = spaceIdx;
+    }
+
+    final line1 = name.substring(0, breakIdx).trimRight();
+    String line2 = name.substring(breakIdx).trimLeft();
+
+    if (line2.length > line2Width) {
+      line2 = '${line2.substring(0, line2Width - 2)}..';
+    }
+
+    return [line1, line2];
   }
 
   String _truncateText(String text, int maxLength) {
